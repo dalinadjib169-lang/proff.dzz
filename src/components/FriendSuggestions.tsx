@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { db } from '../firebase';
-import { collection, query, where, onSnapshot, addDoc, serverTimestamp, limit, doc, deleteDoc } from 'firebase/firestore';
+import { collection, query, where, onSnapshot, addDoc, serverTimestamp, limit, doc, deleteDoc, orderBy } from 'firebase/firestore';
 import { useAuth } from '../hooks/useAuth';
 import { UserProfile } from '../types';
 import { UserPlus, UserCheck, MapPin, Book, GraduationCap, Clock, Sparkles, ChevronRight, Info, MessageSquare, Phone } from 'lucide-react';

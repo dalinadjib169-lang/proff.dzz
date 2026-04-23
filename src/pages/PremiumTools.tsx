@@ -3,7 +3,7 @@ import { useAuth } from '../hooks/useAuth';
 import { Wand2, CheckSquare, Lock, Key, Mail, Phone, Sparkles, Send, Loader2, FileText, ClipboardCheck, AlertCircle, CheckCircle2, Zap, ExternalLink, BookOpen, Plus, Save, Download, Printer, Maximize2, Minimize2, ZoomIn, ZoomOut, Type, Bold, Italic, List, AlignLeft, AlignCenter, AlignRight, Underline, Layout, Grid, Target, GraduationCap, User, ChevronRight } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { db } from '../firebase';
-import { doc, updateDoc, Timestamp, collection, getDocs, query, where, deleteDoc, serverTimestamp, orderBy, onSnapshot, addDoc } from 'firebase/firestore';
+import { doc, updateDoc, Timestamp, collection, getDocs, query, where, deleteDoc, serverTimestamp, orderBy, onSnapshot, addDoc, limit } from 'firebase/firestore';
 import { GoogleGenAI } from "@google/genai";
 import ReactQuill from 'react-quill-new';
 import 'react-quill-new/dist/quill.snow.css';

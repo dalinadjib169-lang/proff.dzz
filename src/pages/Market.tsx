@@ -55,7 +55,7 @@ export default function Market() {
   });
 
   useEffect(() => {
-    let q = query(collection(db, 'products'), orderBy('createdAt', 'desc'));
+    let q = query(collection(db, 'products'), orderBy('createdAt', 'desc'), limit(50));
 
     if (selectedCategory !== 'all') {
       q = query(q, where('category', '==', selectedCategory));

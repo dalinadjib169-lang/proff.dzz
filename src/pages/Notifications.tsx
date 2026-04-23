@@ -20,7 +20,8 @@ export default function Notifications() {
     const q = query(
       collection(db, 'notifications'),
       where('recipientId', '==', profile.uid),
-      orderBy('createdAt', 'desc')
+      orderBy('createdAt', 'desc'),
+      limit(40)
     );
 
     const unsubscribe = onSnapshot(q, { includeMetadataChanges: true }, (snapshot) => {
