@@ -76,8 +76,15 @@ export default function App() {
     <ErrorBoundary>
       <UploadProvider>
         <Router>
-          <div className="min-h-screen bg-slate-950 text-slate-100 font-sans selection:bg-purple-500/30">
-            {loading ? (
+          <div className="min-h-screen bg-slate-950 text-slate-100 font-sans selection:bg-purple-500/30 relative">
+            {profile?.appBackground && (
+              <div 
+                className="fixed inset-0 z-0 bg-cover bg-center opacity-20 pointer-events-none"
+                style={{ backgroundImage: `url(${profile.appBackground})` }}
+              />
+            )}
+            <div className="relative z-10">
+              {loading ? (
               <div className="min-h-screen flex flex-col items-center justify-center bg-slate-950 p-8">
                 <div className="relative mb-8">
                   <div className="absolute inset-0 bg-purple-500/20 blur-3xl rounded-full animate-pulse"></div>
@@ -237,6 +244,7 @@ export default function App() {
                 {user && <ChatBubble />}
               </>
             )}
+            </div>
           </div>
         </Router>
       </UploadProvider>

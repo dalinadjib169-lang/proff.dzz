@@ -27,6 +27,7 @@ export interface UserProfile {
   blockedUsers?: string[];
   bioBackground?: string;
   bioTextColor?: string;
+  appBackground?: string;
   lastSeen?: Timestamp | any;
   createdAt: Timestamp | any;
   premiumUntil?: Timestamp | any;

@@ -10,7 +10,6 @@ export default function BottomNav() {
   const navItems = [
     { icon: Home, label: 'Home', path: '/', external: false },
     { icon: Bell, label: 'Alerts', path: '/notifications', external: false },
-    { icon: Image, label: 'Upload', path: '/image-uploader', external: false },
     { icon: ShoppingBag, label: 'Market', path: '/market', external: false },
     { icon: User, label: 'Profile', path: `/profile/${profile?.uid}`, external: false },
     { icon: Menu, label: 'Menu', path: '#', external: false, onClick: (e: any) => { e.preventDefault(); window.dispatchEvent(new CustomEvent('toggle-sidebar')); } },

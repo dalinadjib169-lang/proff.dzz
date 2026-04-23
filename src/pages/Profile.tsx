@@ -7,7 +7,7 @@ import { useAuth } from '../hooks/useAuth';
 import { useUpload } from '../hooks/useUpload';
 import { UserProfile, Post } from '../types';
 import PostCard from '../components/PostCard';
-import { Edit3, Camera, MapPin, Book, Calendar, Mail, CheckCircle, GraduationCap, PenTool, UserPlus, UserCheck, UserX, Clock, Phone, Eye, EyeOff, Bell, Droplets, Dumbbell, Plus, Minus, ShoppingBag, Lock } from 'lucide-react';
+import { Edit3, Camera, Image as ImageIcon, MapPin, Book, Calendar, Mail, CheckCircle, GraduationCap, PenTool, UserPlus, UserCheck, UserX, Clock, Phone, Eye, EyeOff, Bell, Droplets, Dumbbell, Plus, Minus, ShoppingBag, Lock } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { playSound } from '../lib/sounds';
 import { handleFirestoreError, OperationType } from '../lib/firestore-errors';
@@ -27,6 +27,7 @@ export default function Profile() {
     bio: '', 
     bioBackground: '',
     bioTextColor: '',
+    appBackground: '',
     subject: '', 
     school: '',
     wilaya: '',
@@ -156,6 +157,7 @@ export default function Profile() {
             gender: data.gender || 'ذكر (Male)',
             yearsOfExperience: data.yearsOfExperience || 0,
             phoneNumber: data.phoneNumber || '',
+            appBackground: data.appBackground || '',
             birthDate: data.birthDate || '',
             showEmail: data.showEmail !== false,
             showPhone: data.showPhone !== false,
@@ -220,12 +222,17 @@ export default function Profile() {
       if (phoneNumber !== undefined) privateData.phoneNumber = phoneNumber;
       if (reminders !== undefined) privateData.reminders = reminders;
 
-      await updateDoc(doc(db, 'users', uid), finalData);
+      const profileUpdate = {
+        ...finalData,
+        appBackground: editData.appBackground
+      };
+
+      await updateDoc(doc(db, 'users', uid), profileUpdate);
       if (Object.keys(privateData).length > 0) {
         await updateDoc(doc(db, 'users_private', uid), privateData);
       }
       
-      setProfile(prev => prev ? { ...prev, ...finalData, ...privateData } : null);
+      setProfile(prev => prev ? { ...prev, ...profileUpdate, ...privateData } : null);
       setIsEditing(false);
     } catch (error) {
       handleFirestoreError(error, OperationType.UPDATE, `users/${uid}`);
@@ -240,8 +247,29 @@ export default function Profile() {
 
     try {
       await startUpload(file, 'profile', { uid });
+      playSound('post');
     } catch (error) {
       console.error("Error initiating photo upload:", error);
+    }
+  };
+
+  const handleAppBackgroundUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !uid) return;
+
+    try {
+      setLoading(true);
+      const url = await startUpload(file, 'post', { authorId: uid, skipFirestore: true });
+      if (url && typeof url === 'string') {
+        await updateDoc(doc(db, 'users', uid), { appBackground: url });
+        setProfile(prev => prev ? { ...prev, appBackground: url } : null);
+        setEditData(prev => ({ ...prev, appBackground: url }));
+        playSound('notification');
+      }
+    } catch (error) {
+      console.error("Error uploading background:", error);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -481,9 +509,12 @@ export default function Profile() {
                 <h1 className="text-3xl font-black text-white tracking-tight">{profile.displayName}</h1>
                 <CheckCircle className="w-6 h-6 text-purple-500 fill-purple-500/10" />
               </div>
-              <p className="text-slate-400 font-bold flex items-center gap-2">
+              <p className="text-slate-400 font-bold flex items-center gap-2 mb-2">
                 <GraduationCap className="w-4 h-4 text-purple-500" />
-                {profile.subject || 'Education Professional'} • {profile.level || 'General'} • {profile.wilaya || 'Algeria'}
+                {profile.subject || 'Education Professional'} • {profile.level || 'General'}
+              </p>
+              <p className="text-slate-500 font-medium text-sm border-t border-slate-800 pt-2 line-clamp-2 max-w-md">
+                {profile.bio || "No biography provided yet."}
               </p>
             </div>
             {isOwner ? (
@@ -706,6 +737,32 @@ export default function Profile() {
                     placeholder="اكتب نبذة عنك هنا..."
                   />
                   
+                  <div className="space-y-4 pt-4">
+                    <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Application Background (Optional)</label>
+                    <div className="flex gap-4 items-center p-4 bg-slate-900 border border-slate-800 rounded-2xl">
+                      {editData.appBackground ? (
+                        <img src={editData.appBackground} className="w-16 h-10 rounded-lg object-cover border border-slate-700" />
+                      ) : (
+                        <div className="w-16 h-10 rounded-lg bg-slate-950 border border-slate-800 flex items-center justify-center">
+                          <ImageIcon className="w-4 h-4 text-slate-600" />
+                        </div>
+                      )}
+                      <label className="flex-1 px-4 py-2 bg-slate-950 hover:bg-slate-800 border border-slate-800 text-slate-400 text-xs font-bold rounded-xl cursor-pointer text-center transition-all">
+                        {editData.appBackground ? 'Change Background' : 'Upload App Background'}
+                        <input type="file" className="hidden" accept="image/*" onChange={handleAppBackgroundUpload} />
+                      </label>
+                      {editData.appBackground && (
+                        <button 
+                          type="button"
+                          onClick={() => setEditData({...editData, appBackground: ''})}
+                          className="p-2 bg-red-500/10 text-red-500 rounded-xl hover:bg-red-500 hover:text-white"
+                        >
+                          <Minus className="w-4 h-4" />
+                        </button>
+                      )}
+                    </div>
+                  </div>
+
                   <div className="space-y-4 pt-4">
                     <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Bio Background</label>
                     <div className="flex flex-wrap gap-2">
