@@ -1,0 +1,279 @@
+{
+  "entities": {
+    "UserProfile": {
+      "title": "User Profile",
+      "description": "Stores teacher profile information",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "displayName": { "type": "string" },
+        "firstName": { "type": "string" },
+        "lastName": { "type": "string" },
+        "photoURL": { "type": "string" },
+        "bio": { "type": "string" },
+        "subject": { "type": "string" },
+        "school": { "type": "string" },
+        "wilaya": { "type": "string" },
+        "level": { "type": "string" },
+        "gender": { "type": "string" },
+        "role": { "type": "string" },
+        "rank": { "type": "string" },
+        "birthDate": { "type": "string" },
+        "yearsOfExperience": { "type": "number" },
+        "isProfileComplete": { "type": "boolean" },
+        "showEmail": { "type": "boolean" },
+        "showPhone": { "type": "boolean" },
+        "lastSeen": { "type": "string", "format": "date-time" },
+        "followers": { "type": "array", "items": { "type": "string" } },
+        "following": { "type": "array", "items": { "type": "string" } },
+        "friends": { "type": "array", "items": { "type": "string" } },
+        "blockedUsers": { "type": "array", "items": { "type": "string" } },
+        "bioBackground": { "type": "string" },
+        "bioTextColor": { "type": "string" },
+        "premiumUntil": { "type": "string", "format": "date-time" },
+        "isActivated": { "type": "boolean" },
+        "lastGenerationDate": { "type": "string", "format": "date-time" },
+        "lastUsageResetDate": { "type": "string", "format": "date-time" },
+        "dailyGenCount": { "type": "number" },
+        "dailyCorrectCount": { "type": "number" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "displayName", "photoURL", "createdAt"]
+    },
+    "ActivationCode": {
+      "title": "Activation Code",
+      "description": "Subscription activation code",
+      "type": "object",
+      "properties": {
+        "code": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "createdBy": { "type": "string" }
+      },
+      "required": ["code", "createdAt"]
+    },
+    "UserPrivate": {
+      "title": "Private User Data",
+      "description": "Sensitive information and settings for a user.",
+      "type": "object",
+      "properties": {
+        "email": { "type": "string", "format": "email" },
+        "phoneNumber": { "type": "string" },
+        "settings": {
+          "type": "object",
+          "properties": {
+            "language": { "type": "string", "enum": ["en", "ar", "fr"] },
+            "theme": { "type": "string", "enum": ["light", "dark"] },
+            "fontSize": { "type": "string", "enum": ["small", "medium", "large"] },
+            "fontType": { "type": "string", "enum": ["sans", "serif", "mono"] },
+            "defaultPostPrivacy": { "type": "string", "enum": ["public", "friends", "private"] }
+          }
+        },
+        "reminders": {
+          "type": "object",
+          "properties": {
+            "prayer": { "type": "boolean" },
+            "water": { "type": "boolean" },
+            "exercise": { "type": "boolean" },
+            "waterGoal": { "type": "number" },
+            "waterCurrent": { "type": "number" },
+            "waterGlassCount": { "type": "number" },
+            "lastWaterReset": { "type": "string", "format": "date-time" }
+          }
+        }
+      }
+    },
+    "Post": {
+      "title": "Post",
+      "description": "A post shared by a teacher",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "authorId": { "type": "string" },
+        "authorName": { "type": "string" },
+        "authorPhoto": { "type": "string" },
+        "content": { "type": "string" },
+        "imageUrl": { "type": "string" },
+        "videoUrl": { "type": "string" },
+        "background": { "type": "string" },
+        "likes": { "type": "array", "items": { "type": "string" } },
+        "reactions": { "type": "object" },
+        "commentCount": { "type": "integer" },
+        "privacy": { "type": "string", "enum": ["public", "friends", "private"] },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["authorId", "authorName", "authorPhoto", "content", "likes", "commentCount", "createdAt"]
+    },
+    "Comment": {
+      "title": "Comment",
+      "description": "A comment on a post",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "postId": { "type": "string" },
+        "authorId": { "type": "string" },
+        "authorName": { "type": "string" },
+        "authorPhoto": { "type": "string" },
+        "content": { "type": "string" },
+        "parentId": { "type": "string" },
+        "replyTo": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["postId", "authorId", "authorName", "authorPhoto", "content", "createdAt"]
+    },
+    "Notification": {
+      "title": "Notification",
+      "description": "A notification for a user",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "recipientId": { "type": "string" },
+        "senderId": { "type": "string" },
+        "senderName": { "type": "string" },
+        "type": { "type": "string", "enum": ["like", "comment", "follow", "missed_call", "market_interest"] },
+        "reactionType": { "type": "string" },
+        "postId": { "type": "string" },
+        "message": { "type": "string" },
+        "callType": { "type": "string" },
+        "read": { "type": "boolean" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["recipientId", "senderId", "senderName", "type", "read", "createdAt"]
+    },
+    "Message": {
+      "title": "Message",
+      "description": "A chat message between teachers",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "roomId": { "type": "string" },
+        "participants": { "type": "array", "items": { "type": "string" } },
+        "text": { "type": "string" },
+        "imageUrl": { "type": "string" },
+        "audioUrl": { "type": "string" },
+        "videoUrl": { "type": "string" },
+        "senderId": { "type": "string" },
+        "senderName": { "type": "string" },
+        "seen": { "type": "boolean" },
+        "reactions": { "type": "object" },
+        "clientCreatedAt": { "type": "number" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["roomId", "participants", "senderId", "senderName", "seen", "createdAt"]
+    },
+    "Product": {
+      "title": "Product",
+      "description": "A product listed in the marketplace",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "sellerId": { "type": "string" },
+        "sellerName": { "type": "string" },
+        "sellerPhoto": { "type": "string" },
+        "sellerPhone": { "type": "string" },
+        "title": { "type": "string" },
+        "description": { "type": "string" },
+        "price": { "type": "number" },
+        "category": { "type": "string" },
+        "wilaya": { "type": "string" },
+        "images": { "type": "array", "items": { "type": "string" } },
+        "status": { "type": "string", "enum": ["available", "sold"] },
+        "hasDelivery": { "type": "boolean" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["sellerId", "sellerName", "sellerPhoto", "title", "description", "price", "category", "wilaya", "images", "status", "hasDelivery", "createdAt"]
+    },
+    "FriendRequest": {
+      "title": "Friend Request",
+      "description": "A request to connect with another teacher",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "senderId": { "type": "string" },
+        "senderName": { "type": "string" },
+        "senderPhoto": { "type": "string" },
+        "receiverId": { "type": "string" },
+        "status": { "type": "string", "enum": ["pending", "accepted", "rejected"] },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["senderId", "senderName", "senderPhoto", "receiverId", "status", "createdAt"]
+    },
+    "Invitation": {
+      "title": "Invitation",
+      "description": "An invitation to chat or connect",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "senderId": { "type": "string" },
+        "recipientId": { "type": "string" },
+        "participants": { "type": "array", "items": { "type": "string" } },
+        "status": { "type": "string", "enum": ["pending", "accepted", "declined"] },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["senderId", "recipientId", "participants", "status", "createdAt"]
+    },
+    "Call": {
+      "title": "Call",
+      "description": "A voice or video call record",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "senderId": { "type": "string" },
+        "recipientId": { "type": "string" },
+        "type": { "type": "string", "enum": ["audio", "video"] },
+        "status": { "type": "string", "enum": ["ringing", "accepted", "rejected", "missed", "ended"] },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["senderId", "recipientId", "type", "status", "createdAt"]
+    }
+  },
+  "firestore": {
+    "users/{userId}": {
+      "schema": "UserProfile",
+      "description": "Public teacher profiles."
+    },
+    "users_private/{userId}": {
+      "schema": "UserPrivate",
+      "description": "Private user data and settings."
+    },
+    "/posts/{postId}": {
+      "schema": "Post",
+      "description": "Feed posts"
+    },
+    "/comments/{commentId}": {
+      "schema": "Comment",
+      "description": "Post comments"
+    },
+    "/notifications/{notificationId}": {
+      "schema": "Notification",
+      "description": "User notifications"
+    },
+    "/messages/{messageId}": {
+      "schema": "Message",
+      "description": "Chat messages"
+    },
+    "/products/{productId}": {
+      "schema": "Product",
+      "description": "Marketplace products"
+    },
+    "/friendRequests/{requestId}": {
+      "schema": "FriendRequest",
+      "description": "Friend requests"
+    },
+    "/invitations/{invitationId}": {
+      "schema": "Invitation",
+      "description": "Chat invitations"
+    },
+    "/calls/{callId}": {
+      "schema": "Call",
+      "description": "Call records"
+    },
+    "/activation_codes/{codeId}": {
+      "schema": "ActivationCode",
+      "description": "Subscription activation codes"
+    },
+    "/_connection_test_/{docId}": {
+      "schema": { "type": "object", "properties": { "test": { "type": "string" } } },
+      "description": "Collection used for testing Firestore connectivity"
+    }
+  }
+}

@@ -1,0 +1,176 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // 0. Global Safety Net
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // --- PHASE 3: Primitives ---
+    
+    function isSignedIn() {
+      return request.auth != null;
+    }
+    
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+    
+    function isVerified() {
+      return isSignedIn() && request.auth.token.email_verified == true;
+    }
+    
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+    
+    function incoming() {
+      return request.resource.data;
+    }
+    
+    function existing() {
+      return resource.data;
+    }
+
+    function isAdmin() {
+      return isSignedIn() && request.auth.token.email == 'dalinadjib1990@gmail.com';
+    }
+
+    // --- PHASE 4: Entity Validators ---
+
+    function isValidUserProfile(data) {
+      return data.uid == request.auth.uid 
+        && data.displayName is string && data.displayName.size() > 0 && data.displayName.size() <= 100
+        && data.photoURL is string && data.photoURL.size() <= 1000
+        && (data.get('bio', '') is string && data.get('bio', '').size() <= 500)
+        && (data.get('subject', '') is string && data.get('subject', '').size() <= 100)
+        && (data.get('school', '') is string && data.get('school', '').size() <= 100)
+        && (data.get('wilaya', '') is string && data.get('wilaya', '').size() <= 100)
+        && (data.get('level', '') is string && data.get('level', '').size() <= 100)
+        && (data.get('yearsOfExperience', 0) is number)
+        && data.keys().hasAll(['uid', 'displayName', 'photoURL', 'createdAt'])
+        && data.createdAt == request.time;
+    }
+
+    function isValidUserPrivate(data) {
+      return data.email is string && data.email.size() <= 200
+        && (data.get('phoneNumber', '') is string && data.get('phoneNumber', '').size() <= 50)
+        && data.settings is map
+        && data.reminders is map;
+    }
+
+    function isValidPost(data) {
+      return data.authorId == request.auth.uid
+        && data.content is string && data.content.size() <= 5000
+        && data.privacy in ['public', 'friends', 'private']
+        && data.createdAt == request.time
+        && data.likes is list && data.likes.size() == 0;
+    }
+
+    function isValidComment(data) {
+      return data.authorId == request.auth.uid
+        && data.content is string && data.content.size() <= 1000
+        && data.postId is string && isValidId(data.postId)
+        && data.createdAt == request.time;
+    }
+
+    function isValidProduct(data) {
+      return data.sellerId == request.auth.uid
+        && data.title is string && data.title.size() <= 200
+        && data.price is number && data.price >= 0
+        && data.status in ['available', 'sold']
+        && data.wilaya is string
+        && data.createdAt == request.time;
+    }
+
+    // --- COLLECTION MATCHES ---
+
+    // 1. Users
+    match /users/{userId} {
+      allow read: if isSignedIn();
+      allow create: if isOwner(userId) && isValidUserProfile(incoming());
+      allow update: if isOwner(userId) 
+        && incoming().uid == existing().uid
+        && incoming().createdAt == existing().createdAt
+        && (
+            // Regular Update: Any field except restricted ones
+            (!incoming().diff(existing()).affectedKeys().hasAny(['uid', 'createdAt']))
+          )
+        || isAdmin();
+    }
+
+    match /users_private/{userId} {
+      allow read, write: if isOwner(userId) && (request.method != 'create' || isValidUserPrivate(incoming()));
+    }
+
+    // 2. Posts
+    match /posts/{postId} {
+      allow read: if isSignedIn() && (
+        incoming().privacy == 'public' || 
+        isOwner(existing().authorId) || 
+        (existing().privacy == 'friends' && request.auth.uid in get(/databases/$(database)/documents/users/$(existing().authorId)).data.friends)
+      );
+      // Correction: resource.data for read, not incoming()
+      allow read: if isSignedIn() && (
+        resource.data.privacy == 'public' || 
+        isOwner(resource.data.authorId) || 
+        (resource.data.privacy == 'friends' && request.auth.uid in get(/databases/$(database)/documents/users/$(resource.data.authorId)).data.friends)
+      );
+
+      allow create: if isVerified() && isValidPost(incoming());
+      allow update: if (isOwner(existing().authorId) || isAdmin())
+        && incoming().authorId == existing().authorId
+        && incoming().createdAt == existing().createdAt;
+      allow update: if isSignedIn() && (
+        // Action: Like
+        incoming().diff(existing()).affectedKeys().hasOnly(['likes'])
+      );
+      allow delete: if isOwner(existing().authorId) || isAdmin();
+    }
+
+    // 3. Comments
+    match /comments/{commentId} {
+      allow read: if isSignedIn();
+      allow create: if isVerified() && isValidComment(incoming());
+      allow update, delete: if isOwner(existing().authorId) || isAdmin();
+    }
+
+    // 4. Products
+    match /products/{productId} {
+      allow read: if isSignedIn();
+      allow create: if isVerified() && isValidProduct(incoming());
+      allow update: if (isOwner(existing().sellerId) || isAdmin())
+        && incoming().sellerId == existing().sellerId
+        && (
+          incoming().diff(existing()).affectedKeys().hasOnly(['status', 'title', 'description', 'price', 'category', 'wilaya', 'hasDelivery', 'images'])
+        );
+      allow delete: if isOwner(existing().sellerId) || isAdmin();
+    }
+
+    // 5. Notifications
+    match /notifications/{notificationId} {
+      allow read: if isOwner(resource.data.recipientId);
+      allow create: if isSignedIn() && incoming().recipientId != request.auth.uid;
+      allow update: if isOwner(resource.data.recipientId) && incoming().diff(existing()).affectedKeys().hasOnly(['read']);
+      allow delete: if isOwner(resource.data.recipientId);
+    }
+
+    // 6. Messages
+    match /messages/{messageId} {
+      allow read: if isSignedIn() && request.auth.uid in resource.data.participants;
+      allow create: if isSignedIn() && request.auth.uid in incoming().participants;
+    }
+
+    // 7. Friend Requests
+    match /friendRequests/{requestId} {
+      allow read: if isSignedIn() && (isOwner(resource.data.senderId) || isOwner(resource.data.receiverId));
+      allow create: if isSignedIn() && isOwner(incoming().senderId);
+      allow update: if isSignedIn() && isOwner(existing().receiverId) && incoming().diff(existing()).affectedKeys().hasOnly(['status']);
+    }
+
+    // Catch-all
+    match /activation_codes/{codeId} {
+      allow read, write: if isAdmin();
+    }
+  }
+}

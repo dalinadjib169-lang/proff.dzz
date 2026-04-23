@@ -1,0 +1,9 @@
+{
+  "name": "Remix: Teac DZ - Algerian Teachers Network",
+  "description": "The leading social platform for Algerian teachers to connect, share, and collaborate.",
+  "requestFramePermissions": [
+    "camera",
+    "microphone",
+    "geolocation"
+  ]
+}
