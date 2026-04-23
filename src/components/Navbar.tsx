@@ -1,15 +1,16 @@
+import React, { memo } from 'react';
 import { Link } from 'react-router-dom';
 import { auth } from '../firebase';
 import { useAuth } from '../hooks/useAuth';
 import { GraduationCap, Bell, Search, LogOut, User as UserIcon, MessageSquare, Mail } from 'lucide-react';
 import { useUnreadMessages } from '../hooks/useUnreadMessages';
 
-export default function Navbar() {
+function Navbar() {
   const { profile } = useAuth();
   const unreadMessagesCount = useUnreadMessages();
 
   return (
-    <nav className="sticky top-0 z-50 bg-slate-950/80 backdrop-blur-md border-b border-slate-900 shadow-xl">
+    <nav className="sticky top-0 z-50 bg-slate-950 border-b border-slate-900 shadow-xl">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-16">
           <div className="flex items-center gap-8">
@@ -98,3 +99,5 @@ export default function Navbar() {
     </nav>
   );
 }
+
+export default memo(Navbar);

@@ -1,9 +1,10 @@
+import React, { memo } from 'react';
 import { NavLink } from 'react-router-dom';
 import { Home, Bell, MessageSquare, User, Sparkles, Image, Menu, Car, ShoppingBag } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
 import { useUnreadMessages } from '../hooks/useUnreadMessages';
 
-export default function BottomNav() {
+function BottomNav() {
   const { profile } = useAuth();
   const unreadMessagesCount = useUnreadMessages();
 
@@ -16,8 +17,8 @@ export default function BottomNav() {
   ];
 
   return (
-    <div className="lg:hidden fixed bottom-0 left-0 right-0 z-[100] px-2 pb-5 select-none">
-      <div className="bg-slate-900/95 backdrop-blur-2xl border border-white/10 rounded-3xl p-1.5 flex items-center justify-around shadow-2xl shadow-black/90 ring-1 ring-white/10 max-w-sm mx-auto">
+    <div className="lg:hidden fixed bottom-0 left-0 right-0 z-[100] px-3 pb-4 pointer-events-none">
+      <div className="bg-slate-900 border border-white/5 rounded-2xl flex items-center justify-around shadow-2xl shadow-black/80 max-w-sm mx-auto pointer-events-auto">
         {navItems.map((item) => (
           item.external ? (
             <a
@@ -25,7 +26,7 @@ export default function BottomNav() {
               href={item.path}
               target="_blank"
               rel="noopener noreferrer"
-              className="flex flex-col items-center gap-1 p-3 rounded-2xl transition-all active:scale-90 text-slate-400 hover:text-slate-200"
+              className="flex-1 flex flex-col items-center gap-1 p-3 transition-colors text-slate-400 active:bg-white/5"
             >
               <item.icon className="w-6 h-6" />
             </a>
@@ -33,11 +34,11 @@ export default function BottomNav() {
             <button
               key={item.label}
               onClick={item.onClick}
-              className="flex flex-col items-center gap-1 p-2.5 relative text-slate-400 hover:text-purple-400 transition-all active:scale-75"
+              className="flex-1 flex flex-col items-center gap-1 p-3 relative text-slate-400 active:bg-white/5 transition-colors"
             >
-              <item.icon className="w-5.5 h-5.5" />
+              <item.icon className="w-6 h-6" />
               {item.label === 'Menu' && (
-                <span className="absolute top-2 right-2 w-2 h-2 bg-purple-500 rounded-full animate-pulse"></span>
+                <span className="absolute top-3 right-1/3 w-2 h-2 bg-purple-500 rounded-full"></span>
               )}
             </button>
           ) : (
@@ -45,8 +46,8 @@ export default function BottomNav() {
               key={item.label}
               to={item.path}
               className={({ isActive }) =>
-                `flex flex-col items-center gap-1 p-3 rounded-2xl transition-all active:scale-90 ${
-                  isActive ? 'text-purple-500 bg-purple-500/10' : 'text-slate-400 hover:text-slate-200'
+                `flex-1 flex flex-col items-center gap-1 p-3 transition-colors active:bg-white/5 relative ${
+                  isActive ? 'text-purple-400' : 'text-slate-400'
                 }`
               }
             >
@@ -58,3 +59,5 @@ export default function BottomNav() {
     </div>
   );
 }
+
+export default memo(BottomNav);

@@ -1,15 +1,15 @@
+import React, { useState, useEffect, memo } from 'react';
 import { NavLink, Link } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { Home, User, Bell, Bookmark, Settings, Users, BookOpen, MessageSquare, TrendingUp, UserPlus, Sparkles, Wand2, CheckSquare, FileText, Image, Share2, ExternalLink, Zap, Car, ShoppingBag } from 'lucide-react';
 import { cn } from '../lib/utils';
-import { useState, useEffect } from 'react';
 import { db } from '../firebase';
 import { collection, query, where, onSnapshot, limit } from 'firebase/firestore';
 import { handleFirestoreError, OperationType } from '../lib/firestore-errors';
 import { UserProfile } from '../types';
 import { playSound } from '../lib/sounds';
 
-export default function Sidebar() {
+function Sidebar() {
   const { profile } = useAuth();
   const [unreadCount, setUnreadCount] = useState(0);
   const [totalUsers, setTotalUsers] = useState(0);
@@ -290,3 +290,5 @@ export default function Sidebar() {
     </div>
   );
 }
+
+export default memo(Sidebar);
