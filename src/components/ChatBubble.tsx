@@ -153,7 +153,45 @@ export default function ChatBubble() {
     }
   });
   const [users, setUsers] = useState<UserProfile[]>([]);
+  const [conversations, setConversations] = useState<any[]>([]);
   const [messages, setMessages] = useState<any[]>([]);
+
+  // Fetch recent conversations for the lobby
+  useEffect(() => {
+    if (!profile?.uid) return;
+
+    const q = query(
+      collection(db, 'messages'),
+      where('participants', 'array-contains', profile.uid),
+      orderBy('createdAt', 'desc'),
+      limit(50)
+    );
+
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const convosMap = new Map();
+      snapshot.docs.forEach(docSnap => {
+        const data = docSnap.data();
+        if (data.roomId === 'global') return;
+        
+        const otherId = data.senderId === profile.uid 
+          ? (data.roomId.split('_').find((id: string) => id !== profile.uid))
+          : data.senderId;
+        
+        if (otherId && !convosMap.has(otherId)) {
+          convosMap.set(otherId, {
+            uid: otherId,
+            lastMessage: data.text || 'صورة/صوت ✨',
+            lastTime: data.createdAt || Timestamp.now(),
+            unread: data.senderId !== profile.uid && data.seen === false
+          });
+        }
+      });
+      setConversations(Array.from(convosMap.values()));
+    }, () => {});
+
+    return unsubscribe;
+  }, [profile?.uid]);
+
   const [newMessage, setNewMessage] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
   const [isRecording, setIsRecording] = useState(false);
@@ -589,7 +627,7 @@ export default function ChatBubble() {
       collection(db, 'messages'),
       where('roomId', '==', roomId),
       where('participants', 'array-contains', participantsValue),
-      orderBy('clientCreatedAt', 'desc'),
+      orderBy('createdAt', 'desc'),
       limit(100)
     );
 
@@ -600,17 +638,15 @@ export default function ChatBubble() {
           return { 
             ...data,
             id: doc.id, 
-            // Handle local estimate for createdAt to ensure instant appearance at the end
-            createdAt: data.createdAt || Timestamp.now(),
-            clientCreatedAt: data.clientCreatedAt || Date.now()
+            createdAt: data.createdAt || Timestamp.now()
           };
         })
         .filter(msg => !(msg as any).deletedFor?.includes(profile.uid)) as any[];
       
       // Sort ascending locally for display (oldest to newest)
       msgs.sort((a, b) => {
-        const timeA = a.clientCreatedAt || (a.createdAt instanceof Timestamp ? a.createdAt.toMillis() : a.createdAt) || 0;
-        const timeB = b.clientCreatedAt || (b.createdAt instanceof Timestamp ? b.createdAt.toMillis() : b.createdAt) || 0;
+        const timeA = (a.createdAt instanceof Timestamp ? a.createdAt.toMillis() : a.createdAt) || a.clientCreatedAt || 0;
+        const timeB = (b.createdAt instanceof Timestamp ? b.createdAt.toMillis() : b.createdAt) || b.clientCreatedAt || 0;
         return timeA - timeB;
       });
       
@@ -1186,6 +1222,37 @@ export default function ChatBubble() {
                     </button>
                   </div>
                   <div className="flex-1 overflow-y-auto space-y-2 pr-2 custom-scrollbar">
+                    {/* Recent Conversations */}
+                    {conversations.length > 0 && !searchTerm && (
+                      <div className="space-y-2 mb-6">
+                        <h5 className="text-[9px] font-black text-slate-500 uppercase tracking-widest px-2">محادثات أخيرة</h5>
+                        {conversations.map(conv => {
+                          const user = users.find(u => u.uid === conv.uid);
+                          if (!user) return null;
+                          return (
+                            <button
+                              key={`conv-${conv.uid}`}
+                              onClick={() => setActiveChat(user)}
+                              className={`w-full flex items-center gap-3 p-3 rounded-2xl border transition-all ${conv.unread ? 'bg-purple-600/10 border-purple-500/50 shadow-lg shadow-purple-500/5' : 'bg-slate-900 border-slate-800 hover:border-slate-700'}`}
+                            >
+                              <div className="relative shrink-0">
+                                <img src={user.photoURL} className="w-10 h-10 rounded-xl object-cover" alt="" referrerPolicy="no-referrer" />
+                                <div className={`absolute -bottom-1 -right-1 w-3 h-3 rounded-full border-2 border-slate-900 ${isOnline(user.lastSeen) ? 'bg-green-500' : 'bg-slate-700'}`}></div>
+                              </div>
+                              <div className="flex-1 text-left min-w-0">
+                                <div className="flex justify-between items-center bg-transparent">
+                                  <h5 className={`text-sm font-black truncate ${conv.unread ? 'text-purple-400' : 'text-slate-200'}`}>{user.displayName}</h5>
+                                  {conv.unread && <div className="w-2 h-2 bg-purple-500 rounded-full animate-pulse"></div>}
+                                </div>
+                                <p className="text-[10px] font-bold text-slate-500 truncate">{conv.lastMessage}</p>
+                              </div>
+                            </button>
+                          );
+                        })}
+                        <div className="h-px bg-slate-800 mx-2 my-4"></div>
+                      </div>
+                    )}
+
                     {/* Global Chat Option */}
                     <button
                       onClick={() => setActiveChat({
