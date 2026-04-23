@@ -30,8 +30,8 @@ export default function FriendSuggestions() {
       handleFirestoreError(error, OperationType.LIST, 'invitations');
     });
 
-    // Fetch all users (increased limit)
-    const usersQuery = query(collection(db, 'users'), limit(100));
+    // Fetch all users (increased limit and sorted by recent)
+    const usersQuery = query(collection(db, 'users'), orderBy('createdAt', 'desc'), limit(100));
     const unsubUsers = onSnapshot(usersQuery, (snapshot) => {
       const allUsers = snapshot.docs.map(doc => ({ uid: doc.id, ...doc.data() })) as UserProfile[];
       

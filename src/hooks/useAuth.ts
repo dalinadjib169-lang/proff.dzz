@@ -16,9 +16,18 @@ export function useAuth() {
     let loadingTimeout: any = null;
 
     const unsubscribeAuth = onAuthStateChanged(auth, async (u) => {
+      if (!u) {
+        setUser(null);
+        setProfile(null);
+        setLoading(false);
+        if (unsubscribeProfile) {
+          unsubscribeProfile();
+          unsubscribeProfile = null;
+        }
+        return;
+      }
+
       setUser(u);
-      
-      if (u) {
         // Set a timeout to prevent infinite loading if Firestore hangs
         loadingTimeout = setTimeout(() => {
           if (loading) {
@@ -31,7 +40,6 @@ export function useAuth() {
         // Listen for real-time profile updates
         const docRef = doc(db, 'users', u.uid);
         const privateRef = doc(db, 'users_private', u.uid);
-        console.log("Subscribing to profile for UID:", u.uid);
         
         // Listen to public data
         const unsubPublic = onSnapshot(docRef, (docSnap) => {
@@ -40,6 +48,9 @@ export function useAuth() {
           if (docSnap.exists()) {
             const publicData = docSnap.data() as UserProfile;
             setProfile(prev => {
+              // Ensure we are not merging data from a PREVIOUS user session
+              if (prev && prev.uid !== u.uid) return { ...publicData } as UserProfile;
+              
               const base = (prev || {}) as Partial<UserProfile>;
               // Deep merge defaults for reminders and settings for existing users
               const merged = {
@@ -214,12 +225,6 @@ export function useAuth() {
           unsubPublic();
           unsubPrivate();
         };
-      } else {
-        if (unsubscribeProfile) unsubscribeProfile();
-        if (loadingTimeout) clearTimeout(loadingTimeout);
-        setProfile(null);
-        setLoading(false);
-      }
     });
 
     return () => {

@@ -45,7 +45,8 @@ export default function Home() {
     const q = query(
       collection(db, 'posts'),
       where('privacy', '==', 'public'),
-      orderBy('createdAt', 'desc')
+      orderBy('createdAt', 'desc'),
+      limit(30)
     );
     const unsubscribe = onSnapshot(q, { includeMetadataChanges: true }, (snapshot) => {
       const postsData = snapshot.docs.map(doc => {

@@ -33,8 +33,8 @@ function Sidebar() {
       handleFirestoreError(error, OperationType.LIST, 'notifications');
     });
 
-    // Fetch total registered users and colleagues
-    const usersQuery = query(collection(db, 'users'), limit(50));
+    // Fetch total registered users and colleagues (sorted by recent)
+    const usersQuery = query(collection(db, 'users'), orderBy('createdAt', 'desc'), limit(40));
     const unsubscribeUsers = onSnapshot(usersQuery, (snapshot) => {
       const allUsers = snapshot.docs.map(doc => ({ uid: doc.id, ...doc.data() })) as UserProfile[];
       setTotalUsers(allUsers.length);

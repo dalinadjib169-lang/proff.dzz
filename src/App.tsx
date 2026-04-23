@@ -76,14 +76,16 @@ export default function App() {
     <ErrorBoundary>
       <UploadProvider>
         <Router>
-          <div className="min-h-screen bg-slate-950 text-slate-100 font-sans selection:bg-purple-500/30 relative overflow-x-hidden">
+          <div className="min-h-screen bg-slate-950 text-slate-100 font-sans selection:bg-purple-500/30 relative">
             {profile?.appBackground && (
-              <div 
-                className="fixed inset-0 z-0 bg-cover bg-center opacity-10 pointer-events-none will-change-transform"
-                style={{ backgroundImage: `url(${profile.appBackground})` }}
+              <img 
+                src={profile.appBackground}
+                alt=""
+                className="fixed inset-0 w-full h-full object-cover opacity-10 pointer-events-none z-0"
+                loading="lazy"
               />
             )}
-            <div className="relative z-10">
+            <div className="relative z-10 w-full h-full">
               {loading ? (
               <div className="min-h-screen flex flex-col items-center justify-center bg-slate-950 p-8">
                 <div className="relative mb-8">
