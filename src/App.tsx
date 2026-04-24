@@ -13,6 +13,11 @@ import Notifications from './pages/Notifications';
 import Settings from './pages/Settings';
 import PremiumTools from './pages/PremiumTools';
 import Market from './pages/Market';
+import Discussions from './pages/Discussions';
+import Saved from './pages/Saved';
+import Colleagues from './pages/Colleagues';
+import Curriculum from './pages/Curriculum';
+import ProfileRedirect from './pages/ProfileRedirect';
 import CloudinaryUploader from './components/CloudinaryUploader';
 import Navbar from './components/Navbar';
 import Sidebar from './components/Sidebar';
@@ -208,11 +213,12 @@ export default function App() {
                         <Route path="/login" element={!user ? <Login /> : <Navigate to="/" />} />
                         <Route path="/" element={user ? <Home /> : <Navigate to="/login" />} />
                         <Route path="/profile/:uid" element={user ? <Profile /> : <Navigate to="/login" />} />
+                        <Route path="/profile/loading" element={<ProfileRedirect />} />
                         <Route path="/notifications" element={user ? <Notifications /> : <Navigate to="/login" />} />
-                        <Route path="/discussions" element={user ? <div className="p-8 bg-slate-900 rounded-3xl border border-slate-800 text-center"><h2 className="text-2xl font-black mb-4">Discussions</h2><p className="text-slate-400">Coming soon...</p></div> : <Navigate to="/login" />} />
-                        <Route path="/saved" element={user ? <div className="p-8 bg-slate-900 rounded-3xl border border-slate-800 text-center"><h2 className="text-2xl font-black mb-4">Saved Resources</h2><p className="text-slate-400">Coming soon...</p></div> : <Navigate to="/login" />} />
-                        <Route path="/colleagues" element={user ? <div className="p-8 bg-slate-900 rounded-3xl border border-slate-800 text-center"><h2 className="text-2xl font-black mb-4">Colleagues</h2><p className="text-slate-400">Coming soon...</p></div> : <Navigate to="/login" />} />
-                        <Route path="/curriculum" element={user ? <div className="p-8 bg-slate-900 rounded-3xl border border-slate-800 text-center"><h2 className="text-2xl font-black mb-4">Curriculum</h2><p className="text-slate-400">Coming soon...</p></div> : <Navigate to="/login" />} />
+                        <Route path="/discussions" element={user ? <Discussions /> : <Navigate to="/login" />} />
+                        <Route path="/saved" element={user ? <Saved /> : <Navigate to="/login" />} />
+                        <Route path="/colleagues" element={user ? <Colleagues /> : <Navigate to="/login" />} />
+                        <Route path="/curriculum" element={user ? <Curriculum /> : <Navigate to="/login" />} />
                         <Route path="/premium-tools" element={(user || window.location.search.includes('mode=guest')) ? <PremiumTools /> : <Navigate to="/login" />} />
                         <Route path="/market" element={user ? <Market /> : <Navigate to="/login" />} />
                         <Route path="/image-uploader" element={user ? <CloudinaryUploader /> : <Navigate to="/login" />} />

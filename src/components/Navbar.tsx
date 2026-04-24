@@ -65,7 +65,10 @@ function Navbar() {
             
             <div className="h-8 w-px bg-slate-800 mx-1"></div>
 
-            <Link to={`/profile/${profile?.uid}`} className="flex items-center gap-3 p-1.5 pr-4 hover:bg-slate-900 rounded-2xl transition-all group border border-transparent hover:border-slate-800">
+            <Link 
+              to={profile?.uid ? `/profile/${profile.uid}` : '/profile/loading'} 
+              className="flex items-center gap-3 p-1.5 pr-4 hover:bg-slate-900 rounded-2xl transition-all group border border-transparent hover:border-slate-800"
+            >
               <div className="w-9 h-9 rounded-xl bg-slate-800 animate-pulse overflow-hidden ring-2 ring-purple-500/10 group-hover:ring-purple-500/30 transition-all">
                 {profile?.photoURL ? (
                   <img

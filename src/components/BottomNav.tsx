@@ -12,13 +12,13 @@ function BottomNav() {
     { icon: Home, label: 'Home', path: '/', external: false },
     { icon: Bell, label: 'Alerts', path: '/notifications', external: false },
     { icon: ShoppingBag, label: 'Market', path: '/market', external: false },
-    { icon: User, label: 'Profile', path: `/profile/${profile?.uid}`, external: false },
+    { icon: User, label: 'Profile', path: profile?.uid ? `/profile/${profile.uid}` : '/profile/loading', external: false },
     { icon: Menu, label: 'Menu', path: '#', external: false, onClick: (e: any) => { e.preventDefault(); window.dispatchEvent(new CustomEvent('toggle-sidebar')); } },
   ];
 
   return (
-    <div className="lg:hidden fixed bottom-0 left-0 right-0 z-[100] px-3 pb-4 pointer-events-none">
-      <div className="bg-slate-900 border border-white/5 rounded-2xl flex items-center justify-around shadow-2xl shadow-black/80 max-w-sm mx-auto pointer-events-auto">
+    <div className="lg:hidden fixed bottom-0 left-0 right-0 z-[110] px-3 pb-4 pointer-events-none select-none">
+      <div className="bg-slate-900/90 backdrop-blur-xl border border-white/10 rounded-2xl flex items-center justify-around shadow-2xl shadow-black/80 max-w-sm mx-auto pointer-events-auto overflow-hidden">
         {navItems.map((item) => (
           item.external ? (
             <a
@@ -26,7 +26,7 @@ function BottomNav() {
               href={item.path}
               target="_blank"
               rel="noopener noreferrer"
-              className="flex-1 flex flex-col items-center gap-1 p-3 transition-colors text-slate-400 active:bg-white/5"
+              className="flex-1 flex flex-col items-center gap-1 p-4 transition-all text-slate-400 active:bg-white/5 hover:text-purple-400"
             >
               <item.icon className="w-6 h-6" />
             </a>
@@ -34,20 +34,23 @@ function BottomNav() {
             <button
               key={item.label}
               onClick={item.onClick}
-              className="flex-1 flex flex-col items-center gap-1 p-3 relative text-slate-400 active:bg-white/5 transition-colors"
+              className="flex-1 flex flex-col items-center gap-1 p-4 relative text-slate-400 active:bg-white/5 transition-all hover:text-purple-400"
             >
               <item.icon className="w-6 h-6" />
               {item.label === 'Menu' && (
-                <span className="absolute top-3 right-1/3 w-2 h-2 bg-purple-500 rounded-full"></span>
+                <span className="absolute top-4 right-1/3 w-2 h-2 bg-purple-500 rounded-full"></span>
               )}
             </button>
           ) : (
             <NavLink
               key={item.label}
               to={item.path}
+              onClick={() => {
+                if (item.path === '/') window.scrollTo({ top: 0, behavior: 'smooth' });
+              }}
               className={({ isActive }) =>
-                `flex-1 flex flex-col items-center gap-1 p-3 transition-colors active:bg-white/5 relative ${
-                  isActive ? 'text-purple-400' : 'text-slate-400'
+                `flex-1 flex flex-col items-center gap-1 p-4 transition-all active:bg-white/5 relative ${
+                  isActive ? 'text-purple-400' : 'text-slate-400 hover:text-purple-300'
                 }`
               }
             >

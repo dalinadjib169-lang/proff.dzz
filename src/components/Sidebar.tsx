@@ -70,7 +70,7 @@ function Sidebar() {
     { icon: BookOpen, label: 'Curriculum', path: '/curriculum' },
     { icon: Sparkles, label: 'أدوات الذكاء الاصطناعي', path: '/premium-tools' },
     { icon: Image, label: 'Image Uploader', path: '/image-uploader' },
-    { icon: User, label: 'My Profile', path: `/profile/${profile?.uid}` },
+    { icon: User, label: 'My Profile', path: profile?.uid ? `/profile/${profile.uid}` : '/profile/loading' },
     { icon: Settings, label: 'Settings', path: '/settings' },
   ];
 

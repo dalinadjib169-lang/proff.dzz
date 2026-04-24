@@ -221,7 +221,7 @@ export default function PremiumTools() {
 
   useEffect(() => {
     if (isAdmin) {
-      const q = query(collection(db, 'activation_codes'), orderBy('createdAt', 'desc'));
+      const q = query(collection(db, 'activation_codes'), orderBy('createdAt', 'desc'), limit(50));
       const unsubscribe = onSnapshot(q, (snap) => {
         setAdminCodes(snap.docs.map(doc => ({ id: doc.id, ...doc.data() })));
       });

@@ -80,7 +80,6 @@ const ChatTrigger = ({ isOpen, setIsOpen, emojiState, activeChat, profile, unrea
     <motion.div
       whileHover={{ scale: 1.1 }}
       whileTap={{ scale: 0.9 }}
-      onClick={() => setIsOpen(!isOpen)}
       className="relative cursor-pointer group"
     >
       {/* Neon Glow Rings */}
@@ -1029,7 +1028,7 @@ export default function ChatBubble() {
   if (!profile || isHidden) return null;
 
   return (
-    <div className={`fixed bottom-4 right-4 sm:bottom-8 sm:right-8 z-[100] ${isHidden && !isOpen ? 'hidden' : 'block'}`}>
+    <div className={`fixed bottom-32 right-4 sm:bottom-8 sm:right-8 z-[100] ${isHidden && !isOpen ? 'hidden' : 'block'}`}>
       <AnimatePresence initial={false}>
         {isOpen && (
           <motion.div
@@ -1575,12 +1574,15 @@ export default function ChatBubble() {
         <motion.div
           whileHover={{ scale: 1.05 }}
           whileTap={{ scale: 0.9 }}
-          onClick={() => setIsOpen(!isOpen)}
+          onClick={() => {
+            setIsOpen(!isOpen);
+            playSound('message');
+          }}
           className="relative group cursor-pointer"
         >
         <ChatTrigger 
           isOpen={isOpen} 
-          setIsOpen={setIsOpen} 
+          setIsOpen={() => {}} 
           emojiState={emojiState} 
           activeChat={activeChat}
           profile={profile}

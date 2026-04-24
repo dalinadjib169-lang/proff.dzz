@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { db, storage } from '../firebase';
-import { doc, getDoc, updateDoc, collection, query, where, orderBy, onSnapshot, addDoc, serverTimestamp, deleteDoc, arrayUnion, arrayRemove } from 'firebase/firestore';
+import { doc, getDoc, updateDoc, collection, query, where, orderBy, onSnapshot, addDoc, serverTimestamp, deleteDoc, arrayUnion, arrayRemove, limit } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { useAuth } from '../hooks/useAuth';
 import { useUpload } from '../hooks/useUpload';
@@ -188,13 +188,15 @@ export default function Profile() {
       ? query(
           collection(db, 'posts'),
           where('authorId', '==', uid),
-          orderBy('createdAt', 'desc')
+          orderBy('createdAt', 'desc'),
+          limit(30)
         )
       : query(
           collection(db, 'posts'),
           where('authorId', '==', uid),
           where('privacy', '==', 'public'),
-          orderBy('createdAt', 'desc')
+          orderBy('createdAt', 'desc'),
+          limit(30)
         );
 
     const unsubscribe = onSnapshot(q, (snapshot) => {
