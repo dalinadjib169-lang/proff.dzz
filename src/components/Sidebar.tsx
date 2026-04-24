@@ -76,10 +76,13 @@ function Sidebar() {
 
   return (
     <div className="sticky top-24 space-y-8">
-      <div className="bg-slate-900 rounded-3xl p-6 shadow-xl border border-slate-800 overflow-hidden relative">
+      <Link 
+        to={profile?.uid ? `/profile/${profile.uid}` : '/profile/loading'}
+        className="bg-slate-900 rounded-3xl p-6 shadow-xl border border-slate-800 overflow-hidden relative block hover:border-purple-500/50 transition-all group"
+      >
         <div className="absolute top-0 left-0 w-full h-20 bg-purple-600/10"></div>
         <div className="relative z-10 flex flex-col items-center">
-          <div className="w-20 h-20 rounded-2xl bg-slate-800 animate-pulse mb-4 overflow-hidden ring-4 ring-slate-950 shadow-2xl">
+          <div className="w-20 h-20 rounded-2xl bg-slate-800 animate-pulse mb-4 overflow-hidden ring-4 ring-slate-950 shadow-2xl group-hover:scale-105 transition-transform">
             {profile?.photoURL ? (
               <img
                 src={profile.photoURL}
@@ -107,7 +110,7 @@ function Sidebar() {
             </div>
           </div>
         </div>
-      </div>
+      </Link>
 
       <nav className="space-y-1">
         {navItems.map((item) => (

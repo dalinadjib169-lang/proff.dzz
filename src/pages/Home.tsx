@@ -97,41 +97,99 @@ export default function Home() {
     }
   };
 
+  const POST_BACKGROUNDS = [
+    'linear-gradient(to right, #4facfe 0%, #00f2fe 100%)',
+    'linear-gradient(to right, #f093fb 0%, #f5576c 100%)',
+    'linear-gradient(120deg, #84fab0 0%, #8fd3f4 100%)',
+    'linear-gradient(to right, #fa709a 0%, #fee140 100%)',
+    'linear-gradient(to top, #30cfd0 0%, #330867 100%)',
+    'linear-gradient(to top, #a18cd1 0%, #fbc2eb 100%)',
+    '#4f46e5',
+    '#0ea5e9'
+  ];
+
   return (
     <div className="space-y-6">
       <PrayerWaterBar />
 
-      <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4 shadow-lg">
-        <div className="flex gap-3">
+      <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4 shadow-lg overflow-hidden relative">
+        {selectedBg && !selectedImage && (
+          <div className="absolute inset-0 opacity-20 pointer-events-none" style={{ background: selectedBg }}></div>
+        )}
+        <div className="flex gap-3 relative z-10">
           <img src={profile?.photoURL} className="w-10 h-10 rounded-xl object-cover" alt="" referrerPolicy="no-referrer" />
           <div className="flex-1 space-y-3">
-            <textarea
-              value={content}
-              onChange={(e) => setContent(e.target.value)}
-              placeholder="بماذا تفكر يا زميلي..."
-              className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-white placeholder:text-slate-500 outline-none focus:border-purple-500 resize-none min-h-[80px] font-bold"
-            />
+            <div className={`relative rounded-xl overflow-hidden transition-all ${selectedBg && !selectedImage ? 'min-h-[120px] flex items-center justify-center p-4' : ''}`} style={{ background: !selectedImage ? selectedBg || 'transparent' : 'transparent' }}>
+              <textarea
+                value={content}
+                onChange={(e) => setContent(e.target.value)}
+                placeholder="بماذا تفكر يا زميلي..."
+                className={`w-full bg-slate-950/20 border border-slate-800/50 rounded-xl p-3 text-white placeholder:text-slate-500 outline-none focus:border-purple-500 resize-none font-bold transition-all ${selectedBg && !selectedImage ? 'text-center text-lg min-h-[120px] bg-transparent border-none' : 'min-h-[80px]'}`}
+              />
+              {selectedBg && !selectedImage && (
+                <button 
+                  onClick={() => setSelectedBg(null)}
+                  className="absolute top-2 right-2 p-1 bg-white/10 hover:bg-white/20 rounded-lg text-white backdrop-blur-md"
+                >
+                  <X className="w-3 h-3" />
+                </button>
+              )}
+            </div>
+            
             {imagePreview && (
               <div className="relative rounded-xl overflow-hidden border border-slate-800">
                 <img src={imagePreview} className="w-full h-auto max-h-60 object-cover" alt="" />
-                <button onClick={() => { setSelectedImage(null); setImagePreview(null); }} className="absolute top-2 right-2 bg-red-500 p-1 rounded-lg text-white">
+                <button onClick={() => { setSelectedImage(null); setImagePreview(null); }} className="absolute top-2 right-2 bg-red-500 p-1 rounded-lg text-white shadow-lg">
                   <X className="w-4 h-4" />
                 </button>
               </div>
             )}
+
+            {!selectedImage && content.length < 150 && (
+              <div className="space-y-2 pt-1">
+                <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest ml-1">اختر خلفية (Post Color)</p>
+                <div className="flex flex-wrap gap-2">
+                  {POST_BACKGROUNDS.map(bg => (
+                    <button
+                      key={bg}
+                      onClick={() => setSelectedBg(bg)}
+                      className={`w-6 h-6 rounded-lg border-2 transition-all ${selectedBg === bg ? 'border-white scale-110 shadow-lg' : 'border-transparent hover:scale-105'}`}
+                      style={{ background: bg }}
+                    />
+                  ))}
+                </div>
+              </div>
+            )}
+
             <div className="flex justify-between items-center pt-2">
-              <button onClick={() => fileInputRef.current?.click()} className="flex items-center gap-2 text-slate-400 font-bold hover:text-purple-400">
-                <ImageIcon className="w-5 h-5 text-purple-500" />
-                <span className="text-xs uppercase">صورة</span>
-              </button>
-              <button
-                onClick={() => handleCreatePost()}
-                disabled={loading || (!content.trim() && !selectedImage)}
-                className="bg-purple-600 hover:bg-purple-500 text-white px-6 py-2 rounded-xl font-black transition-all active:scale-95 disabled:opacity-50 flex items-center gap-2"
-              >
-                {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
-                <span className="text-sm">نشر الآن</span>
-              </button>
+              <div className="flex gap-4">
+                <button onClick={() => fileInputRef.current?.click()} className="flex items-center gap-2 text-slate-400 font-bold hover:text-purple-400 transition-colors">
+                  <ImageIcon className="w-5 h-5 text-purple-500" />
+                  <span className="text-xs uppercase tracking-tight">صورة</span>
+                </button>
+              </div>
+              <div className="flex items-center gap-3">
+                <div className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-800/50 rounded-xl border border-white/5">
+                  {privacy === 'public' ? <Globe className="w-3.5 h-3.5 text-blue-400" /> : privacy === 'friends' ? <Users className="w-3.5 h-3.5 text-green-400" /> : <Lock className="w-3.5 h-3.5 text-amber-400" />}
+                  <select 
+                    value={privacy} 
+                    onChange={(e: any) => setPrivacy(e.target.value)}
+                    className="bg-transparent text-[10px] font-black text-slate-300 uppercase outline-none cursor-pointer"
+                  >
+                    <option value="public">عام</option>
+                    <option value="friends">زملاء</option>
+                    <option value="private">خاص</option>
+                  </select>
+                </div>
+                <button
+                  onClick={() => handleCreatePost()}
+                  disabled={loading || (!content.trim() && !selectedImage)}
+                  className="bg-purple-600 hover:bg-purple-500 text-white px-6 py-2.5 rounded-xl font-black transition-all active:scale-95 disabled:opacity-50 flex items-center gap-2 shadow-lg shadow-purple-500/20"
+                >
+                  {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+                  <span className="text-sm">نشر الآن</span>
+                </button>
+              </div>
             </div>
           </div>
         </div>

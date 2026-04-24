@@ -493,15 +493,15 @@ export default function Profile() {
         </div>
         <div className="px-8 pb-8 relative">
           <div className="flex flex-col md:flex-row items-end gap-6 -mt-16 mb-6">
-            <div className="relative group">
+            <div className="relative">
               <img
                 src={profile.photoURL}
                 alt={profile.displayName}
                 className="w-32 h-32 rounded-3xl object-cover ring-8 ring-slate-900 shadow-2xl"
               />
               {isOwner && (
-                <label className="absolute inset-0 flex items-center justify-center bg-black/40 rounded-3xl opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer">
-                  <Camera className="w-8 h-8 text-white" />
+                <label className="absolute -bottom-2 -right-2 bg-purple-600 p-2.5 rounded-xl text-white shadow-xl cursor-pointer hover:bg-purple-700 transition-all border-4 border-slate-900 active:scale-95 flex items-center justify-center">
+                  <Camera className="w-5 h-5" />
                   <input type="file" className="hidden" accept="image/*" onChange={handlePhotoUpload} />
                 </label>
               )}
@@ -525,7 +525,7 @@ export default function Profile() {
                 className="px-6 py-3 bg-purple-600 text-white font-black rounded-2xl hover:bg-purple-700 transition-all flex items-center gap-2 shadow-lg shadow-purple-500/20 active:scale-95"
               >
                 <Edit3 className="w-4 h-4" />
-                {isEditing ? 'Cancel' : 'Edit Profile'}
+                {isEditing ? 'إلغاء (Cancel)' : 'تعديل الملف (Edit Profile)'}
               </button>
             ) : (
               <div className="flex gap-2">
@@ -571,7 +571,10 @@ export default function Profile() {
               >
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div className="space-y-2">
-                    <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">First Name</label>
+                    <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1 flex justify-between items-center">
+                      <span>First Name</span>
+                      <span>الاسم</span>
+                    </label>
                     <input
                       type="text"
                       className="w-full px-4 py-3 bg-slate-900 border border-slate-800 text-white rounded-2xl outline-none focus:ring-2 focus:ring-purple-500 transition-all font-bold"
@@ -580,7 +583,10 @@ export default function Profile() {
                     />
                   </div>
                   <div className="space-y-2">
-                    <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Last Name</label>
+                    <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1 flex justify-between items-center">
+                      <span>Last Name</span>
+                      <span>اللقب</span>
+                    </label>
                     <input
                       type="text"
                       className="w-full px-4 py-3 bg-slate-900 border border-slate-800 text-white rounded-2xl outline-none focus:ring-2 focus:ring-purple-500 transition-all font-bold"
@@ -589,7 +595,10 @@ export default function Profile() {
                     />
                   </div>
                   <div className="space-y-2">
-                    <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Subject</label>
+                    <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1 flex justify-between items-center">
+                      <span>Specialization / Subject</span>
+                      <span>الاختصاص / المادة</span>
+                    </label>
                     <input
                       type="text"
                       className="w-full px-4 py-3 bg-slate-900 border border-slate-800 text-white rounded-2xl outline-none focus:ring-2 focus:ring-purple-500 transition-all font-bold"
@@ -598,7 +607,10 @@ export default function Profile() {
                     />
                   </div>
                   <div className="space-y-2">
-                    <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Wilaya</label>
+                    <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1 flex justify-between items-center">
+                      <span>Wilaya</span>
+                      <span>الولاية</span>
+                    </label>
                     <input
                       type="text"
                       className="w-full px-4 py-3 bg-slate-900 border border-slate-800 text-white rounded-2xl outline-none focus:ring-2 focus:ring-purple-500 transition-all font-bold"
@@ -607,7 +619,10 @@ export default function Profile() {
                     />
                   </div>
                   <div className="space-y-2">
-                    <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Phone Number</label>
+                    <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1 flex justify-between items-center">
+                      <span>Phone Number</span>
+                      <span>رقم الهاتف</span>
+                    </label>
                     <div className="flex gap-2">
                       <input
                         type="tel"
@@ -625,18 +640,36 @@ export default function Profile() {
                     </div>
                   </div>
                   <div className="space-y-2">
-                    <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Email Privacy</label>
+                    <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1 flex justify-between items-center">
+                      <span>Email Privacy</span>
+                      <span>خصوصية البريد</span>
+                    </label>
                     <button 
                       type="button"
                       onClick={() => setEditData({ ...editData, showEmail: !editData.showEmail })}
                       className={`w-full px-4 py-3 rounded-2xl border border-slate-800 transition-all flex items-center justify-between font-bold ${editData.showEmail ? 'bg-purple-600/10 text-purple-400' : 'bg-slate-900 text-slate-500'}`}
                     >
-                      <span>{editData.showEmail ? 'Email Visible to Friends' : 'Email Hidden'}</span>
+                      <span className="text-xs">{editData.showEmail ? 'Email Visible to Friends' : 'Email Hidden'}</span>
                       {editData.showEmail ? <Eye className="w-5 h-5" /> : <EyeOff className="w-5 h-5" />}
                     </button>
                   </div>
                   <div className="space-y-2">
-                    <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Teaching Level</label>
+                    <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1 flex justify-between items-center">
+                      <span>Years of Experience</span>
+                      <span>سنوات الخبرة</span>
+                    </label>
+                    <input
+                      type="number"
+                      className="w-full px-4 py-3 bg-slate-900 border border-slate-800 text-white rounded-2xl outline-none focus:ring-2 focus:ring-purple-500 transition-all font-bold"
+                      value={editData.yearsOfExperience}
+                      onChange={(e) => setEditData({ ...editData, yearsOfExperience: parseInt(e.target.value) || 0 })}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1 flex justify-between items-center">
+                      <span>Teaching Level</span>
+                      <span>الطور التعليمي</span>
+                    </label>
                     <select
                       className="w-full px-4 py-3 bg-slate-900 border border-slate-800 text-white rounded-2xl outline-none focus:ring-2 focus:ring-purple-500 transition-all font-bold appearance-none"
                       value={editData.level}
@@ -650,7 +683,10 @@ export default function Profile() {
                     </select>
                   </div>
                   <div className="space-y-2">
-                    <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Role (الصفة)</label>
+                    <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1 flex justify-between items-center">
+                      <span>Role (الصفة)</span>
+                      <span>الصفة الحالية</span>
+                    </label>
                     <select
                       className="w-full px-4 py-3 bg-slate-900 border border-slate-800 text-white rounded-2xl outline-none focus:ring-2 focus:ring-purple-500 transition-all font-bold appearance-none"
                       value={editData.role}
@@ -662,7 +698,10 @@ export default function Profile() {
                     </select>
                   </div>
                   <div className="space-y-2">
-                    <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Rank (الرتبة)</label>
+                    <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1 flex justify-between items-center">
+                      <span>Rank (الرتبة)</span>
+                      <span>الرتبة الإدارية</span>
+                    </label>
                     <select
                       className="w-full px-4 py-3 bg-slate-900 border border-slate-800 text-white rounded-2xl outline-none focus:ring-2 focus:ring-purple-500 transition-all font-bold appearance-none"
                       value={editData.rank}
@@ -675,7 +714,10 @@ export default function Profile() {
                     </select>
                   </div>
                   <div className="space-y-2">
-                    <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Gender (الجنس)</label>
+                    <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1 flex justify-between items-center">
+                      <span>Gender (الجنس)</span>
+                      <span>الجنس</span>
+                    </label>
                     <select
                       className="w-full px-4 py-3 bg-slate-900 border border-slate-800 text-white rounded-2xl outline-none focus:ring-2 focus:ring-purple-500 transition-all font-bold appearance-none"
                       value={editData.gender}
@@ -798,9 +840,10 @@ export default function Profile() {
                 <button
                   type="submit"
                   disabled={loading}
-                  className="px-8 py-3 bg-purple-600 text-white font-black rounded-2xl hover:bg-purple-700 transition-all shadow-lg shadow-purple-500/20 active:scale-95"
+                  className="px-8 py-4 bg-purple-600 text-white font-black rounded-2xl hover:bg-purple-700 transition-all shadow-lg shadow-purple-500/20 active:scale-95 flex items-center justify-center gap-2"
                 >
-                  {loading ? 'Saving...' : 'Save Changes'}
+                  <CheckCircle className="w-5 h-5" />
+                  {loading ? 'جاري الحفظ...' : 'حفظ التغييرات (Save Changes)'}
                 </button>
               </motion.form>
             ) : (

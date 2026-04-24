@@ -1,12 +1,13 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { db } from '../firebase';
 import { doc, updateDoc, arrayUnion, arrayRemove, collection, addDoc, serverTimestamp, query, where, orderBy, onSnapshot, deleteDoc, increment, Timestamp, limit } from 'firebase/firestore';
 import { useAuth } from '../hooks/useAuth';
 import { Post, Comment } from '../types';
-import { Heart, MessageCircle, Share2, MoreHorizontal, GraduationCap, Send, Trash2, Globe, Users, Lock as LockIcon, X } from 'lucide-react';
+import { ThumbsUp, MessageCircle, Share2, MoreHorizontal, GraduationCap, Send, Trash2, Globe, Users, Lock as LockIcon, X, Smile } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { Link } from 'react-router-dom';
 import React from 'react';
+import { motion, AnimatePresence } from 'motion/react';
 import { playSound } from '../lib/sounds';
 
 function CommentItem({ comment }: { comment: Comment }) {
@@ -24,38 +25,78 @@ function CommentItem({ comment }: { comment: Comment }) {
   );
 }
 
+const REACTIONS = [
+  { type: 'like', emoji: '👍', label: 'Like', color: 'text-blue-400' },
+  { type: 'love', emoji: '❤️', label: 'Love', color: 'text-red-500' },
+  { type: 'haha', emoji: '😄', label: 'Haha', color: 'text-yellow-400' },
+  { type: 'wow', emoji: '😮', label: 'Wow', color: 'text-yellow-400' },
+  { type: 'sad', emoji: '😢', label: 'Sad', color: 'text-yellow-400' },
+  { type: 'angry', emoji: '😡', label: 'Angry', color: 'text-orange-500' },
+];
+
 export default function PostCard({ post }: { post: Post }) {
   const { profile } = useAuth();
   const [likes, setLikes] = useState(post.likes || []);
+  const [reactions, setReactions] = useState<Record<string, string>>(post.reactions || {});
   const [isLiked, setIsLiked] = useState(post.likes?.includes(profile?.uid || ''));
+  const [showReactions, setShowReactions] = useState(false);
   const [showComments, setShowComments] = useState(false);
   const [comments, setComments] = useState<Comment[]>([]);
   const [newComment, setNewComment] = useState('');
   const [commentCount, setCommentCount] = useState(post.commentCount || 0);
   const [loading, setLoading] = useState(false);
+  const reactionTimeoutRef = React.useRef<any>(null);
 
   useEffect(() => {
     setIsLiked(likes.includes(profile?.uid || ''));
   }, [likes, profile?.uid]);
 
-  const handleLike = async () => {
+  const handleReaction = async (type: string) => {
     if (!profile?.uid) return;
+    setShowReactions(false);
     playSound('like');
-    const wasLiked = isLiked;
-    const newLikes = wasLiked 
-      ? likes.filter(id => id !== profile.uid) 
-      : [...likes, profile.uid];
-    
+
+    const currentReaction = reactions[profile.uid];
+    const isRemoving = currentReaction === type;
+
+    const newReactions = { ...reactions };
+    if (isRemoving) {
+      delete newReactions[profile.uid];
+    } else {
+      newReactions[profile.uid] = type;
+    }
+
+    const newLikes = isRemoving 
+      ? likes.filter(id => id !== profile.uid)
+      : likes.includes(profile.uid) ? likes : [...likes, profile.uid];
+
+    setReactions(newReactions);
     setLikes(newLikes);
-    setIsLiked(!wasLiked);
 
     try {
       await updateDoc(doc(db, 'posts', post.id), {
-        likes: wasLiked ? arrayRemove(profile.uid) : arrayUnion(profile.uid)
+        reactions: newReactions,
+        likes: newLikes
       });
     } catch (e) {
-      setLikes(likes);
-      setIsLiked(wasLiked);
+      setReactions(post.reactions || {});
+      setLikes(post.likes || []);
+    }
+  };
+
+  const currentReaction = profile?.uid ? reactions[profile.uid] : null;
+  const reactionData = REACTIONS.find(r => r.type === currentReaction);
+
+  const startReactionTimer = () => {
+    if (reactionTimeoutRef.current) clearTimeout(reactionTimeoutRef.current);
+    reactionTimeoutRef.current = setTimeout(() => {
+      setShowReactions(true);
+    }, 500);
+  };
+
+  const clearReactionTimer = () => {
+    if (reactionTimeoutRef.current) {
+      clearTimeout(reactionTimeoutRef.current);
     }
   };
 
@@ -163,21 +204,63 @@ export default function PostCard({ post }: { post: Post }) {
       )}
 
       {/* Actions */}
-      <div className="px-4 py-2 border-t border-white/5 flex items-center justify-between">
+      <div className="px-4 py-2 border-t border-white/5 flex items-center justify-between relative">
         <div className="flex items-center gap-3">
-          <button 
-            onClick={handleLike} 
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-black transition-all ${isLiked ? 'bg-red-500/10 text-red-500' : 'text-slate-400 hover:bg-slate-800'}`}
-          >
-            <Heart className={`w-4.5 h-4.5 ${isLiked ? 'fill-current' : ''}`} />
-            <span>{likes.length}</span>
-          </button>
+          <div className="relative flex items-center">
+            <AnimatePresence>
+              {showReactions && (
+                <motion.div
+                  initial={{ opacity: 0, y: 10, scale: 0.5 }}
+                  animate={{ opacity: 1, y: -50, scale: 1 }}
+                  exit={{ opacity: 0, y: 10, scale: 0.5 }}
+                  className="absolute bottom-full left-0 mb-2 bg-slate-900 border border-slate-700 rounded-full flex items-center gap-2 p-1.5 shadow-2xl z-50 pointer-events-auto"
+                >
+                  {REACTIONS.map((re) => (
+                    <motion.button
+                      key={re.type}
+                      whileHover={{ scale: 1.3 }}
+                      whileTap={{ scale: 0.9 }}
+                      onClick={() => handleReaction(re.type)}
+                      className="text-2xl hover:drop-shadow-[0_0_8px_rgba(255,255,255,0.5)] transition-all"
+                      title={re.label}
+                    >
+                      {re.emoji}
+                    </motion.button>
+                  ))}
+                </motion.div>
+              )}
+            </AnimatePresence>
+
+            <button 
+              onClick={() => handleReaction(currentReaction ? currentReaction : 'like')} 
+              onMouseDown={startReactionTimer}
+              onMouseUp={clearReactionTimer}
+              onMouseLeave={clearReactionTimer}
+              onTouchStart={startReactionTimer}
+              onTouchEnd={clearReactionTimer}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-black transition-all ${currentReaction ? 'bg-white/5 ' + reactionData?.color : 'text-slate-400 hover:bg-slate-800'}`}
+            >
+              {currentReaction ? (
+                <span className="text-lg">{reactionData?.emoji}</span>
+              ) : (
+                <ThumbsUp className={`w-4.5 h-4.5 ${isLiked ? 'fill-current text-blue-500' : ''}`} />
+              )}
+              <span>{likes.length > 0 ? likes.length : 'إعجاب'}</span>
+            </button>
+            <button
+               onClick={() => setShowReactions(!showReactions)}
+               className="p-1 px-2 text-slate-500 hover:text-purple-400 transition-all"
+            >
+               <Smile className="w-4 h-4 opacity-50" />
+            </button>
+          </div>
+          
           <button 
             onClick={() => setShowComments(!showComments)} 
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-black text-slate-400 hover:bg-slate-800 transition-all"
           >
             <MessageCircle className="w-4.5 h-4.5" />
-            <span>{commentCount}</span>
+            <span>{commentCount > 0 ? commentCount : 'تعليق'}</span>
           </button>
         </div>
         <button className="p-2 text-slate-500 hover:text-slate-300">

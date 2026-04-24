@@ -54,7 +54,17 @@ function BottomNav() {
                 }`
               }
             >
-              <item.icon className="w-6 h-6" />
+              {({ isActive }) => (
+                <>
+                  {item.label === 'Profile' && profile?.photoURL ? (
+                    <div className={`w-7 h-7 rounded-lg overflow-hidden border-2 transition-all ${isActive ? 'border-purple-500 scale-110 shadow-lg shadow-purple-500/20' : 'border-slate-700 opacity-70'}`}>
+                      <img src={profile.photoURL} className="w-full h-full object-cover" referrerPolicy="no-referrer" alt="" />
+                    </div>
+                  ) : (
+                    <item.icon className="w-6 h-6" />
+                  )}
+                </>
+              )}
             </NavLink>
           )
         ))}
