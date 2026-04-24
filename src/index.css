@@ -2,18 +2,82 @@
 @import "tailwindcss";
 
 @theme {
-  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-sans: var(--font-family-current), "Inter", ui-sans-serif, system-ui, sans-serif;
   --font-amiri: "Amiri", serif;
-  --color-primary: #7c3aed; /* Purple 600 */
-  --color-primary-dark: #6d28d9; /* Purple 700 */
-  --color-accent: #d8b4fe; /* Purple 300 */
+  --color-primary: var(--primary-color, #7c3aed); 
+  --color-primary-dark: var(--primary-dark, #6d28d9);
+  --color-accent: var(--primary-accent, #d8b4fe);
   --color-dark: #0f172a; /* Slate 900 */
   --color-darker: #020617; /* Slate 950 */
 }
 
 @layer base {
+  :root {
+    --primary-color: #7c3aed;
+    --primary-dark: #6d28d9;
+    --primary-accent: #d8b4fe;
+    --font-size-current: 16px;
+    --font-family-current: "Inter", ui-sans-serif, system-ui, sans-serif;
+  }
+
+  .theme-emerald {
+    --primary-color: #059669;
+    --primary-dark: #047857;
+    --primary-accent: #6ee7b7;
+  }
+
+  .theme-amber {
+    --primary-color: #d97706;
+    --primary-dark: #b45309;
+    --primary-accent: #fcd34d;
+  }
+
+  .theme-rose {
+    --primary-color: #e11d48;
+    --primary-dark: #be123c;
+    --primary-accent: #fda4af;
+  }
+
+  .theme-cyan {
+    --primary-color: #0891b2;
+    --primary-dark: #0e7490;
+    --primary-accent: #67e8f9;
+  }
+
+  .theme-indigo {
+    --primary-color: #4f46e5;
+    --primary-dark: #4338ca;
+    --primary-accent: #a5b4fc;
+  }
+
+  .theme-glass {
+    --primary-color: #ffffff;
+    --primary-dark: #f8fafc;
+    --primary-accent: #cbd5e1;
+    --card-bg: rgba(15, 23, 42, 0.1);
+    --card-blur: 8px;
+    --card-border: rgba(255, 255, 255, 0.05);
+  }
+
+  .theme-transparent {
+    --primary-color: #ffffff;
+    --primary-dark: #f1f5f9;
+    --primary-accent: #e2e8f0;
+    --card-bg: rgba(255, 255, 255, 0.02);
+    --card-blur: 0px;
+    --card-border: rgba(255, 255, 255, 0.1);
+  }
+
   body {
     @apply bg-slate-950 text-slate-100;
+    font-size: var(--font-size-current);
+    font-family: var(--font-family-current);
+  }
+
+  .bg-slate-900 {
+    background-color: var(--card-bg, #0f172a);
+    backdrop-filter: blur(var(--card-blur, 0px));
+    border-color: var(--card-border, #1e293b);
   }
 }
 

@@ -1,6 +1,6 @@
 import React, { memo } from 'react';
 import { NavLink } from 'react-router-dom';
-import { Home, Bell, MessageSquare, User, Sparkles, Image, Menu, Car, ShoppingBag } from 'lucide-react';
+import { Home, Bell, MessageSquare, User, Sparkles, Image, Menu, Car, ShoppingBag, Wand2 } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
 import { useUnreadMessages } from '../hooks/useUnreadMessages';
 
@@ -12,7 +12,7 @@ function BottomNav() {
     { icon: Home, label: 'Home', path: '/', external: false },
     { icon: Bell, label: 'Alerts', path: '/notifications', external: false },
     { icon: ShoppingBag, label: 'Market', path: '/market', external: false },
-    { icon: User, label: 'Profile', path: profile?.uid ? `/profile/${profile.uid}` : '/profile/loading', external: false },
+    { icon: Wand2, label: 'Generator', path: 'https://pro-mat-1243.vercel.app/', external: true },
     { icon: Menu, label: 'Menu', path: '#', external: false, onClick: (e: any) => { e.preventDefault(); window.dispatchEvent(new CustomEvent('toggle-sidebar')); } },
   ];
 
@@ -26,19 +26,22 @@ function BottomNav() {
               href={item.path}
               target="_blank"
               rel="noopener noreferrer"
-              className="flex-1 flex flex-col items-center gap-1 p-4 transition-all text-slate-400 active:bg-white/5 hover:text-purple-400"
+              className="flex-1 flex flex-col items-center gap-1 p-4 transition-all relative group"
             >
-              <item.icon className="w-6 h-6" />
+              <div className="bg-amber-500 p-2 rounded-xl shadow-lg shadow-amber-500/20 group-hover:scale-110 transition-transform group-active:scale-95 animate-pulse">
+                <item.icon className="w-6 h-6 text-slate-900" />
+              </div>
+              <span className="absolute -top-1 right-1/4 w-2 h-2 bg-primary rounded-full animate-bounce"></span>
             </a>
           ) : item.path === '#' ? (
             <button
               key={item.label}
               onClick={item.onClick}
-              className="flex-1 flex flex-col items-center gap-1 p-4 relative text-slate-400 active:bg-white/5 transition-all hover:text-purple-400"
+              className="flex-1 flex flex-col items-center gap-1 p-4 relative text-slate-400 active:bg-white/5 transition-all hover:text-primary"
             >
               <item.icon className="w-6 h-6" />
               {item.label === 'Menu' && (
-                <span className="absolute top-4 right-1/3 w-2 h-2 bg-purple-500 rounded-full"></span>
+                <span className="absolute top-4 right-1/3 w-2 h-2 bg-primary rounded-full"></span>
               )}
             </button>
           ) : (
@@ -50,14 +53,14 @@ function BottomNav() {
               }}
               className={({ isActive }) =>
                 `flex-1 flex flex-col items-center gap-1 p-4 transition-all active:bg-white/5 relative ${
-                  isActive ? 'text-purple-400' : 'text-slate-400 hover:text-purple-300'
+                  isActive ? 'text-primary' : 'text-slate-400 hover:text-primary-accent'
                 }`
               }
             >
               {({ isActive }) => (
                 <>
                   {item.label === 'Profile' && profile?.photoURL ? (
-                    <div className={`w-7 h-7 rounded-lg overflow-hidden border-2 transition-all ${isActive ? 'border-purple-500 scale-110 shadow-lg shadow-purple-500/20' : 'border-slate-700 opacity-70'}`}>
+                    <div className={`w-7 h-7 rounded-lg overflow-hidden border-2 transition-all ${isActive ? 'border-primary scale-110 shadow-lg shadow-primary/20' : 'border-slate-700 opacity-70'}`}>
                       <img src={profile.photoURL} className="w-full h-full object-cover" referrerPolicy="no-referrer" alt="" />
                     </div>
                   ) : (

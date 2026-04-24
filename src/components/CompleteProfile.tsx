@@ -84,8 +84,8 @@ export default function CompleteProfile() {
         className="bg-slate-900 w-full max-w-md rounded-3xl p-8 border border-slate-800 shadow-2xl my-auto"
       >
         <div className="text-center mb-8">
-          <div className="w-16 h-16 bg-purple-500/20 rounded-2xl flex items-center justify-center mx-auto mb-4">
-            <GraduationCap className="w-8 h-8 text-purple-500" />
+          <div className="w-16 h-16 bg-primary/20 rounded-2xl flex items-center justify-center mx-auto mb-4">
+            <GraduationCap className="w-8 h-8 text-primary" />
           </div>
           <h2 className="text-2xl font-black text-white mb-2">Complete Your Profile</h2>
           <p className="text-slate-400 text-sm">Help other teachers find and connect with you.</p>
@@ -101,7 +101,7 @@ export default function CompleteProfile() {
           {[1, 2, 3].map((s) => (
             <div 
               key={s} 
-              className={`h-1 flex-1 rounded-full transition-all duration-500 ${s <= step ? 'bg-purple-500' : 'bg-slate-800'}`}
+              className={`h-1 flex-1 rounded-full transition-all duration-500 ${s <= step ? 'bg-primary' : 'bg-slate-800'}`}
             />
           ))}
         </div>
@@ -121,7 +121,7 @@ export default function CompleteProfile() {
                     type="text"
                     value={formData.firstName}
                     onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
-                    className="w-full bg-slate-950 border border-slate-800 rounded-xl py-3 px-4 text-white outline-none focus:ring-2 focus:ring-purple-500/50 transition-all"
+                    className="w-full bg-slate-950 border border-slate-800 rounded-xl py-3 px-4 text-white outline-none focus:ring-2 focus:ring-primary/50 transition-all"
                     placeholder="First Name"
                   />
                 </div>
@@ -132,7 +132,7 @@ export default function CompleteProfile() {
                     type="text"
                     value={formData.lastName}
                     onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
-                    className="w-full bg-slate-950 border border-slate-800 rounded-xl py-3 px-4 text-white outline-none focus:ring-2 focus:ring-purple-500/50 transition-all"
+                    className="w-full bg-slate-950 border border-slate-800 rounded-xl py-3 px-4 text-white outline-none focus:ring-2 focus:ring-primary/50 transition-all"
                     placeholder="Last Name"
                   />
                 </div>
@@ -146,7 +146,7 @@ export default function CompleteProfile() {
                     required
                     value={formData.wilaya}
                     onChange={(e) => setFormData({ ...formData, wilaya: e.target.value })}
-                    className="w-full bg-slate-950 border border-slate-800 rounded-xl py-3 pl-12 pr-4 text-white outline-none focus:ring-2 focus:ring-purple-500/50 transition-all appearance-none"
+                    className="w-full bg-slate-950 border border-slate-800 rounded-xl py-3 pl-12 pr-4 text-white outline-none focus:ring-2 focus:ring-primary/50 transition-all appearance-none"
                   >
                     <option value="">Select your wilaya</option>
                     {WILAYAS.map(w => <option key={w} value={w}>{w}</option>)}
@@ -168,7 +168,7 @@ export default function CompleteProfile() {
                     required
                     value={formData.subject}
                     onChange={(e) => setFormData({ ...formData, subject: e.target.value })}
-                    className="w-full bg-slate-950 border border-slate-800 rounded-xl py-3 pl-12 pr-4 text-white outline-none focus:ring-2 focus:ring-purple-500/50 transition-all appearance-none"
+                    className="w-full bg-slate-950 border border-slate-800 rounded-xl py-3 pl-12 pr-4 text-white outline-none focus:ring-2 focus:ring-primary/50 transition-all appearance-none"
                   >
                     <option value="">Select your subject</option>
                     {SUBJECTS.map(s => <option key={s} value={s}>{s}</option>)}
@@ -184,7 +184,7 @@ export default function CompleteProfile() {
                       key={g}
                       type="button"
                       onClick={() => setFormData({ ...formData, gender: g })}
-                      className={`flex-1 py-3 rounded-xl border-2 transition-all font-bold text-sm ${formData.gender === g ? 'border-purple-500 bg-purple-500/10 text-purple-400' : 'border-slate-800 bg-slate-950 text-slate-500'}`}
+                      className={`flex-1 py-3 rounded-xl border-2 transition-all font-bold text-sm ${formData.gender === g ? 'border-primary bg-primary/10 text-primary' : 'border-slate-800 bg-slate-950 text-slate-500'}`}
                     >
                       {g}
                     </button>
@@ -198,7 +198,7 @@ export default function CompleteProfile() {
                   required
                   value={formData.role}
                   onChange={(e) => setFormData({ ...formData, role: e.target.value })}
-                  className="w-full bg-slate-950 border border-slate-800 rounded-xl py-3 px-4 text-white outline-none focus:ring-2 focus:ring-purple-500/50 transition-all appearance-none"
+                  className="w-full bg-slate-950 border border-slate-800 rounded-xl py-3 px-4 text-white outline-none focus:ring-2 focus:ring-primary/50 transition-all appearance-none"
                 >
                   {ROLES.map(r => <option key={r} value={r}>{r}</option>)}
                 </select>
@@ -210,7 +210,7 @@ export default function CompleteProfile() {
                   required
                   value={formData.rank}
                   onChange={(e) => setFormData({ ...formData, rank: e.target.value })}
-                  className="w-full bg-slate-950 border border-slate-800 rounded-xl py-3 px-4 text-white outline-none focus:ring-2 focus:ring-purple-500/50 transition-all appearance-none"
+                  className="w-full bg-slate-950 border border-slate-800 rounded-xl py-3 px-4 text-white outline-none focus:ring-2 focus:ring-primary/50 transition-all appearance-none"
                 >
                   {RANKS.map(r => <option key={r} value={r}>{r}</option>)}
                 </select>
@@ -224,7 +224,7 @@ export default function CompleteProfile() {
                     required
                     value={formData.level}
                     onChange={(e) => setFormData({ ...formData, level: e.target.value })}
-                    className="w-full bg-slate-950 border border-slate-800 rounded-xl py-3 pl-12 pr-4 text-white outline-none focus:ring-2 focus:ring-purple-500/50 transition-all appearance-none"
+                    className="w-full bg-slate-950 border border-slate-800 rounded-xl py-3 pl-12 pr-4 text-white outline-none focus:ring-2 focus:ring-primary/50 transition-all appearance-none"
                   >
                     <option value="">Select level</option>
                     {LEVELS.map(l => <option key={l} value={l}>{l}</option>)}
@@ -243,7 +243,7 @@ export default function CompleteProfile() {
                     max="50"
                     value={isNaN(formData.yearsOfExperience) ? '' : formData.yearsOfExperience}
                     onChange={(e) => setFormData({ ...formData, yearsOfExperience: e.target.value === '' ? 0 : parseInt(e.target.value) })}
-                    className="w-full bg-slate-950 border border-slate-800 rounded-xl py-3 pl-12 pr-4 text-white outline-none focus:ring-2 focus:ring-purple-500/50 transition-all"
+                    className="w-full bg-slate-950 border border-slate-800 rounded-xl py-3 pl-12 pr-4 text-white outline-none focus:ring-2 focus:ring-primary/50 transition-all"
                   />
                 </div>
               </div>
@@ -261,7 +261,7 @@ export default function CompleteProfile() {
                   type="tel"
                   value={formData.phoneNumber}
                   onChange={(e) => setFormData({ ...formData, phoneNumber: e.target.value })}
-                  className="w-full bg-slate-950 border border-slate-800 rounded-xl py-3 px-4 text-white outline-none focus:ring-2 focus:ring-purple-500/50 transition-all"
+                  className="w-full bg-slate-950 border border-slate-800 rounded-xl py-3 px-4 text-white outline-none focus:ring-2 focus:ring-primary/50 transition-all"
                   placeholder="0X XX XX XX XX"
                 />
               </div>
@@ -272,7 +272,7 @@ export default function CompleteProfile() {
                   type="date"
                   value={formData.birthDate}
                   onChange={(e) => setFormData({ ...formData, birthDate: e.target.value })}
-                  className="w-full bg-slate-950 border border-slate-800 rounded-xl py-3 px-4 text-white outline-none focus:ring-2 focus:ring-purple-500/50 transition-all"
+                  className="w-full bg-slate-950 border border-slate-800 rounded-xl py-3 px-4 text-white outline-none focus:ring-2 focus:ring-primary/50 transition-all"
                 />
               </div>
             </motion.div>
@@ -291,7 +291,7 @@ export default function CompleteProfile() {
             <button
               type="submit"
               disabled={loading}
-              className="flex-[2] bg-purple-600 hover:bg-purple-500 text-white font-black py-4 rounded-2xl transition-all shadow-lg shadow-purple-500/20 flex items-center justify-center gap-2 group disabled:opacity-50 disabled:cursor-not-allowed"
+              className="flex-[2] bg-primary hover:bg-primary-dark text-white font-black py-4 rounded-2xl transition-all shadow-lg shadow-primary/20 flex items-center justify-center gap-2 group disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {loading ? (
                 <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />

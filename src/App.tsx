@@ -33,8 +33,11 @@ import { motion, AnimatePresence } from 'motion/react';
 
 import { UploadProvider } from './hooks/useUpload';
 
+import { useTranslation } from './hooks/useTranslation';
+
 export default function App() {
   const { user, profile, loading, error, retry } = useAuth();
+  const { t } = useTranslation();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
   useEffect(() => {
@@ -54,17 +57,25 @@ export default function App() {
         document.documentElement.classList.remove('dark');
       }
 
+      // Theme Color
+      const themeColors = ['emerald', 'amber', 'rose', 'cyan', 'indigo', 'purple', 'glass', 'transparent'];
+      themeColors.forEach(c => document.documentElement.classList.remove(`theme-${c}`));
+      const themeColor = profile.settings?.themeColor;
+      if (themeColor && themeColors.includes(themeColor)) {
+        document.documentElement.classList.add(`theme-${themeColor}`);
+      }
+
       // Font Size
       const sizeMap = { small: '14px', medium: '16px', large: '18px' };
-      document.documentElement.style.fontSize = sizeMap[fontSize as keyof typeof sizeMap] || '16px';
+      document.documentElement.style.setProperty('--font-size-current', sizeMap[fontSize as keyof typeof sizeMap] || '16px');
 
       // Font Type
       const fontMap = { 
-        sans: 'ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif', 
+        sans: '"Inter", ui-sans-serif, system-ui, sans-serif', 
         serif: 'ui-serif, Georgia, Cambria, "Times New Roman", Times, serif', 
         mono: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace' 
       };
-      document.body.style.fontFamily = fontMap[fontType as keyof typeof fontMap] || fontMap.sans;
+      document.documentElement.style.setProperty('--font-family-current', fontMap[fontType as keyof typeof fontMap] || fontMap.sans);
 
       // Language (RTL for Arabic)
       if (language === 'ar') {
@@ -81,7 +92,7 @@ export default function App() {
     <ErrorBoundary>
       <UploadProvider>
         <Router>
-          <div className="min-h-screen bg-slate-950 text-slate-100 font-sans selection:bg-purple-500/30 relative">
+          <div className="min-h-screen bg-slate-950 text-slate-100 selection:bg-primary/30 relative">
             {profile?.appBackground && (
               <img 
                 src={profile.appBackground}
@@ -94,10 +105,10 @@ export default function App() {
               {loading ? (
               <div className="min-h-screen flex flex-col items-center justify-center bg-slate-950 p-8">
                 <div className="relative mb-8">
-                  <div className="absolute inset-0 bg-purple-500/20 blur-3xl rounded-full animate-pulse"></div>
-                  <div className="relative animate-spin rounded-full h-16 w-16 border-t-2 border-b-2 border-purple-500"></div>
+                  <div className="absolute inset-0 bg-primary/20 blur-3xl rounded-full animate-pulse"></div>
+                  <div className="relative animate-spin rounded-full h-16 w-16 border-t-2 border-b-2 border-primary"></div>
                 </div>
-                <h2 className="text-xl font-black text-white mb-2 animate-pulse">Connecting to Teac DZ...</h2>
+                <h2 className="text-xl font-black text-white mb-2 animate-pulse">{t('connecting')}</h2>
                 <p className="text-slate-500 text-sm max-w-xs text-center">
                   If this takes more than 10 seconds, please check your internet connection or refresh the page.
                 </p>
@@ -105,15 +116,15 @@ export default function App() {
                   onClick={() => window.location.reload()}
                   className="mt-8 px-6 py-2 bg-slate-900 hover:bg-slate-800 text-slate-400 text-xs font-bold rounded-xl transition-all border border-slate-800"
                 >
-                  Refresh Page
+                  {t('refresh')}
                 </button>
               </div>
             ) : user && !profile ? (
               <div className="min-h-screen flex flex-col items-center justify-center bg-slate-950 p-8 text-center">
                 <div className="animate-bounce mb-6">
-                  <GraduationCap className="w-16 h-16 text-purple-500" />
+                  <GraduationCap className="w-16 h-16 text-primary" />
                 </div>
-                <h2 className="text-2xl font-black text-white mb-2">Setting up your profile...</h2>
+                <h2 className="text-2xl font-black text-white mb-2">{t('setting_up_profile')}</h2>
                 <p className="text-slate-400 max-w-md mb-6">We're preparing your teacher dashboard. This should only take a moment.</p>
                 
                 {error && (
@@ -126,15 +137,15 @@ export default function App() {
                 <div className="flex flex-col sm:flex-row gap-4 justify-center">
                   <button 
                     onClick={retry}
-                    className="px-6 py-3 bg-purple-600 text-white rounded-xl font-bold hover:bg-purple-700 transition-all shadow-lg shadow-purple-500/20"
+                    className="px-6 py-3 bg-primary text-white rounded-xl font-bold hover:bg-primary-dark transition-all shadow-lg shadow-primary/20"
                   >
-                    Retry Setup
+                    {t('retry')}
                   </button>
                   <button 
                     onClick={() => window.location.reload()}
                     className="px-6 py-3 bg-slate-800 text-white rounded-xl font-bold hover:bg-slate-700 transition-all"
                   >
-                    Refresh Page
+                    {t('refresh')}
                   </button>
                   <button 
                     onClick={() => signOut(auth)}
@@ -232,12 +243,12 @@ export default function App() {
                           <FriendSuggestions />
                           <div className="bg-slate-900 rounded-3xl p-6 shadow-xl border border-slate-800">
                             <h3 className="font-black text-slate-100 mb-4 flex items-center gap-2">
-                              <div className="w-2 h-2 bg-purple-500 rounded-full animate-pulse"></div>
+                              <div className="w-2 h-2 bg-primary rounded-full animate-pulse"></div>
                               Trending Topics
                             </h3>
                             <div className="space-y-3">
                               {['#AlgerianTeachers', '#Bac2026', '#EducationDZ', '#TechInClass'].map(tag => (
-                                <div key={tag} className="text-sm font-bold text-slate-400 hover:text-purple-400 cursor-pointer transition-colors">
+                                <div key={tag} className="text-sm font-bold text-slate-400 hover:text-primary cursor-pointer transition-colors">
                                   {tag}
                                 </div>
                               ))}

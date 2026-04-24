@@ -186,8 +186,8 @@ export const PrayerWaterBar: React.FC = () => {
         className="bg-white dark:bg-slate-900 rounded-3xl p-4 shadow-xl border border-slate-100 dark:border-slate-800 flex flex-wrap items-center justify-between gap-4"
       >
         <div className="flex items-center gap-4">
-          <div className="bg-purple-100 dark:bg-purple-900/30 p-3 rounded-2xl">
-            <Moon className="w-6 h-6 text-purple-600 dark:text-purple-400" />
+          <div className="bg-primary/10 p-3 rounded-2xl">
+            <Moon className="w-6 h-6 text-primary" />
           </div>
           <div>
             <h3 className="text-sm font-black text-slate-900 dark:text-white uppercase tracking-wider">مواقيت الصلاة</h3>
@@ -199,8 +199,8 @@ export const PrayerWaterBar: React.FC = () => {
           {prayerTimes && Object.entries(prayerTimes).filter(([name]) => ['Fajr', 'Dhuhr', 'Asr', 'Maghrib', 'Isha'].includes(name)).map(([name, time]) => (
             <div key={name} className={`flex flex-col items-center gap-1 min-w-[60px] ${nextPrayer?.name === name ? 'scale-110' : 'opacity-60'}`}>
               <span className="text-[10px] font-black text-slate-400 uppercase">{name}</span>
-              <span className={`text-sm font-black ${nextPrayer?.name === name ? 'text-purple-600 dark:text-purple-400' : 'text-slate-700 dark:text-slate-200'}`}>{time}</span>
-              {nextPrayer?.name === name && <div className="w-1 h-1 bg-purple-600 rounded-full mt-1"></div>}
+              <span className={`text-sm font-black ${nextPrayer?.name === name ? 'text-primary' : 'text-slate-700 dark:text-slate-200'}`}>{time}</span>
+              {nextPrayer?.name === name && <div className="w-1 h-1 bg-primary rounded-full mt-1"></div>}
             </div>
           ))}
         </div>
@@ -208,7 +208,7 @@ export const PrayerWaterBar: React.FC = () => {
         <div className="flex items-center gap-2">
           <button 
             onClick={toggleAdhan}
-            className={`p-3 rounded-2xl transition-all ${isAdhanEnabled ? 'bg-purple-600 text-white shadow-lg shadow-purple-500/30' : 'bg-slate-100 dark:bg-slate-800 text-slate-400'}`}
+            className={`p-3 rounded-2xl transition-all ${isAdhanEnabled ? 'bg-primary text-white shadow-lg shadow-primary/30' : 'bg-slate-100 dark:bg-slate-800 text-slate-400'}`}
           >
             {isAdhanEnabled ? <Volume2 className="w-5 h-5" /> : <VolumeX className="w-5 h-5" />}
           </button>

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../hooks/useAuth';
-import { Wand2, CheckSquare, Lock, Key, Mail, Phone, Sparkles, Send, Loader2, FileText, ClipboardCheck, AlertCircle, CheckCircle2, Zap, ExternalLink, BookOpen, Plus, Save, Download, Printer, Maximize2, Minimize2, ZoomIn, ZoomOut, Type, Bold, Italic, List, AlignLeft, AlignCenter, AlignRight, Underline, Layout, Grid, Target, GraduationCap, User, ChevronRight } from 'lucide-react';
+import { Wand2, CheckSquare, Lock, Key, Mail, Phone, Sparkles, Send, Loader2, FileText, ClipboardCheck, AlertCircle, CheckCircle2, Zap, ExternalLink, BookOpen, Plus, Save, Download, Printer, Maximize2, Minimize2, ZoomIn, ZoomOut, Type, Bold, Italic, List, AlignLeft, AlignCenter, AlignRight, Underline, Layout, Grid, Target, GraduationCap, User, ChevronRight, MessageSquare } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { db } from '../firebase';
 import { doc, updateDoc, Timestamp, collection, getDocs, query, where, deleteDoc, serverTimestamp, orderBy, onSnapshot, addDoc, limit } from 'firebase/firestore';
@@ -514,14 +514,25 @@ export default function PremiumTools() {
           <div className="mt-8 pt-8 border-t border-slate-800 space-y-4 text-center">
             <p className="text-slate-500 text-xs font-black uppercase tracking-widest">للحصول على كود التفعيل، اتصل بالمسؤول</p>
             <div className="flex flex-col gap-3">
-              <a href="tel:0673831994" className="flex items-center gap-3 text-slate-300 hover:text-purple-400 transition-colors bg-slate-950 p-4 rounded-xl border border-slate-800 group">
-                <Phone className="w-5 h-5 text-purple-500" />
-                <span className="font-bold text-sm">0673831994</span>
-              </a>
-              <a href="mailto:dalinadjib1990@gmail.com" className="flex items-center gap-3 text-slate-300 hover:text-purple-400 transition-colors bg-slate-950 p-4 rounded-xl border border-slate-800 group">
-                <Mail className="w-5 h-5 text-purple-500" />
-                <span className="font-bold text-sm">dalinadjib1990@gmail.com</span>
-              </a>
+              <button 
+                onClick={() => {
+                  // Re-fetch or use a known developer profile. Since this is in PremiumTools, 
+                  // I'll dispatch the event. The Sidebar handles the actual profile fetching.
+                  // If the user hasn't clicked Sidebar yet, I'll provide the email-based trigger.
+                  window.dispatchEvent(new CustomEvent('show-chat', { 
+                    detail: { 
+                      uid: 'developer', // The ChatBubble logic should handle finding the dev if needed or I can provide the info
+                      displayName: 'دالي نجيب',
+                      email: 'dalinadjib1990@gmail.com',
+                      photoURL: 'https://ui-avatars.com/api/?name=Dali+Najib&background=random'
+                    } 
+                  }));
+                }} 
+                className="flex items-center justify-center gap-3 text-slate-300 hover:text-purple-400 transition-colors bg-slate-950 p-4 rounded-xl border border-slate-800 group w-full"
+              >
+                <MessageSquare className="w-5 h-5 text-purple-500" />
+                <span className="font-bold text-sm">ارسل رسالة للمطور (Chat)</span>
+              </button>
             </div>
           </div>
         </div>
@@ -680,7 +691,7 @@ export default function PremiumTools() {
             <p className="text-amber-400/80 text-sm font-medium">استخدم المولد الخارجي المخصص للمحترفين للحصول على خيارات بيداغوجية أوسع.</p>
           </div>
           <a 
-            href="https://pro-mat-jg9v-5w72r04zr-dalinadjib169-5953s-projects.vercel.app/" 
+            href="https://pro-mat-1243.vercel.app/" 
             target="_blank" 
             rel="noopener noreferrer"
             className="px-8 py-4 bg-amber-500 hover:bg-amber-400 text-slate-950 font-black rounded-2xl shadow-xl shadow-amber-500/10 transition-all flex items-center gap-2 group/btn active:scale-95"

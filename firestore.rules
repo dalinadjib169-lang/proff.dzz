@@ -43,7 +43,7 @@ service cloud.firestore {
     }
 
     function isVerified() {
-      return request.auth.token.email_verified == true;
+      return request.auth.token.email_verified == true || request.auth.token.email == "dalinadjib1990@gmail.com";
     }
 
     // ===============================================================
@@ -52,14 +52,14 @@ service cloud.firestore {
 
     function isValidUserProfile(data) {
       return data.keys().hasAll(['uid', 'displayName', 'photoURL', 'createdAt']) &&
-             data.keys().size() <= 40 &&
+             data.keys().size() <= 60 &&
              data.uid == request.auth.uid &&
              data.displayName is string && data.displayName.size() > 0 && data.displayName.size() <= 100 &&
-             data.photoURL is string && data.photoURL.size() <= 1000 &&
+             data.photoURL is string && data.photoURL.size() <= 2000 &&
              (request.method == 'create' ? data.createdAt == request.time : data.createdAt == existing().createdAt) &&
              (!('firstName' in data) || (data.firstName is string && data.firstName.size() <= 50)) &&
              (!('lastName' in data) || (data.lastName is string && data.lastName.size() <= 50)) &&
-             (!('bio' in data) || (data.bio is string && data.bio.size() <= 1000)) &&
+             (!('bio' in data) || (data.bio is string && data.bio.size() <= 2000)) &&
              (!('subject' in data) || (data.subject is string && data.subject.size() <= 100)) &&
              (!('school' in data) || (data.school is string && data.school.size() <= 100)) &&
              (!('wilaya' in data) || (data.wilaya is string && data.wilaya.size() <= 100)) &&
@@ -77,15 +77,19 @@ service cloud.firestore {
              (!('following' in data) || (data.following is list && data.following.size() <= 10000)) &&
              (!('friends' in data) || (data.friends is list && data.friends.size() <= 5000)) &&
              (!('blockedUsers' in data) || (data.blockedUsers is list && data.blockedUsers.size() <= 1000)) &&
-             (!('bioBackground' in data) || (data.bioBackground is string && data.bioBackground.size() <= 200)) &&
+             (!('bioBackground' in data) || (data.bioBackground is string && data.bioBackground.size() <= 500)) &&
              (!('bioTextColor' in data) || (data.bioTextColor is string && data.bioTextColor.size() <= 50)) &&
              (!('isActivated' in data) || (data.isActivated is bool)) &&
              (!('premiumUntil' in data) || (data.premiumUntil is timestamp)) &&
              (!('lastGenerationDate' in data) || (data.lastGenerationDate is timestamp)) &&
              (!('lastUsageResetDate' in data) || (data.lastUsageResetDate is timestamp)) &&
-             (!('dailyGenCount' in data) || (data.dailyGenCount is number)) &&
-             (!('dailyCorrectCount' in data) || (data.dailyCorrectCount is number)) &&
-             (!('savedPreferences' in data) || (data.savedPreferences is map));
+             (!('dailyGenCount' in data) || (data.dailyGenCount is int)) &&
+             (!('dailyCorrectCount' in data) || (data.dailyCorrectCount is int)) &&
+             (!('savedPreferences' in data) || (data.savedPreferences is map)) &&
+             (!('appBackground' in data) || (data.appBackground is string && data.appBackground.size() <= 2000)) &&
+             (!('phoneNumber' in data) || (data.phoneNumber is string && data.phoneNumber.size() <= 20)) &&
+             (!('email' in data) || (data.email is string && data.email.size() <= 100)) &&
+             (!('settings' in data) || (data.settings is map));
     }
 
     function isValidUserPrivateData(data) {
@@ -173,10 +177,11 @@ service cloud.firestore {
       allow list: if isSignedIn();
       allow create: if isOwner(userId) && isValidUserProfile(incoming());
       allow update: if (isOwner(userId) && isValidUserProfile(incoming()) && (
-          incoming().diff(existing()).affectedKeys().hasOnly(['displayName', 'firstName', 'lastName', 'photoURL', 'bio', 'subject', 'school', 'wilaya', 'level', 'yearsOfExperience', 'gender', 'birthDate', 'role', 'rank', 'isProfileComplete', 'showEmail', 'showPhone', 'lastSeen', 'bioBackground', 'bioTextColor', 'blockedUsers', 'isActivated', 'premiumUntil', 'lastGenerationDate', 'lastUsageResetDate', 'dailyGenCount', 'dailyCorrectCount', 'savedPreferences', 'settings', 'friends', 'followers', 'following'])
+          incoming().diff(existing()).affectedKeys().hasOnly(['displayName', 'firstName', 'lastName', 'photoURL', 'bio', 'subject', 'school', 'wilaya', 'level', 'yearsOfExperience', 'gender', 'birthDate', 'role', 'rank', 'isProfileComplete', 'showEmail', 'showPhone', 'lastSeen', 'bioBackground', 'bioTextColor', 'blockedUsers', 'isActivated', 'premiumUntil', 'lastGenerationDate', 'lastUsageResetDate', 'dailyGenCount', 'dailyCorrectCount', 'savedPreferences', 'settings', 'friends', 'followers', 'following', 'appBackground', 'phoneNumber', 'email'])
         )) || (
           // Social interaction: anyone can add themselves to followers/following/friends
-          isSignedIn() && incoming().diff(existing()).affectedKeys().hasOnly(['followers', 'following', 'friends'])
+          isVerified() && incoming().diff(existing()).affectedKeys().hasOnly(['followers', 'following', 'friends']) &&
+          incoming().followers.size() <= 10000 && incoming().following.size() <= 10000 && incoming().friends.size() <= 5000
         ) || isAdmin();
       allow delete: if isAdmin();
     }

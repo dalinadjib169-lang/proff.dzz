@@ -9,14 +9,26 @@ import { handleFirestoreError, OperationType } from '../lib/firestore-errors';
 import { UserProfile } from '../types';
 import { playSound } from '../lib/sounds';
 
+import { useTranslation } from '../hooks/useTranslation';
+
 function Sidebar() {
   const { profile } = useAuth();
+  const { t } = useTranslation();
   const [unreadCount, setUnreadCount] = useState(0);
   const [totalUsers, setTotalUsers] = useState(0);
   const [colleagues, setColleagues] = useState<UserProfile[]>([]);
+  const [developer, setDeveloper] = useState<UserProfile | null>(null);
 
   useEffect(() => {
     if (!profile?.uid) return;
+
+    // Fetch developer profile
+    const devQuery = query(collection(db, 'users'), where('email', '==', 'dalinadjib1990@gmail.com'), limit(1));
+    const unsubscribeDev = onSnapshot(devQuery, (snapshot) => {
+      if (!snapshot.empty) {
+        setDeveloper({ uid: snapshot.docs[0].id, ...snapshot.docs[0].data() } as UserProfile);
+      }
+    });
 
     const q = query(
       collection(db, 'notifications'),
@@ -60,27 +72,28 @@ function Sidebar() {
   const isPremium = (profile?.email === 'dalinadjib1990@gmail.com') || (profile?.premiumUntil ? profile.premiumUntil.toDate() > new Date() : false);
 
   const navItems = [
-    { icon: Home, label: 'Home', path: '/' },
-    { icon: MessageSquare, label: 'Discussions', path: '/discussions' },
-    { icon: ShoppingBag, label: 'سوق تيك ديزاد - Teac Market', path: '/market' },
-    { icon: Bell, label: 'Notifications', path: '/notifications', badge: unreadCount },
-    { icon: Bookmark, label: 'Saved Resources', path: '/saved' },
-    { icon: Car, label: 'سوق السيارات بالجزائر - تحليل سيارتك', path: 'https://market-dz-two.vercel.app/', external: true },
-    { icon: Users, label: 'Colleagues', path: '/colleagues' },
-    { icon: BookOpen, label: 'Curriculum', path: '/curriculum' },
-    { icon: Sparkles, label: 'أدوات الذكاء الاصطناعي', path: '/premium-tools' },
+    { icon: Home, label: t('home'), path: '/' },
+    { icon: MessageSquare, label: t('discussions'), path: '/discussions' },
+    { icon: ShoppingBag, label: t('market'), path: '/market' },
+    { icon: Bell, label: t('notifications'), path: '/notifications', badge: unreadCount },
+    { icon: Bookmark, label: t('saved'), path: '/saved' },
+    { icon: CheckSquare, label: 'المصحح الذكي - Mosa7i7', path: 'https://mosa7i7-ai.vercel.app/', external: true },
+    { icon: Car, label: 'سوق السيارات بالجزائر', path: 'https://market-dz-two.vercel.app/', external: true },
+    { icon: Users, label: t('colleagues'), path: '/colleagues' },
+    { icon: BookOpen, label: t('curriculum'), path: '/curriculum' },
+    { icon: Sparkles, label: t('premium_tools'), path: '/premium-tools' },
     { icon: Image, label: 'Image Uploader', path: '/image-uploader' },
-    { icon: User, label: 'My Profile', path: profile?.uid ? `/profile/${profile.uid}` : '/profile/loading' },
-    { icon: Settings, label: 'Settings', path: '/settings' },
+    { icon: User, label: t('profile'), path: profile?.uid ? `/profile/${profile.uid}` : '/profile/loading' },
+    { icon: Settings, label: t('settings'), path: '/settings' },
   ];
 
   return (
     <div className="sticky top-24 space-y-8">
       <Link 
         to={profile?.uid ? `/profile/${profile.uid}` : '/profile/loading'}
-        className="bg-slate-900 rounded-3xl p-6 shadow-xl border border-slate-800 overflow-hidden relative block hover:border-purple-500/50 transition-all group"
+        className="bg-slate-900 rounded-3xl p-6 shadow-xl border border-slate-800 overflow-hidden relative block hover:border-primary/50 transition-all group"
       >
-        <div className="absolute top-0 left-0 w-full h-20 bg-purple-600/10"></div>
+        <div className="absolute top-0 left-0 w-full h-20 bg-primary/10"></div>
         <div className="relative z-10 flex flex-col items-center">
           <div className="w-20 h-20 rounded-2xl bg-slate-800 animate-pulse mb-4 overflow-hidden ring-4 ring-slate-950 shadow-2xl group-hover:scale-105 transition-transform">
             {profile?.photoURL ? (
@@ -120,11 +133,11 @@ function Sidebar() {
               href={item.path}
               target="_blank"
               rel="noopener noreferrer"
-              className="flex items-center justify-between px-6 py-4 rounded-2xl font-bold transition-all group text-slate-500 hover:bg-slate-900 hover:text-purple-400"
+              className="flex items-center justify-between px-6 py-4 rounded-2xl font-bold transition-all group text-slate-500 hover:bg-slate-900 hover:text-primary"
             >
               <div className="flex items-center gap-4">
-                <item.icon className={cn("w-5 h-5", "transition-transform group-hover:scale-110")} />
-                <span>{item.label}</span>
+                <item.icon className={cn("w-5 h-5", "transition-transform group-hover:scale-110", item.label.includes('Mosa7i7') && "text-emerald-400")} />
+                <span className={cn(item.label.includes('Mosa7i7') && "text-emerald-400 font-black")}>{item.label}</span>
               </div>
               <ExternalLink className="w-3.5 h-3.5 opacity-0 group-hover:opacity-100 transition-all" />
             </a>
@@ -135,8 +148,8 @@ function Sidebar() {
             className={({ isActive }) => cn(
               "flex items-center justify-between px-6 py-4 rounded-2xl font-bold transition-all group",
               isActive 
-                ? "bg-purple-600 text-white shadow-lg shadow-purple-500/20" 
-                : "text-slate-500 hover:bg-slate-900 hover:text-purple-400"
+                ? "bg-primary text-white shadow-lg shadow-primary/20" 
+                : "text-slate-500 hover:bg-slate-900 hover:text-primary"
             )}
           >
             <div className="flex items-center gap-4">
@@ -189,6 +202,20 @@ function Sidebar() {
         )}
         
         <button
+          onClick={() => {
+            if (developer) {
+              window.dispatchEvent(new CustomEvent('show-chat', { detail: developer }));
+            } else {
+              window.dispatchEvent(new CustomEvent('show-chat'));
+            }
+          }}
+          className="w-full flex items-center gap-4 px-6 py-4 rounded-2xl font-bold text-slate-500 hover:bg-slate-900 hover:text-purple-400 transition-all group"
+        >
+          <MessageSquare className="w-5 h-5 transition-transform group-hover:scale-110" />
+          <span>تواصل مع المطور (Support)</span>
+        </button>
+
+        <button
           onClick={() => window.dispatchEvent(new CustomEvent('show-chat'))}
           className="w-full flex items-center gap-4 px-6 py-4 rounded-2xl font-bold text-slate-500 hover:bg-slate-900 hover:text-purple-400 transition-all group"
         >
@@ -197,16 +224,27 @@ function Sidebar() {
         </button>
 
         <button
-          onClick={() => {
+          onClick={async () => {
             if (navigator.share) {
-              navigator.share({
-                title: 'Teac DZ - Algerian Teachers Network',
-                text: 'Join the professional network for Algerian teachers and use AI tools for lesson planning.',
-                url: window.location.origin,
-              });
+              try {
+                await navigator.share({
+                  title: 'Teac DZ - Algerian Teachers Network',
+                  text: 'Join the professional network for Algerian teachers and use AI tools for lesson planning.',
+                  url: window.location.origin,
+                });
+              } catch (error) {
+                if (error instanceof Error && error.name === 'AbortError') {
+                  console.log('Share canceled by user');
+                } else {
+                  console.error('Error sharing:', error);
+                  // Fallback to clipboard if share fails for other reasons
+                  navigator.clipboard.writeText(window.location.origin);
+                }
+              }
             } else {
               navigator.clipboard.writeText(window.location.origin);
-              alert('App link copied to clipboard!');
+              // Instead of alert, we could use a toast or just a console log
+              console.log('App link copied to clipboard!');
             }
           }}
           className="w-full flex items-center gap-4 px-6 py-4 rounded-2xl font-bold text-slate-500 hover:bg-slate-900 hover:text-purple-400 transition-all group"
@@ -219,8 +257,8 @@ function Sidebar() {
 
       <div className="bg-slate-900 rounded-3xl p-6 shadow-xl border border-slate-800">
         <div className="flex items-center gap-3 mb-6">
-          <div className="bg-purple-600/10 p-2 rounded-xl">
-            <TrendingUp className="w-5 h-5 text-purple-500" />
+          <div className="bg-primary/10 p-2 rounded-xl">
+            <TrendingUp className="w-5 h-5 text-primary" />
           </div>
           <div>
             <h3 className="font-black text-slate-100 text-sm">Colleagues Status</h3>
@@ -249,7 +287,7 @@ function Sidebar() {
                   )}></div>
                 </div>
                 <div className="flex flex-col">
-                  <span className="text-xs font-bold text-slate-200 group-hover:text-purple-400 transition-colors truncate max-w-[100px]">
+                  <span className="text-xs font-bold text-slate-200 group-hover:text-primary transition-colors truncate max-w-[100px]">
                     {colleague.displayName}
                   </span>
                   <span className="text-[9px] font-medium text-slate-500">
@@ -257,7 +295,7 @@ function Sidebar() {
                   </span>
                 </div>
               </div>
-              <div className="p-1.5 text-slate-500 group-hover:text-purple-400 transition-all">
+              <div className="p-1.5 text-slate-500 group-hover:text-primary transition-all">
                 <MessageSquare className="w-3.5 h-3.5" />
               </div>
             </div>
@@ -273,19 +311,19 @@ function Sidebar() {
           </div>
         </div>
 
-        <button className="w-full mt-6 py-3 bg-slate-950 border border-slate-800 hover:border-purple-500/50 text-slate-300 hover:text-purple-400 font-bold text-xs rounded-2xl transition-all flex items-center justify-center gap-2 group">
+        <button className="w-full mt-6 py-3 bg-slate-950 border border-slate-800 hover:border-primary/50 text-slate-300 hover:text-primary font-bold text-xs rounded-2xl transition-all flex items-center justify-center gap-2 group">
           <UserPlus className="w-4 h-4 group-hover:scale-110 transition-transform" />
           Invite Colleague
         </button>
       </div>
 
-      <div className="bg-purple-900 rounded-3xl p-6 text-white overflow-hidden relative group border border-purple-800/50">
-        <div className="absolute -right-4 -bottom-4 w-24 h-24 bg-purple-800 rounded-full opacity-50 group-hover:scale-150 transition-transform duration-700"></div>
+      <div className="bg-primary rounded-3xl p-6 text-white overflow-hidden relative group border border-primary-dark/50">
+        <div className="absolute -right-4 -bottom-4 w-24 h-24 bg-primary-dark rounded-full opacity-50 group-hover:scale-150 transition-transform duration-700"></div>
         <h4 className="font-black text-lg mb-2 relative z-10">Premium Teac</h4>
-        <p className="text-purple-200 text-xs font-medium mb-4 relative z-10">Get access to exclusive teaching materials and AI tools.</p>
+        <p className="text-primary-accent text-xs font-medium mb-4 relative z-10">Get access to exclusive teaching materials and AI tools.</p>
         <Link 
           to="/premium-tools"
-          className="w-full py-2.5 bg-white text-purple-900 font-black rounded-xl text-sm hover:bg-purple-50 transition-colors relative z-10 block text-center"
+          className="w-full py-2.5 bg-white text-primary font-black rounded-xl text-sm hover:bg-slate-50 transition-colors relative z-10 block text-center"
         >
           {profile?.premiumUntil && profile.premiumUntil.toDate() > new Date() ? 'Go to Tools' : 'Upgrade Now'}
         </Link>

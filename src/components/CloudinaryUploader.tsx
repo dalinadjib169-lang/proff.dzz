@@ -38,14 +38,14 @@ export default function CloudinaryUploader() {
     try {
       let fileToUpload = file;
 
-      // ضغط الصورة إذا كانت كبيرة (> 500KB)
-      if (file.size > 500 * 1024) {
+      // ضغط الصورة لجعل الرفع أسرع
+      if (file.size > 200 * 1024) {
         setIsOptimizing(true);
         const options = {
-          maxSizeMB: 1.5,
-          maxWidthOrHeight: 1920,
+          maxSizeMB: 0.7,
+          maxWidthOrHeight: 1280,
           useWebWorker: true,
-          initialQuality: 0.8
+          initialQuality: 0.7
         };
         fileToUpload = await imageCompression(file, options);
         setIsOptimizing(false);
@@ -90,10 +90,10 @@ export default function CloudinaryUploader() {
     <div className="min-h-screen bg-slate-950 text-slate-100 p-6 pb-24">
       {/* Header */}
       <header className="max-w-xl mx-auto mb-10 text-center">
-        <div className="w-16 h-16 bg-purple-600/20 rounded-2xl flex items-center justify-center mx-auto mb-4 border border-purple-500/30">
-          <ImageIcon className="w-8 h-8 text-purple-400" />
+        <div className="w-16 h-16 bg-primary/20 rounded-2xl flex items-center justify-center mx-auto mb-4 border border-primary/30">
+          <ImageIcon className="w-8 h-8 text-primary" />
         </div>
-        <h1 className="text-2xl font-black mb-2 text-transparent bg-clip-text bg-gradient-to-r from-white to-purple-400">
+        <h1 className="text-2xl font-black mb-2 text-transparent bg-clip-text bg-gradient-to-r from-white to-primary">
           رافع الصور السريع
         </h1>
         <p className="text-slate-500 text-sm font-bold uppercase tracking-widest">Cloudinary Direct Upload</p>
@@ -106,14 +106,14 @@ export default function CloudinaryUploader() {
           disabled={isUploading}
           className={`w-full group relative overflow-hidden h-48 rounded-[2.5rem] border-2 border-dashed transition-all duration-500 flex flex-col items-center justify-center gap-4 ${
             isUploading 
-              ? 'border-purple-500/50 bg-purple-500/5' 
-              : 'border-slate-800 hover:border-purple-500/50 bg-slate-900/50 hover:bg-purple-500/5'
+              ? 'border-primary/50 bg-primary/5' 
+              : 'border-slate-800 hover:border-primary/50 bg-slate-900/50 hover:bg-primary/5'
           }`}
         >
           {isUploading ? (
             <div className="flex flex-col items-center gap-4">
               <div className="relative">
-                <Loader2 className="w-12 h-12 text-purple-500 animate-spin" />
+                <Loader2 className="w-12 h-12 text-primary animate-spin" />
                 {isOptimizing && (
                   <Zap className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-5 h-5 text-amber-400 animate-pulse" />
                 )}
@@ -122,11 +122,11 @@ export default function CloudinaryUploader() {
                 <p className="text-sm font-black text-white mb-1">
                   {isOptimizing ? 'جاري معالجة الصورة...' : 'جاري الرفع الآن...'}
                 </p>
-                <p className="text-xs font-bold text-purple-400">{uploadProgress}%</p>
+                <p className="text-xs font-bold text-primary">{uploadProgress}%</p>
               </div>
               <div className="w-48 h-1.5 bg-slate-800 rounded-full overflow-hidden">
                 <motion.div 
-                  className="h-full bg-purple-500"
+                  className="h-full bg-primary"
                   initial={{ width: 0 }}
                   animate={{ width: `${uploadProgress}%` }}
                 />
@@ -135,7 +135,7 @@ export default function CloudinaryUploader() {
           ) : (
             <>
               <div className="w-16 h-16 rounded-full bg-slate-800 flex items-center justify-center group-hover:scale-110 transition-transform duration-500">
-                <Upload className="w-8 h-8 text-slate-400 group-hover:text-purple-400" />
+                <Upload className="w-8 h-8 text-slate-400 group-hover:text-primary" />
               </div>
               <div className="text-center">
                 <p className="text-lg font-black text-slate-300 group-hover:text-white transition-colors">إضغط لرفع صورة</p>
@@ -180,7 +180,7 @@ export default function CloudinaryUploader() {
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, scale: 0.9 }}
-                  className="group relative bg-slate-900 border border-slate-800 rounded-3xl overflow-hidden p-4 flex gap-4 items-center shadow-xl shadow-purple-500/5 hover:border-purple-500/30 transition-all"
+                  className="group relative bg-slate-900 border border-slate-800 rounded-3xl overflow-hidden p-4 flex gap-4 items-center shadow-xl shadow-primary/5 hover:border-primary/30 transition-all"
                 >
                   <div className="relative w-24 h-24 rounded-2xl overflow-hidden bg-slate-800 shrink-0">
                     <img 
@@ -192,7 +192,7 @@ export default function CloudinaryUploader() {
                   </div>
                   
                   <div className="flex-1 min-w-0">
-                    <p className="text-[10px] font-black text-purple-400 mb-1 uppercase tracking-widest">Image #{images.length - index}</p>
+                    <p className="text-[10px] font-black text-primary mb-1 uppercase tracking-widest">Image #{images.length - index}</p>
                     <p className="text-xs text-slate-400 truncate mb-3 font-mono leading-relaxed bg-slate-950 p-2 rounded-xl border border-slate-800/50">
                       {url}
                     </p>

@@ -60,6 +60,7 @@ export interface UserProfile {
 export interface UserSettings {
   language: 'en' | 'ar' | 'fr';
   theme: 'light' | 'dark';
+  themeColor?: 'purple' | 'emerald' | 'amber' | 'rose' | 'cyan' | 'indigo' | 'glass';
   fontSize: 'small' | 'medium' | 'large';
   fontType: 'sans' | 'serif' | 'mono';
   defaultPostPrivacy: 'public' | 'friends' | 'private';

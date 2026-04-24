@@ -38,7 +38,11 @@ export default function Home() {
         createdAt: doc.data().createdAt || Timestamp.now()
       })) as any as Post[];
       
-      postsData.sort((a, b) => b.createdAt.toDate().getTime() - a.createdAt.toDate().getTime());
+      postsData.sort((a, b) => {
+        const timeA = a.createdAt?.toDate?.()?.getTime() || 0;
+        const timeB = b.createdAt?.toDate?.()?.getTime() || 0;
+        return timeB - timeA;
+      });
       setPosts(postsData);
     }, (error) => {
       handleFirestoreError(error, OperationType.LIST, 'posts');
@@ -124,7 +128,7 @@ export default function Home() {
                 value={content}
                 onChange={(e) => setContent(e.target.value)}
                 placeholder="بماذا تفكر يا زميلي..."
-                className={`w-full bg-slate-950/20 border border-slate-800/50 rounded-xl p-3 text-white placeholder:text-slate-500 outline-none focus:border-purple-500 resize-none font-bold transition-all ${selectedBg && !selectedImage ? 'text-center text-lg min-h-[120px] bg-transparent border-none' : 'min-h-[80px]'}`}
+                className={`w-full bg-slate-950/20 border border-slate-800/50 rounded-xl p-3 text-white placeholder:text-slate-500 outline-none focus:border-primary resize-none font-bold transition-all ${selectedBg && !selectedImage ? 'text-center text-lg min-h-[120px] bg-transparent border-none' : 'min-h-[80px]'}`}
               />
               {selectedBg && !selectedImage && (
                 <button 
@@ -163,8 +167,8 @@ export default function Home() {
 
             <div className="flex justify-between items-center pt-2">
               <div className="flex gap-4">
-                <button onClick={() => fileInputRef.current?.click()} className="flex items-center gap-2 text-slate-400 font-bold hover:text-purple-400 transition-colors">
-                  <ImageIcon className="w-5 h-5 text-purple-500" />
+                <button onClick={() => fileInputRef.current?.click()} className="flex items-center gap-2 text-slate-400 font-bold hover:text-primary transition-colors">
+                  <ImageIcon className="w-5 h-5 text-primary" />
                   <span className="text-xs uppercase tracking-tight">صورة</span>
                 </button>
               </div>
@@ -184,7 +188,7 @@ export default function Home() {
                 <button
                   onClick={() => handleCreatePost()}
                   disabled={loading || (!content.trim() && !selectedImage)}
-                  className="bg-purple-600 hover:bg-purple-500 text-white px-6 py-2.5 rounded-xl font-black transition-all active:scale-95 disabled:opacity-50 flex items-center gap-2 shadow-lg shadow-purple-500/20"
+                  className="bg-primary hover:bg-primary-dark text-white px-6 py-2.5 rounded-xl font-black transition-all active:scale-95 disabled:opacity-50 flex items-center gap-2 shadow-lg shadow-primary/20"
                 >
                   {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
                   <span className="text-sm">نشر الآن</span>

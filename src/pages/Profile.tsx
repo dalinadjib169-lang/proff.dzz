@@ -1,12 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { db, storage } from '../firebase';
-import { doc, getDoc, updateDoc, collection, query, where, orderBy, onSnapshot, addDoc, serverTimestamp, deleteDoc, arrayUnion, arrayRemove, limit } from 'firebase/firestore';
+import { doc, getDoc, updateDoc, collection, query, where, orderBy, onSnapshot, addDoc, serverTimestamp, deleteDoc, arrayUnion, arrayRemove, limit, Timestamp } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { useAuth } from '../hooks/useAuth';
 import { useUpload } from '../hooks/useUpload';
 import { UserProfile, Post } from '../types';
 import PostCard from '../components/PostCard';
+import { ALGERIAN_WILAYAS } from '../constants';
 import { Edit3, Camera, Image as ImageIcon, MapPin, Book, Calendar, Mail, CheckCircle, GraduationCap, PenTool, UserPlus, UserCheck, UserX, Clock, Phone, Eye, EyeOff, Bell, Droplets, Dumbbell, Plus, Minus, ShoppingBag, Lock } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { playSound } from '../lib/sounds';
@@ -58,14 +59,14 @@ export default function Profile() {
   const [invitationId, setInvitationId] = useState<string | null>(null);
 
   const BIO_BACKGROUNDS = [
-    'linear-gradient(to bottom right, #4f46e5, #7c3aed)',
+    'linear-gradient(to bottom right, var(--primary-color), var(--primary-dark))',
     'linear-gradient(to bottom right, #0ea5e9, #2563eb)',
     'linear-gradient(to bottom right, #f43f5e, #e11d48)',
     'linear-gradient(to bottom right, #10b981, #059669)',
     'linear-gradient(to bottom right, #f59e0b, #d97706)',
     'linear-gradient(to bottom right, #1e293b, #0f172a)',
     '#1e293b',
-    '#4f46e5',
+    'var(--primary-color)',
     '#0ea5e9'
   ];
 
@@ -175,6 +176,8 @@ export default function Profile() {
         }
       } catch (e) {
         console.error("Error fetching profile:", e);
+      } finally {
+        setLoading(false);
       }
     };
 
@@ -200,7 +203,19 @@ export default function Profile() {
         );
 
     const unsubscribe = onSnapshot(q, (snapshot) => {
-      setPosts(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as Post[]);
+      const postsData = snapshot.docs.map(doc => ({ 
+        ...doc.data(),
+        id: doc.id,
+        createdAt: doc.data().createdAt || Timestamp.now()
+      })) as any as Post[];
+      
+      postsData.sort((a, b) => {
+        const timeA = a.createdAt?.toDate?.()?.getTime() || 0;
+        const timeB = b.createdAt?.toDate?.()?.getTime() || 0;
+        return timeB - timeA;
+      });
+      
+      setPosts(postsData);
     }, (error) => {
       handleFirestoreError(error, OperationType.LIST, 'posts');
     });
@@ -474,9 +489,11 @@ export default function Profile() {
       <div className="bg-slate-900 rounded-3xl shadow-xl border border-slate-800 overflow-hidden">
         <div 
           className="min-h-[300px] relative flex items-center justify-center p-12 text-center"
-          style={{ background: profile.bioBackground || 'linear-gradient(to bottom right, #4f46e5, #7c3aed)' }}
+          style={{ 
+            background: profile.appBackground ? `url(${profile.appBackground}) center/cover no-repeat` : (profile.bioBackground || 'linear-gradient(to bottom right, var(--primary-color), var(--primary-dark))') 
+          }}
         >
-          <div className="absolute inset-0 opacity-20 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')]"></div>
+          <div className="absolute inset-0 opacity-20 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] bg-slate-900/50"></div>
           
           <motion.div 
             initial={{ opacity: 0, scale: 0.9 }}
@@ -512,8 +529,12 @@ export default function Profile() {
                 <CheckCircle className="w-6 h-6 text-purple-500 fill-purple-500/10" />
               </div>
               <p className="text-slate-400 font-bold flex items-center gap-2 mb-2">
-                <GraduationCap className="w-4 h-4 text-purple-500" />
+                <GraduationCap className="w-4 h-4 text-primary" />
                 {profile.subject || 'Education Professional'} • {profile.level || 'General'}
+                <span className="flex items-center gap-1 border-l border-slate-800 pl-2 ml-2">
+                  <MapPin className="w-4 h-4 text-amber-500" />
+                  {profile.wilaya || 'Algeria'}
+                </span>
               </p>
               <p className="text-slate-500 font-medium text-sm border-t border-slate-800 pt-2 line-clamp-2 max-w-md">
                 {profile.bio || "No biography provided yet."}
@@ -522,7 +543,7 @@ export default function Profile() {
             {isOwner ? (
               <button
                 onClick={() => setIsEditing(!isEditing)}
-                className="px-6 py-3 bg-purple-600 text-white font-black rounded-2xl hover:bg-purple-700 transition-all flex items-center gap-2 shadow-lg shadow-purple-500/20 active:scale-95"
+                className="px-6 py-3 bg-primary text-white font-black rounded-2xl hover:bg-primary-dark transition-all flex items-center gap-2 shadow-lg shadow-primary/20 active:scale-95"
               >
                 <Edit3 className="w-4 h-4" />
                 {isEditing ? 'إلغاء (Cancel)' : 'تعديل الملف (Edit Profile)'}
@@ -537,7 +558,7 @@ export default function Profile() {
                       ? 'bg-green-600 text-white hover:bg-green-700 shadow-green-500/20' 
                       : connectionStatus === 'pending'
                       ? 'bg-slate-800 text-slate-300 hover:bg-slate-700'
-                      : 'bg-purple-600 text-white hover:bg-purple-700 shadow-purple-500/20'
+                      : 'bg-primary text-white hover:bg-primary-dark shadow-primary/20'
                   }`}
                 >
                   {connectionStatus === 'connected' ? (
@@ -611,12 +632,16 @@ export default function Profile() {
                       <span>Wilaya</span>
                       <span>الولاية</span>
                     </label>
-                    <input
-                      type="text"
-                      className="w-full px-4 py-3 bg-slate-900 border border-slate-800 text-white rounded-2xl outline-none focus:ring-2 focus:ring-purple-500 transition-all font-bold"
+                    <select
+                      className="w-full px-4 py-3 bg-slate-900 border border-slate-800 text-white rounded-2xl outline-none focus:ring-2 focus:ring-purple-500 transition-all font-bold appearance-none"
                       value={editData.wilaya}
                       onChange={(e) => setEditData({ ...editData, wilaya: e.target.value })}
-                    />
+                    >
+                      <option value="">اختر الولاية (Select Wilaya)</option>
+                      {ALGERIAN_WILAYAS.map(w => (
+                        <option key={w} value={w}>{w}</option>
+                      ))}
+                    </select>
                   </div>
                   <div className="space-y-2">
                     <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1 flex justify-between items-center">

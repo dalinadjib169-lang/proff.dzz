@@ -21,11 +21,15 @@ import { db } from '../firebase';
 import { doc, updateDoc, getDocs, collection, query, where, arrayRemove, arrayUnion } from 'firebase/firestore';
 import { UserProfile, UserSettings } from '../types';
 
+import { useTranslation } from '../hooks/useTranslation';
+
 export default function Settings() {
   const { profile } = useAuth();
+  const { t } = useTranslation();
   const [settings, setSettings] = useState<UserSettings>(profile?.settings || {
     language: 'ar',
     theme: 'dark',
+    themeColor: 'purple',
     fontSize: 'medium',
     fontType: 'sans',
     defaultPostPrivacy: 'public'
@@ -39,6 +43,7 @@ export default function Settings() {
       setSettings(profile.settings || {
         language: 'ar',
         theme: 'dark',
+        themeColor: 'purple',
         fontSize: 'medium',
         fontType: 'sans',
         defaultPostPrivacy: 'public'
@@ -47,6 +52,41 @@ export default function Settings() {
       fetchFriends();
     }
   }, [profile]);
+
+  // Live preview logic
+  useEffect(() => {
+    const { theme, fontSize, fontType, language, themeColor } = settings;
+    
+    // Theme
+    if (theme === 'dark') {
+      document.documentElement.classList.add('dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+    }
+
+    // Theme Color
+    const themeColors = ['emerald', 'amber', 'rose', 'cyan', 'indigo', 'purple', 'glass', 'transparent'];
+    themeColors.forEach(c => document.documentElement.classList.remove(`theme-${c}`));
+    if (themeColor && themeColors.includes(themeColor)) {
+      document.documentElement.classList.add(`theme-${themeColor}`);
+    }
+
+    // Font Size
+    const sizeMap = { small: '14px', medium: '16px', large: '18px' };
+    document.documentElement.style.setProperty('--font-size-current', sizeMap[fontSize as keyof typeof sizeMap] || '16px');
+
+    // Font Type
+    const fontMap = { 
+      sans: '"Inter", ui-sans-serif, system-ui, sans-serif', 
+      serif: 'ui-serif, Georgia, Cambria, "Times New Roman", Times, serif', 
+      mono: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace' 
+    };
+    document.documentElement.style.setProperty('--font-family-current', fontMap[fontType as keyof typeof fontMap] || fontMap.sans);
+
+    // Language
+    document.documentElement.dir = language === 'ar' ? 'rtl' : 'ltr';
+    document.documentElement.lang = language || 'ar';
+  }, [settings]);
 
   const fetchBlockedUsers = async () => {
     const blockedList = profile?.blockedUsers?.filter(uid => !!uid) || [];
@@ -119,12 +159,12 @@ export default function Settings() {
   return (
     <div className="max-w-4xl mx-auto space-y-8 pb-20">
       <div className="flex items-center gap-4 mb-8">
-        <div className="bg-purple-600 p-3 rounded-2xl shadow-lg shadow-purple-500/30">
+        <div className="bg-primary p-3 rounded-2xl shadow-lg shadow-primary/30">
           <SettingsIcon className="w-8 h-8 text-white" />
         </div>
         <div>
-          <h1 className="text-3xl font-black text-slate-900 dark:text-white">الإعدادات</h1>
-          <p className="text-slate-500 dark:text-slate-400 font-bold">تخصيص تجربتك في المنصة</p>
+          <h1 className="text-3xl font-black text-slate-900 dark:text-white">{t('settings')}</h1>
+          <p className="text-slate-500 dark:text-slate-400 font-bold">{t('settings')} - تخصيص تجربتك</p>
         </div>
       </div>
 
@@ -132,13 +172,13 @@ export default function Settings() {
         {/* Language & Theme */}
         <section className="bg-white dark:bg-slate-900 rounded-[2.5rem] p-8 shadow-xl border border-slate-100 dark:border-slate-800 space-y-8">
           <div className="space-y-6">
-            <div className="flex items-center gap-3 text-purple-600 dark:text-purple-400">
+            <div className="flex items-center gap-3 text-primary">
               <Languages className="w-6 h-6" />
-              <h2 className="text-xl font-black uppercase tracking-tight">اللغة والمظهر</h2>
+              <h2 className="text-xl font-black uppercase tracking-tight">{t('language')} & {t('theme')}</h2>
             </div>
 
             <div className="space-y-4">
-              <label className="block text-sm font-black text-slate-400 uppercase">اللغة</label>
+              <label className="block text-sm font-black text-slate-400 uppercase">{t('language')}</label>
               <div className="grid grid-cols-3 gap-2">
                 {[
                   { id: 'ar', label: 'العربية' },
@@ -148,9 +188,37 @@ export default function Settings() {
                   <button
                     key={lang.id}
                     onClick={() => setSettings({ ...settings, language: lang.id as any })}
-                    className={`py-3 rounded-2xl font-black transition-all border-2 ${settings.language === lang.id ? 'bg-purple-600 border-purple-600 text-white shadow-lg shadow-purple-500/20' : 'bg-slate-50 dark:bg-slate-800 border-transparent text-slate-500 hover:border-slate-200 dark:hover:border-slate-700'}`}
+                    className={`py-3 rounded-2xl font-black transition-all border-2 ${settings.language === lang.id ? 'bg-primary border-primary text-white shadow-lg shadow-primary/20' : 'bg-slate-50 dark:bg-slate-800 border-transparent text-slate-500 hover:border-slate-200 dark:hover:border-slate-700'}`}
                   >
                     {lang.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="space-y-4">
+              <label className="block text-sm font-black text-slate-400 uppercase">لون المنصة</label>
+              <div className="grid grid-cols-7 gap-2">
+                {[
+                  { id: 'purple', color: 'bg-[#7c3aed]' },
+                  { id: 'indigo', color: 'bg-[#4f46e5]' },
+                  { id: 'cyan', color: 'bg-[#0891b2]' },
+                  { id: 'emerald', color: 'bg-[#059669]' },
+                  { id: 'amber', color: 'bg-[#d97706]' },
+                  { id: 'rose', color: 'bg-[#e11d48]' },
+                  { id: 'glass', color: 'bg-white/10 backdrop-blur-sm border border-white/20' },
+                  { id: 'transparent', color: 'bg-transparent border-2 border-white/40 border-dashed' }
+                ].map(item => (
+                  <button
+                    key={item.id}
+                    type="button"
+                    onClick={() => setSettings({ ...settings, themeColor: item.id as any })}
+                    className={`w-full aspect-square rounded-full transition-all border-4 flex items-center justify-center relative ${settings.themeColor === item.id || (!settings.themeColor && item.id === 'purple') ? 'border-primary scale-110 shadow-lg' : 'border-transparent opacity-60 hover:opacity-100'}`}
+                  >
+                    <div className={`w-full h-full rounded-full ${item.color}`} />
+                    {(settings.themeColor === item.id || (!settings.themeColor && item.id === 'purple')) && (
+                      <Check className="absolute w-5 h-5 text-white" />
+                    )}
                   </button>
                 ))}
               </div>
@@ -165,7 +233,7 @@ export default function Settings() {
                 </div>
                 <button
                   onClick={() => setSettings({ ...settings, theme: settings.theme === 'dark' ? 'light' : 'dark' })}
-                  className={`w-14 h-8 rounded-full p-1 transition-all duration-300 ${settings.theme === 'dark' ? 'bg-purple-600' : 'bg-slate-300'}`}
+                  className={`w-14 h-8 rounded-full p-1 transition-all duration-300 ${settings.theme === 'dark' ? 'bg-primary' : 'bg-slate-300'}`}
                 >
                   <div className={`w-6 h-6 bg-white rounded-full shadow-md transform transition-all duration-300 ${settings.theme === 'dark' ? 'translate-x-6' : 'translate-x-0'}`} />
                 </button>
@@ -179,11 +247,11 @@ export default function Settings() {
           <div className="space-y-6">
             <div className="flex items-center gap-3 text-indigo-600 dark:text-indigo-400">
               <Type className="w-6 h-6" />
-              <h2 className="text-xl font-black uppercase tracking-tight">الخط والحجم</h2>
+              <h2 className="text-xl font-black uppercase tracking-tight">{t('font')} & {t('font_size')}</h2>
             </div>
 
             <div className="space-y-4">
-              <label className="block text-sm font-black text-slate-400 uppercase">نوع الخط</label>
+              <label className="block text-sm font-black text-slate-400 uppercase">{t('font')}</label>
               <div className="grid grid-cols-3 gap-2">
                 {[
                   { id: 'sans', label: 'Sans' },
@@ -203,7 +271,7 @@ export default function Settings() {
             </div>
 
             <div className="space-y-4">
-              <label className="block text-sm font-black text-slate-400 uppercase">حجم الخط</label>
+              <label className="block text-sm font-black text-slate-400 uppercase">{t('font_size')}</label>
               <div className="grid grid-cols-3 gap-2">
                 {[
                   { id: 'small', label: 'صغير' },
@@ -315,14 +383,14 @@ export default function Settings() {
         <button
           onClick={handleSaveSettings}
           disabled={loading}
-          className="flex items-center gap-3 px-12 py-4 bg-gradient-to-r from-purple-600 to-indigo-600 text-white font-black rounded-3xl shadow-2xl shadow-purple-500/40 hover:scale-105 active:scale-95 transition-all disabled:opacity-50"
+          className="flex items-center gap-3 px-12 py-4 bg-primary text-white font-black rounded-3xl shadow-2xl shadow-primary/40 hover:scale-105 active:scale-95 transition-all disabled:opacity-50"
         >
           {loading ? (
             <div className="w-6 h-6 border-4 border-white/30 border-t-white rounded-full animate-spin" />
           ) : (
             <>
               <Save className="w-6 h-6" />
-              <span className="text-lg">حفظ جميع الإعدادات</span>
+              <span className="text-lg">{t('save_settings')}</span>
             </>
           )}
         </button>

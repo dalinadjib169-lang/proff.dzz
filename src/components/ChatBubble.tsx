@@ -43,7 +43,7 @@ import {
   Loader2
 } from 'lucide-react';
 import { db, storage } from '../firebase';
-import { collection, query, orderBy, onSnapshot, addDoc, serverTimestamp, where, limit, Timestamp, updateDoc, doc, arrayUnion, arrayRemove, setDoc, writeBatch, getDoc, deleteDoc } from 'firebase/firestore';
+import { collection, query, orderBy, onSnapshot, addDoc, serverTimestamp, where, limit, Timestamp, updateDoc, doc, arrayUnion, arrayRemove, setDoc, writeBatch, getDoc, deleteDoc, getDocs } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL, uploadString, uploadBytesResumable } from 'firebase/storage';
 import { useAuth } from '../hooks/useAuth';
 import { UserProfile } from '../types';
@@ -247,9 +247,20 @@ export default function ChatBubble() {
   }, [isOpen]);
 
   useEffect(() => {
-    const handleShowChat = (e: any) => {
+    const handleShowChat = async (e: any) => {
       if (e.detail) {
-        setActiveChat(e.detail);
+        let userData = e.detail;
+        
+        // If it's a developer placeholder or just email, resolve full profile
+        if (userData.email === 'dalinadjib1990@gmail.com' && !userData.uid) {
+          const q = query(collection(db, 'users'), where('email', '==', 'dalinadjib1990@gmail.com'), limit(1));
+          const snap = await getDocs(q);
+          if (!snap.empty) {
+            userData = { uid: snap.docs[0].id, ...snap.docs[0].data() };
+          }
+        }
+        
+        setActiveChat(userData);
       }
       setIsOpen(true);
     };

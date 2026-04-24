@@ -16,7 +16,7 @@ function CommentItem({ comment }: { comment: Comment }) {
       <img src={comment.authorPhoto} className="w-8 h-8 rounded-lg object-cover" alt="" />
       <div className="flex-1">
         <div className="flex justify-between items-center">
-          <p className="text-xs font-black text-purple-400">{comment.authorName}</p>
+          <p className="text-xs font-black text-primary">{comment.authorName}</p>
           <span className="text-[10px] text-slate-600 font-bold">{formatDistanceToNow(comment.createdAt.toDate())}</span>
         </div>
         <p className="text-sm text-slate-300 leading-tight">{comment.content}</p>
@@ -161,14 +161,14 @@ export default function PostCard({ post }: { post: Post }) {
         <Link to={`/profile/${post.authorId}`} className="flex items-center gap-3">
           <img 
             src={post.authorPhoto} 
-            className="w-10 h-10 rounded-xl object-cover ring-2 ring-purple-500/10" 
+            className="w-10 h-10 rounded-xl object-cover ring-2 ring-primary/10" 
             alt="" 
             referrerPolicy="no-referrer"
           />
           <div>
             <div className="flex items-center gap-1.2">
                <h3 className="text-sm font-black text-white">{post.authorName}</h3>
-               {post.authorId === 'dalinadjib1990' && <GraduationCap className="w-3.5 h-3.5 text-purple-500" />}
+               {post.authorId === 'dalinadjib1990' && <GraduationCap className="w-3.5 h-3.5 text-primary" />}
             </div>
             <div className="flex items-center gap-1.5 text-slate-500 text-[10px] font-bold">
               <span>{formatDistanceToNow(post.createdAt.toDate())}</span>
@@ -199,7 +199,16 @@ export default function PostCard({ post }: { post: Post }) {
       {/* Image */}
       {post.imageUrl && (
         <div className="px-2 pb-2">
-          <img src={post.imageUrl} className="w-full h-auto max-h-[500px] object-cover rounded-2xl border border-white/5" alt="" loading="lazy" />
+          <div className="relative rounded-2xl overflow-hidden border border-white/5 bg-slate-950/50 min-h-[100px] flex items-center justify-center">
+            <img 
+              src={post.imageUrl} 
+              className="w-full h-auto max-h-[500px] object-cover transition-opacity duration-300" 
+              alt="" 
+              onLoad={(e) => (e.currentTarget.style.opacity = '1')}
+              style={{ opacity: 0 }}
+              loading="lazy" 
+            />
+          </div>
         </div>
       )}
 
@@ -249,7 +258,7 @@ export default function PostCard({ post }: { post: Post }) {
             </button>
             <button
                onClick={() => setShowReactions(!showReactions)}
-               className="p-1 px-2 text-slate-500 hover:text-purple-400 transition-all"
+               className="p-1 px-2 text-slate-500 hover:text-primary transition-all"
             >
                <Smile className="w-4 h-4 opacity-50" />
             </button>
@@ -280,9 +289,9 @@ export default function PostCard({ post }: { post: Post }) {
               value={newComment}
               onChange={(e) => setNewComment(e.target.value)}
               placeholder="اكتب تعليقاً..." 
-              className="flex-1 bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white outline-none focus:border-purple-500 font-bold"
+              className="flex-1 bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white outline-none focus:border-primary font-bold"
             />
-            <button className="bg-purple-600 p-2 rounded-xl text-white shadow-lg active:scale-95 transition-transform" disabled={loading}>
+            <button className="bg-primary p-2 rounded-xl text-white shadow-lg active:scale-95 transition-transform" disabled={loading}>
               {loading ? <div className="w-4 h-4 border-2 border-white/20 border-t-white rounded-full animate-spin"></div> : <Send className="w-4 h-4" />}
             </button>
           </form>
