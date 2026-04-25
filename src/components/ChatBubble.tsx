@@ -218,6 +218,7 @@ export default function ChatBubble() {
   const scrollRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const chatInputRef = useRef<HTMLInputElement>(null);
+  const searchInputRef = useRef<HTMLInputElement>(null);
   const ringtoneRef = useRef<HTMLAudioElement | null>(null);
 
   const [vHeight, setVHeight] = useState('100dvh');
@@ -852,6 +853,9 @@ export default function ChatBubble() {
       const messageText = newMessage;
       setNewMessage('');
       
+      // Focus input again on mobile to keep keyboard open (instantly)
+      chatInputRef.current?.focus();
+      
       const messageData: any = {
         roomId,
         participants,
@@ -866,8 +870,8 @@ export default function ChatBubble() {
       // Add to Firestore - onSnapshot with includeMetadataChanges will show it instantly
       await addDoc(collection(db, 'messages'), messageData);
       setEmojiState('happy');
-      // Focus input again on mobile to keep keyboard open
-      setTimeout(() => chatInputRef.current?.focus(), 100);
+      // Final focus enforcement
+      setTimeout(() => chatInputRef.current?.focus(), 50);
     } catch (error) {
       handleFirestoreError(error, OperationType.CREATE, 'messages');
       setEmojiState('sad');
@@ -1367,8 +1371,11 @@ export default function ChatBubble() {
                     <div className="relative mb-4">
                       <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
                       <input 
-                        ref={chatInputRef}
+                        ref={searchInputRef}
                         type="text" 
+                        name="q_colleague_search"
+                        id="q_colleague_search"
+                        autoComplete="off"
                         placeholder="Search colleagues..."
                         className="w-full bg-slate-900 border border-slate-800 rounded-2xl pl-10 pr-4 py-2.5 text-sm text-slate-100 outline-none focus:ring-2 focus:ring-purple-500/30 transition-all font-medium"
                         value={searchTerm}
@@ -1703,7 +1710,7 @@ export default function ChatBubble() {
                       </div>
                     )}
                   </div>
-                  <form onSubmit={(e) => {
+                  <form autoComplete="off" onSubmit={(e) => {
                     handleSendMessage(e);
                     handleTyping(false);
                   }} className="p-4 bg-slate-900 border-t border-slate-800 flex flex-col gap-3">
@@ -1711,8 +1718,15 @@ export default function ChatBubble() {
                       <input
                         ref={chatInputRef}
                         type="text"
+                        name="q_chat_msg_input"
+                        id="q_chat_msg_input"
                         placeholder={isUploading ? "Uploading..." : "Type your message..."}
                         disabled={isUploading}
+                        autoComplete="off"
+                        autoCorrect="off"
+                        autoCapitalize="off"
+                        spellCheck="false"
+                        inputMode="text"
                         className="flex-1 bg-slate-950 border border-slate-800 rounded-xl px-4 py-2 text-sm text-slate-100 outline-none focus:ring-2 focus:ring-purple-500/30 transition-all font-medium disabled:opacity-50"
                         value={newMessage}
                         onChange={(e) => {
@@ -1724,6 +1738,7 @@ export default function ChatBubble() {
                       <button 
                         type="submit" 
                         disabled={isUploading}
+                        onMouseDown={(e) => e.preventDefault()} // Prevent focus stealing
                         className="bg-purple-600 hover:bg-purple-700 text-white p-2.5 rounded-xl transition-all active:scale-90 disabled:opacity-50"
                       >
                         {isUploading ? (
