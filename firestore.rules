@@ -156,7 +156,7 @@ service cloud.firestore {
       return data.keys().hasAll(['roomId', 'participants', 'senderId', 'senderName', 'seen', 'createdAt']) &&
              data.senderId == request.auth.uid &&
              data.roomId is string &&
-             data.participants is list && request.auth.uid in data.participants &&
+             data.participants is list && (data.roomId == 'global' ? 'global' in data.participants : request.auth.uid in data.participants) &&
              data.senderName is string &&
              data.seen is bool &&
              (!('text' in data) || (data.text is string && data.text.size() <= 2000)) &&
@@ -224,10 +224,10 @@ service cloud.firestore {
     }
 
     match /messages/{messageId} {
-      allow get: if isSignedIn() && request.auth.uid in resource.data.participants;
-      allow list: if isSignedIn() && request.auth.uid in resource.data.participants;
+      allow get: if isSignedIn() && (resource.data.roomId == 'global' || request.auth.uid in resource.data.participants);
+      allow list: if isSignedIn() && (resource.data.roomId == 'global' || request.auth.uid in resource.data.participants);
       allow create: if isSignedIn() && isValidMessage(incoming());
-      allow update: if (isSignedIn() && request.auth.uid in existing().participants && (
+      allow update: if (isSignedIn() && (existing().roomId == 'global' || request.auth.uid in existing().participants) && (
           incoming().diff(existing()).affectedKeys().hasOnly(['seen', 'reactions', 'deletedFor'])
         )) || isAdmin();
       allow delete: if (isOwner(existing().senderId)) || isAdmin();

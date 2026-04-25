@@ -219,6 +219,44 @@ export default function ChatBubble() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const ringtoneRef = useRef<HTMLAudioElement | null>(null);
 
+  const [vHeight, setVHeight] = useState('100dvh');
+  const [isMobile, setIsMobile] = useState(false);
+
+  useEffect(() => {
+    const checkMobile = () => setIsMobile(window.innerWidth < 640);
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+
+    if (window.visualViewport) {
+      const handleVisualResize = () => {
+        if (window.visualViewport) {
+          setVHeight(`${window.visualViewport.height}px`);
+        }
+      };
+      window.visualViewport.addEventListener('resize', handleVisualResize);
+      handleVisualResize();
+      return () => {
+        window.removeEventListener('resize', checkMobile);
+        window.visualViewport?.removeEventListener('resize', handleVisualResize);
+      };
+    }
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
+
+  useEffect(() => {
+    if (isOpen && isMobile) {
+      document.body.style.overflow = 'hidden';
+      document.body.style.height = '100dvh';
+    } else {
+      document.body.style.overflow = '';
+      document.body.style.height = '';
+    }
+    return () => {
+      document.body.style.overflow = '';
+      document.body.style.height = '';
+    };
+  }, [isOpen, isMobile]);
+
   const [tick, setTick] = useState(0);
 
   // Auto-scroll to bottom when messages change or chat is opened
@@ -1006,8 +1044,9 @@ export default function ChatBubble() {
   };
 
   const filteredUsers = users.filter(u => {
-    const matchesSearch = u.displayName.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesSubject = filterSameSubject ? u.subject === profile.subject : true;
+    const displayName = u.displayName || 'Teacher';
+    const matchesSearch = displayName.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesSubject = filterSameSubject ? u.subject === profile?.subject : true;
     return matchesSearch && matchesSubject;
   });
 
@@ -1087,25 +1126,34 @@ export default function ChatBubble() {
 
   const isOnline = (lastSeen: any) => {
     if (!lastSeen) return false;
-    const lastSeenDate = lastSeen.toDate ? lastSeen.toDate() : new Date(lastSeen);
-    return Date.now() - lastSeenDate.getTime() < 150000; // Online if seen in last 2.5 minutes
+    try {
+      const lastSeenDate = lastSeen.toDate ? lastSeen.toDate() : new Date(lastSeen);
+      return Date.now() - lastSeenDate.getTime() < 300000; // 5 minutes
+    } catch (e) {
+      return false;
+    }
   };
 
-  if (!profile || isHidden) return null;
+  if (!profile) return null;
 
   return (
-    <div className={`fixed bottom-32 right-4 sm:bottom-8 sm:right-8 z-[100] ${isHidden && !isOpen ? 'hidden' : 'block'}`}>
+    <div className={`fixed bottom-32 right-4 sm:bottom-8 sm:right-8 z-[150]`}>
       <AnimatePresence initial={false}>
         {isOpen && (
           <motion.div
             key="chat-bubble-window"
-            initial={{ opacity: 0, scale: 0.8, y: 20, x: 20 }}
-            animate={{ opacity: 1, scale: 1, y: 0, x: 0 }}
-            exit={{ opacity: 0, scale: 0.8, y: 20, x: 20 }}
-            drag
+            initial={isMobile ? { opacity: 0, y: '100%' } : { opacity: 0, scale: 0.8, y: 20, x: 20 }}
+            animate={isMobile ? { opacity: 1, y: 0 } : { opacity: 1, scale: 1, y: 0, x: 0 }}
+            exit={isMobile ? { opacity: 0, y: '100%' } : { opacity: 0, scale: 0.8, y: 20, x: 20 }}
+            drag={!isMobile}
             dragMomentum={false}
             dragElastic={0.1}
-            className="fixed bottom-24 left-4 right-4 h-[calc(100dvh-140px)] sm:left-auto sm:bottom-24 sm:right-8 sm:w-96 sm:h-[600px] bg-slate-950 sm:bg-slate-900 sm:border sm:border-slate-800 rounded-[2.5rem] shadow-[0_0_50px_rgba(0,0,0,0.5)] overflow-hidden flex flex-col z-[130] origin-bottom sm:origin-bottom-right"
+            className={`fixed bg-slate-950 sm:bg-slate-900 overflow-hidden flex flex-col z-[200] ${
+              isMobile 
+                ? 'inset-0 w-full rounded-none' 
+                : 'bottom-24 right-8 w-96 h-[600px] rounded-[2.5rem] border border-slate-800 shadow-[0_0_50px_rgba(0,0,0,0.5)] origin-bottom-right'
+            }`}
+            style={{ height: isMobile ? vHeight : undefined }}
           >
             {/* Header */}
             <div className="p-4 sm:p-5 bg-gradient-to-br from-purple-600 via-indigo-600 to-slate-900 flex items-center justify-between border-b border-white/10 shrink-0">
@@ -1326,6 +1374,42 @@ export default function ChatBubble() {
                     </button>
                   </div>
                   <div className="flex-1 overflow-y-auto space-y-2 pr-2 custom-scrollbar">
+                    {/* Online Colleagues horizontal scroll */}
+                    {!searchTerm && (
+                      <div className="mb-6">
+                        <h5 className="text-[9px] font-black text-slate-500 uppercase tracking-widest px-2 mb-3 flex items-center gap-2">
+                           الزملاء المتصلون
+                          <span className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse"></span>
+                        </h5>
+                        <div className="flex gap-4 overflow-x-auto pb-4 px-2 custom-scrollbar-hide">
+                          {users.filter(u => isOnline(u.lastSeen)).length > 0 ? (
+                            users.filter(u => isOnline(u.lastSeen)).map(u => (
+                              <button
+                                key={`online-${u.uid}`}
+                                onClick={() => setActiveChat(u)}
+                                className="flex flex-col items-center gap-1 min-w-[60px] group"
+                              >
+                                <div className="relative">
+                                  <img 
+                                    src={u.photoURL} 
+                                    className="w-12 h-12 rounded-2xl object-cover ring-2 ring-slate-800 group-hover:ring-green-500/50 transition-all" 
+                                    alt="" 
+                                    referrerPolicy="no-referrer"
+                                  />
+                                  <Circle className="absolute -bottom-1 -right-1 w-3 h-3 fill-green-500 text-slate-900" />
+                                </div>
+                                <span className="text-[9px] font-bold text-slate-400 truncate w-full text-center group-hover:text-white">{u.displayName.split(' ')[0]}</span>
+                              </button>
+                            ))
+                          ) : (
+                            <div className="text-[10px] text-slate-600 font-bold px-2 py-4 bg-slate-900/50 rounded-2xl w-full text-center border border-slate-800/50 border-dashed">
+                              لا يوجد زملاء متصلون حالياً
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )}
+
                     {/* Recent Conversations */}
                     {conversations.length > 0 && !searchTerm && (
                       <div className="space-y-2 mb-6">
@@ -1410,7 +1494,7 @@ export default function ChatBubble() {
                 </div>
               ) : (
                 <>
-                  <div ref={scrollRef} className="flex-1 overflow-y-auto p-4 space-y-4 custom-scrollbar">
+                  <div ref={scrollRef} className="flex-1 overflow-y-auto p-4 space-y-4 custom-scrollbar overscroll-contain">
                     {/* Message Request UI */}
                     {!isFriend && activeChat.uid !== 'global' && (
                       <div className="bg-slate-900/80 border border-slate-700 rounded-3xl p-6 text-center shadow-xl mb-6">
@@ -1710,7 +1794,7 @@ export default function ChatBubble() {
       </AnimatePresence>
 
       <motion.div
-        drag
+        drag={!isOpen}
         dragMomentum={false}
         className="relative"
       >
@@ -1721,7 +1805,7 @@ export default function ChatBubble() {
             setIsOpen(!isOpen);
             playSound('message');
           }}
-          className="relative group cursor-pointer"
+          className={`relative group cursor-pointer transition-transform ${isOpen && isMobile ? 'scale-0' : 'scale-100'}`}
         >
         <ChatTrigger 
           isOpen={isOpen} 
@@ -1773,15 +1857,6 @@ export default function ChatBubble() {
           )}
         </AnimatePresence>
 
-        {!isOpen && (
-          <button 
-            onClick={() => setIsHidden(true)}
-            className="absolute -top-2 -left-2 w-6 h-6 bg-slate-800 text-slate-400 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-500 hover:text-white border border-slate-700"
-            title="Hide Chat"
-          >
-            <X className="w-3 h-3" />
-          </button>
-        )}
       </motion.div>
     </div>
   );
