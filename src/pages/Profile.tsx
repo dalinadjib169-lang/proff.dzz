@@ -8,7 +8,7 @@ import { useUpload } from '../hooks/useUpload';
 import { UserProfile, Post } from '../types';
 import PostCard from '../components/PostCard';
 import { ALGERIAN_WILAYAS } from '../constants';
-import { Edit3, Camera, Image as ImageIcon, MapPin, Book, Calendar, Mail, CheckCircle, GraduationCap, PenTool, UserPlus, UserCheck, UserX, Clock, Phone, Eye, EyeOff, Bell, Droplets, Dumbbell, Plus, Minus, ShoppingBag, Lock } from 'lucide-react';
+import { Edit3, Camera, Image as ImageIcon, MapPin, Book, Calendar, Mail, CheckCircle, GraduationCap, PenTool, UserPlus, UserCheck, UserX, Clock, Phone, Eye, EyeOff, Bell, Droplets, Dumbbell, Plus, Minus, ShoppingBag, Lock, Users } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { playSound } from '../lib/sounds';
 import { handleFirestoreError, OperationType } from '../lib/firestore-errors';
@@ -368,6 +368,25 @@ export default function Profile() {
       handleFirestoreError(err, OperationType.UPDATE, `users_private/${uid}`);
     }
   };
+
+  const [mutualColleagues, setMutualColleagues] = useState<UserProfile[]>([]);
+
+  // Fetch mutual colleagues
+  useEffect(() => {
+    if (!loggedInProfile?.uid || !profile?.uid || loggedInProfile.uid === profile.uid) return;
+
+    const myFriends = loggedInProfile.following?.filter(f => loggedInProfile.followers?.includes(f)) || [];
+    const theirFriends = profile.following?.filter(f => profile.followers?.includes(f)) || [];
+    
+    const mutualIds = myFriends.filter(id => theirFriends.includes(id));
+    
+    if (mutualIds.length > 0) {
+      const q = query(collection(db, 'users'), where('__name__', 'in', mutualIds.slice(0, 5)));
+      onSnapshot(q, (snap) => {
+        setMutualColleagues(snap.docs.map(d => ({ uid: d.id, ...d.data() })) as UserProfile[]);
+      });
+    }
+  }, [loggedInProfile, profile]);
 
   if (loading) {
     return (
@@ -915,6 +934,31 @@ export default function Profile() {
                     </div>
                   </div>
                 </div>
+
+                {/* Mutual Colleagues Section */}
+                {mutualColleagues.length > 0 && (
+                  <div className="md:col-span-3 space-y-4 bg-indigo-600/5 p-6 rounded-3xl border border-indigo-500/20 shadow-xl shadow-indigo-500/5">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <Users className="w-5 h-5 text-indigo-400" />
+                        <h4 className="text-xs font-black text-indigo-400 uppercase tracking-widest">زملاء مشتركون - Mutual Colleagues</h4>
+                      </div>
+                      <span className="text-[10px] bg-indigo-600 text-white px-2 py-0.5 rounded-lg font-black">{mutualColleagues.length}</span>
+                    </div>
+                    <div className="flex flex-wrap gap-4">
+                      {mutualColleagues.map(col => (
+                        <Link 
+                          key={col.uid} 
+                          to={`/profile/${col.uid}`} 
+                          className="flex items-center gap-2 bg-slate-900/50 hover:bg-slate-900 p-2 rounded-2xl border border-slate-800 transition-all group"
+                        >
+                          <img src={col.photoURL} className="w-8 h-8 rounded-xl object-cover ring-2 ring-slate-800 group-hover:ring-indigo-500 transition-all" />
+                          <span className="text-xs font-bold text-slate-300 group-hover:text-indigo-400 transition-colors whitespace-nowrap">{col.displayName}</span>
+                        </Link>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </motion.div>
             )}
           </AnimatePresence>

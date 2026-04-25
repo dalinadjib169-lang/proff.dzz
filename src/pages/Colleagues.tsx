@@ -6,19 +6,55 @@ import { Users, Search, MapPin, GraduationCap, MessageSquare, UserPlus, Filter }
 import { Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
 
+import { useAuth } from '../hooks/useAuth';
+
 export default function Colleagues() {
+  const { profile: loggedInProfile } = useAuth();
   const [users, setUsers] = useState<UserProfile[]>([]);
   const [search, setSearch] = useState('');
   const [wilayaFilter, setWilayaFilter] = useState('');
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const q = query(collection(db, 'users'), orderBy('lastSeen', 'desc'), limit(50));
+    const q = query(collection(db, 'users'), orderBy('lastSeen', 'desc'), limit(100));
     return onSnapshot(q, (snapshot) => {
-      setUsers(snapshot.docs.map(doc => ({ uid: doc.id, ...doc.data() })) as UserProfile[]);
+      const allUsers = snapshot.docs.map(doc => ({ uid: doc.id, ...doc.data() })) as UserProfile[];
+      
+      // Filter out self
+      const otherUsers = allUsers.filter(u => u.uid !== loggedInProfile?.uid);
+
+      // Advanced sorting: Same Wilaya > Same Level > Same Subject
+      if (loggedInProfile) {
+        otherUsers.sort((a, b) => {
+          // 1. Same Wilaya
+          const aSameWilaya = a.wilaya === loggedInProfile.wilaya;
+          const bSameWilaya = b.wilaya === loggedInProfile.wilaya;
+          if (aSameWilaya && !bSameWilaya) return -1;
+          if (!aSameWilaya && bSameWilaya) return 1;
+
+          // 2. Same Level (Cycle)
+          const aSameLevel = a.level === loggedInProfile.level;
+          const bSameLevel = b.level === loggedInProfile.level;
+          if (aSameLevel && !bSameLevel) return -1;
+          if (!aSameLevel && bSameLevel) return 1;
+
+          // 3. Same Subject
+          const aSameSubject = a.subject === loggedInProfile.subject;
+          const bSameSubject = b.subject === loggedInProfile.subject;
+          if (aSameSubject && !bSameSubject) return -1;
+          if (!aSameSubject && bSameSubject) return 1;
+
+          // 4. Default: Last seen
+          const timeA = a.lastSeen?.toDate?.()?.getTime() || 0;
+          const timeB = b.lastSeen?.toDate?.()?.getTime() || 0;
+          return timeB - timeA;
+        });
+      }
+
+      setUsers(otherUsers);
       setLoading(false);
     });
-  }, []);
+  }, [loggedInProfile]);
 
   const filteredUsers = users.filter(u => {
     const matchesSearch = u.displayName?.toLowerCase().includes(search.toLowerCase()) || 

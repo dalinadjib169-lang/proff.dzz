@@ -247,7 +247,7 @@ export default function Market() {
       </div>
 
       {/* Product Grid */}
-      <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-6">
+      <div className="grid grid-cols-2 xs:grid-cols-2 md:grid-cols-4 lg:grid-cols-4 xl:grid-cols-4 gap-2 sm:gap-4">
         <AnimatePresence>
           {products.map((p) => (
             <motion.div
@@ -256,7 +256,7 @@ export default function Market() {
               initial={{ opacity: 0, scale: 0.9 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.9 }}
-              className="bg-slate-900 rounded-2xl sm:rounded-3xl overflow-hidden border border-slate-800 shadow-xl group hover:border-orange-500/30 transition-all flex flex-col"
+              className="bg-slate-900 rounded-xl overflow-hidden border border-slate-800 shadow-lg group hover:border-orange-500/30 transition-all flex flex-col"
             >
               <div className="relative aspect-square overflow-hidden bg-slate-800">
                 <img 
@@ -267,81 +267,50 @@ export default function Market() {
                 
                 {p.status === 'sold' && (
                   <div className="absolute inset-0 flex items-center justify-center">
-                    <div className="bg-red-600 text-white font-black px-3 py-1 sm:px-6 sm:py-2 rounded-lg sm:rounded-xl rotate-12 shadow-2xl text-[10px] sm:text-sm">
+                    <div className="bg-red-600 text-white font-black px-2 py-0.5 rounded-lg rotate-12 shadow-2xl text-[8px]">
                       تم البيع
                     </div>
                   </div>
                 )}
 
-                <div className="absolute top-2 left-2 right-2 sm:top-4 sm:left-4 sm:right-4 flex justify-between items-start">
-                  <div className="flex flex-col gap-1 sm:gap-2">
-                    <span className="bg-orange-600/90 backdrop-blur-md text-white text-[10px] sm:text-xs font-black px-2 py-1 sm:px-3 sm:py-1.5 rounded-lg sm:rounded-xl shadow-lg">
+                <div className="absolute top-1 left-1 right-1 flex justify-between items-start">
+                  <div className="flex flex-col gap-1">
+                    <span className="bg-orange-600/90 backdrop-blur-md text-white text-[8px] font-black px-1.5 py-0.5 rounded-md shadow-lg">
                       {p.price.toLocaleString()} دج
                     </span>
-                    {p.hasDelivery && (
-                      <span className="bg-green-600/90 backdrop-blur-md text-white text-[8px] sm:text-[10px] font-black px-2 py-1 sm:px-3 sm:py-1.5 rounded-lg sm:rounded-xl shadow-lg flex items-center gap-1 w-fit">
-                        <Truck className="w-2.5 h-2.5 sm:w-3 h-3" />
-                        <span className="hidden xs:inline">توصيل</span>
-                      </span>
-                    )}
                   </div>
                   
                   {p.sellerId === profile?.uid && (
-                    <div className="flex gap-1 sm:gap-2">
+                    <div className="flex gap-1">
                       <button 
                         onClick={() => toggleSoldStatus(p.id, p.status)}
-                        className="bg-white/20 hover:bg-white/40 p-1.5 sm:p-2 rounded-lg sm:rounded-xl backdrop-blur-md transition-all text-white border border-white/20"
-                        title="Mark as Sold"
+                        className="bg-white/20 hover:bg-white/40 p-1 rounded-md backdrop-blur-md transition-all text-white border border-white/20"
                       >
-                        <CheckCircle2 className="w-3 h-3 sm:w-4 h-4" />
+                        <CheckCircle2 className="w-2.5 h-2.5" />
                       </button>
                       <button 
                         onClick={() => deleteProduct(p.id)}
-                        className="bg-red-500/80 hover:bg-red-500 p-1.5 sm:p-2 rounded-lg sm:rounded-xl backdrop-blur-md transition-all text-white border border-red-500/20 shadow-lg"
-                        title="Delete"
+                        className="bg-red-500/80 hover:bg-red-500 p-1 rounded-md backdrop-blur-md transition-all text-white border border-red-500/20"
                       >
-                        <Trash2 className="w-3 h-3 sm:w-4 h-4" />
+                        <Trash2 className="w-2.5 h-2.5" />
                       </button>
                     </div>
                   )}
                 </div>
               </div>
 
-              <div className="p-3 sm:p-6 flex-1 flex flex-col">
-                <div className="flex items-center gap-1.5 sm:gap-2 mb-2 sm:mb-3">
-                  <img src={p.sellerPhoto} alt="" className="w-4 h-4 sm:w-6 h-6 rounded-md sm:rounded-lg object-cover ring-2 ring-orange-500/20" />
-                  <span className="text-[8px] sm:text-[10px] font-black text-slate-400 uppercase tracking-widest line-clamp-1">{p.sellerName}</span>
-                </div>
+              <div className="p-2 flex-1 flex flex-col">
+                <h3 className="text-xs font-black text-white mb-0.5 line-clamp-1">{p.title}</h3>
+                <p className="text-slate-500 text-[8px] font-bold mb-2 line-clamp-1 truncate">{p.wilaya}</p>
                 
-                <h3 className="text-sm sm:text-lg font-black text-white mb-1 sm:mb-2 line-clamp-1">{p.title}</h3>
-                <p className="text-slate-400 text-[10px] sm:text-sm font-medium mb-3 sm:mb-4 line-clamp-1 sm:line-clamp-2 leading-relaxed">{p.description}</p>
-                
-                <div className="mt-auto pt-2 sm:pt-4 border-t border-slate-800/50 flex items-center justify-between">
-                  <div className="flex items-center gap-1 text-slate-500">
-                    <MapPin className="w-2.5 h-2.5 sm:w-3.5 h-3.5 text-orange-500" />
-                    <span className="text-[8px] sm:text-[10px] font-bold">{p.wilaya}</span>
-                  </div>
-                  <span className="text-[8px] sm:text-[10px] font-black text-slate-600 uppercase tracking-widest">
-                    {p.createdAt ? formatDistanceToNow(p.createdAt.toDate()) : 'Now'}
-                  </span>
-                </div>
-
-                <div className="mt-3 sm:mt-4 flex gap-1.5 sm:gap-2">
+                <div className="mt-auto">
                   <button 
                     onClick={() => handleContactSeller(p)}
-                    className="flex-1 bg-slate-950 hover:bg-slate-800 border border-slate-800 text-slate-300 font-black py-2 sm:py-3 rounded-xl sm:rounded-2xl transition-all flex items-center justify-center gap-1.5 sm:gap-2 active:scale-95 group"
+                    className="w-full bg-slate-950 hover:bg-slate-800 border border-slate-800 text-slate-300 font-bold py-1.5 rounded-lg transition-all flex items-center justify-center gap-1 active:scale-95 text-[10px]"
                   >
-                    <MessageCircle className="w-3 h-3 sm:w-4 h-4 text-purple-500" />
-                    <span className="text-[10px] sm:text-sm">تواصل</span>
+                    <MessageCircle className="w-3 h-3 text-purple-500" />
+                    تواصل
                   </button>
-                  {p.sellerPhone && p.sellerId !== 'SYSTEM_DEVELOPER_UID' && p.sellerName !== 'دالي نجيب' && (
-                    <button 
-                      onClick={() => handleContactSeller(p)}
-                      className="bg-orange-600/10 hover:bg-orange-600 text-orange-500 hover:text-white border border-orange-500/20 hover:border-orange-500 p-2 sm:p-3 rounded-xl sm:rounded-2xl transition-all active:scale-95"
-                    >
-                      <Phone className="w-3 h-3 sm:w-4 h-4" />
-                    </button>
-                  )}
                 </div>
               </div>
             </motion.div>

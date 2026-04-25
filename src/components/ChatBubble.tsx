@@ -727,10 +727,65 @@ export default function ChatBubble() {
     };
   }, []);
 
+  const [isFriend, setIsFriend] = useState(false);
+  const [friendRequest, setFriendRequest] = useState<any>(null);
+
+  // Check friendship status for activeChat
+  useEffect(() => {
+    if (!profile?.uid || !activeChat?.uid || activeChat.uid === 'global') {
+      setIsFriend(true); 
+      setFriendRequest(null);
+      return;
+    }
+
+    const q = query(
+      collection(db, 'invitations'),
+      where('participants', 'array-contains', profile.uid)
+    );
+
+    const unsubscribe = onSnapshot(q, (snap) => {
+      const invs = snap.docs.map(d => ({ id: d.id, ...d.data() })) as any[];
+      const inv = invs.find(i => i.participants.includes(activeChat.uid));
+      
+      if (inv) {
+        setFriendRequest(inv);
+        setIsFriend(inv.status === 'accepted');
+      } else {
+        setFriendRequest(null);
+        setIsFriend(false);
+      }
+    });
+
+    return unsubscribe;
+  }, [profile?.uid, activeChat?.uid]);
+
+  const handleAcceptRequest = async () => {
+    if (!friendRequest) return;
+    try {
+      await updateDoc(doc(db, 'invitations', friendRequest.id), { status: 'accepted' });
+      setIsFriend(true);
+      playSound('notification');
+    } catch (e) {
+      console.error("Error accepting request:", e);
+    }
+  };
+
   const handleSendMessage = async (e: React.FormEvent, type: 'text' | 'image' | 'audio' = 'text', file?: File) => {
     if (e) e.preventDefault();
     if (!newMessage.trim() && !file && type === 'text') return;
     if (!profile || !activeChat) return;
+
+    // Auto-connect on message if not connected ? No, let's keep it strict or auto-send request
+    if (!isFriend && activeChat.uid !== 'global' && !friendRequest) {
+      // Auto-send invitation if none exists
+      await addDoc(collection(db, 'invitations'), {
+        senderId: profile.uid,
+        recipientId: activeChat.uid,
+        participants: [profile.uid, activeChat.uid],
+        status: 'pending',
+        createdAt: serverTimestamp(),
+      });
+    }
 
     const roomId = activeChat.uid === 'global' ? 'global' : [profile.uid, activeChat.uid].sort().join('_');
     const participants = activeChat.uid === 'global' ? ['global'] : [profile.uid, activeChat.uid].sort();
@@ -1050,7 +1105,7 @@ export default function ChatBubble() {
             drag
             dragMomentum={false}
             dragElastic={0.1}
-            className="fixed bottom-0 right-0 w-full h-[100dvh] sm:bottom-24 sm:right-0 sm:w-96 sm:h-[600px] bg-slate-950 sm:bg-slate-900 sm:border sm:border-slate-800 sm:rounded-[2.5rem] shadow-2xl overflow-hidden flex flex-col z-50 origin-bottom sm:origin-bottom-right"
+            className="fixed bottom-24 left-4 right-4 h-[calc(100dvh-140px)] sm:left-auto sm:bottom-24 sm:right-8 sm:w-96 sm:h-[600px] bg-slate-950 sm:bg-slate-900 sm:border sm:border-slate-800 rounded-[2.5rem] shadow-[0_0_50px_rgba(0,0,0,0.5)] overflow-hidden flex flex-col z-[130] origin-bottom sm:origin-bottom-right"
           >
             {/* Header */}
             <div className="p-4 sm:p-5 bg-gradient-to-br from-purple-600 via-indigo-600 to-slate-900 flex items-center justify-between border-b border-white/10 shrink-0">
@@ -1127,6 +1182,45 @@ export default function ChatBubble() {
 
             {/* Content */}
             <div className="flex-1 flex flex-col bg-slate-950/50 overflow-hidden relative">
+              {/* Incoming Call Overlay */}
+              <AnimatePresence>
+                {incomingCall && !isCalling && (
+                  <motion.div
+                    initial={{ opacity: 0, scale: 0.9, y: 50 }}
+                    animate={{ opacity: 1, scale: 1, y: 0 }}
+                    exit={{ opacity: 0, scale: 0.9, y: 50 }}
+                    className="absolute inset-x-4 top-4 z-[60] bg-slate-900/95 backdrop-blur-md border border-purple-500/50 rounded-3xl p-6 shadow-[0_0_50px_rgba(168,85,247,0.3)] flex flex-col items-center text-center"
+                  >
+                    <div className="relative mb-4">
+                      <div className="absolute inset-0 bg-purple-500 rounded-full animate-ping opacity-20"></div>
+                      <img 
+                        src={incomingCall.senderPhoto} 
+                        className="w-20 h-20 rounded-2xl object-cover ring-4 ring-purple-500/30 relative z-10" 
+                        referrerPolicy="no-referrer"
+                      />
+                    </div>
+                    <h3 className="text-lg font-black text-white mb-1">{incomingCall.senderName}</h3>
+                    <p className="text-purple-400 text-xs font-bold mb-6 animate-pulse">
+                      {incomingCall.type === 'video' ? 'Incoming Video Call...' : 'Incoming Audio Call...'}
+                    </p>
+                    <div className="flex gap-4 w-full">
+                      <button 
+                        onClick={handleRejectCall}
+                        className="flex-1 py-3 bg-red-500/10 text-red-500 rounded-2xl font-black text-xs hover:bg-red-500 hover:text-white transition-all shadow-lg active:scale-95 flex items-center justify-center gap-2"
+                      >
+                        <PhoneOff className="w-4 h-4" /> Reject
+                      </button>
+                      <button 
+                        onClick={handleAcceptCall}
+                        className="flex-1 py-3 bg-green-500 text-white rounded-2xl font-black text-xs hover:bg-green-600 transition-all shadow-lg shadow-green-500/20 active:scale-95 flex items-center justify-center gap-2"
+                      >
+                        <Phone className="w-4 h-4" /> Accept
+                      </button>
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+
               {/* Calling Overlay */}
               <AnimatePresence initial={false}>
                 {isCalling && (
@@ -1317,6 +1411,44 @@ export default function ChatBubble() {
               ) : (
                 <>
                   <div ref={scrollRef} className="flex-1 overflow-y-auto p-4 space-y-4 custom-scrollbar">
+                    {/* Message Request UI */}
+                    {!isFriend && activeChat.uid !== 'global' && (
+                      <div className="bg-slate-900/80 border border-slate-700 rounded-3xl p-6 text-center shadow-xl mb-6">
+                        <div className="w-16 h-16 bg-purple-600/10 rounded-full flex items-center justify-center mx-auto mb-4 border border-purple-500/20">
+                          <UserPlus className="w-8 h-8 text-purple-500" />
+                        </div>
+                        <h4 className="text-white font-black mb-2">طلب مراسلة - Message Request</h4>
+                        <p className="text-slate-400 text-xs font-bold mb-6">
+                          {friendRequest?.senderId === profile.uid 
+                            ? 'لقد ارسلت طلب صداقة، انتظر قبول الزميل لكي تتمكنا من التحدث.'
+                            : 'يريد هذا الزميل التواصل معك، هل توافق؟'}
+                        </p>
+                        {friendRequest?.senderId !== profile.uid ? (
+                          <div className="flex gap-2">
+                            <button 
+                              onClick={() => {
+                                if (friendRequest) deleteDoc(doc(db, 'invitations', friendRequest.id));
+                                setActiveChat(null);
+                              }}
+                              className="flex-1 py-3 bg-slate-800 text-slate-400 rounded-2xl font-black text-xs hover:bg-slate-700 hover:text-white transition-all"
+                            >
+                              رفض (Decline)
+                            </button>
+                            <button 
+                              onClick={handleAcceptRequest}
+                              className="flex-1 py-3 bg-purple-600 text-white rounded-2xl font-black text-xs hover:bg-purple-700 transition-all shadow-lg shadow-purple-500/20"
+                            >
+                              قبول (Accept)
+                            </button>
+                          </div>
+                        ) : (
+                          <div className="py-3 bg-slate-900 border border-slate-800 rounded-2xl text-slate-500 text-[10px] font-black uppercase tracking-widest">
+                            Pending Approval...
+                          </div>
+                        )}
+                      </div>
+                    )}
+
                     {messages.map((msg) => (
                       <div key={msg.id} className={`flex flex-col ${msg.senderId === profile.uid ? 'items-end' : 'items-start'}`}>
                         <div className="group relative">

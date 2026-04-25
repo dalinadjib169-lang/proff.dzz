@@ -136,8 +136,15 @@ function Sidebar() {
               className="flex items-center justify-between px-6 py-4 rounded-2xl font-bold transition-all group text-slate-500 hover:bg-slate-900 hover:text-primary"
             >
               <div className="flex items-center gap-4">
-                <item.icon className={cn("w-5 h-5", "transition-transform group-hover:scale-110", item.label.includes('Mosa7i7') && "text-emerald-400")} />
-                <span className={cn(item.label.includes('Mosa7i7') && "text-emerald-400 font-black")}>{item.label}</span>
+                <item.icon className={cn(
+                  "w-5 h-5 transition-all group-hover:scale-125", 
+                  item.label.includes('Mosa7i7') && "text-emerald-400 drop-shadow-[0_0_8px_rgba(52,211,153,0.5)] animate-pulse"
+                )} />
+                <span className={cn(
+                  item.label.includes('Mosa7i7') && "text-emerald-400 font-black bg-emerald-500/10 px-3 py-1 rounded-full border border-emerald-500/20 shadow-[0_0_15px_rgba(52,211,153,0.2)]"
+                )}>
+                  {item.label}
+                </span>
               </div>
               <ExternalLink className="w-3.5 h-3.5 opacity-0 group-hover:opacity-100 transition-all" />
             </a>
