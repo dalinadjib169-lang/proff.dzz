@@ -217,10 +217,12 @@ export default function ChatBubble() {
   const typingTimeoutRef = useRef<any>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const chatInputRef = useRef<HTMLInputElement>(null);
   const ringtoneRef = useRef<HTMLAudioElement | null>(null);
 
   const [vHeight, setVHeight] = useState('100dvh');
   const [isMobile, setIsMobile] = useState(false);
+  const [isKeyboardOpen, setIsKeyboardOpen] = useState(false);
 
   useEffect(() => {
     const checkMobile = () => setIsMobile(window.innerWidth < 640);
@@ -231,6 +233,7 @@ export default function ChatBubble() {
       const handleVisualResize = () => {
         if (window.visualViewport) {
           setVHeight(`${window.visualViewport.height}px`);
+          setIsKeyboardOpen(window.visualViewport.height < window.innerHeight * 0.8);
         }
       };
       window.visualViewport.addEventListener('resize', handleVisualResize);
@@ -863,6 +866,8 @@ export default function ChatBubble() {
       // Add to Firestore - onSnapshot with includeMetadataChanges will show it instantly
       await addDoc(collection(db, 'messages'), messageData);
       setEmojiState('happy');
+      // Focus input again on mobile to keep keyboard open
+      setTimeout(() => chatInputRef.current?.focus(), 100);
     } catch (error) {
       handleFirestoreError(error, OperationType.CREATE, 'messages');
       setEmojiState('sad');
@@ -1156,36 +1161,45 @@ export default function ChatBubble() {
             style={{ height: isMobile ? vHeight : undefined }}
           >
             {/* Header */}
-            <div className="p-4 sm:p-5 bg-gradient-to-br from-purple-600 via-indigo-600 to-slate-900 flex items-center justify-between border-b border-white/10 shrink-0">
+            <div className={`shrink-0 bg-gradient-to-br from-purple-600 via-indigo-600 to-slate-900 flex items-center justify-between border-b border-white/10 transition-all ${isMobile && isKeyboardOpen ? 'p-2' : 'p-4 sm:p-5'}`}>
               <div className="flex items-center gap-3">
                 {activeChat ? (
                   <>
                     <button onClick={() => setActiveChat(null)} className="text-white/80 hover:text-white transition-colors">
-                      <X className="w-5 h-5 rotate-45" />
+                      {isMobile && isKeyboardOpen ? <X className="w-4 h-4 rotate-45" /> : <X className="w-5 h-5 rotate-45" />}
                     </button>
                     <div className="relative">
                       <img 
                         src={activeChat.photoURL} 
-                        className="w-10 h-10 rounded-2xl object-cover border-2 border-white/20" 
+                        className={`${isMobile && isKeyboardOpen ? 'w-8 h-8' : 'w-10 h-10'} rounded-2xl object-cover border-2 border-white/20 transition-all`} 
                         referrerPolicy="no-referrer"
                       />
                       <div className={`absolute -bottom-1 -right-1 w-3 h-3 rounded-full border-2 border-slate-900 ${isOnline(activeChat.uid === 'global' ? null : activeChat.lastSeen) ? 'bg-green-500' : 'bg-slate-500'}`}></div>
                     </div>
                     <div>
-                      <h4 className="font-black text-white text-sm leading-tight">{activeChat.displayName}</h4>
-                      <div className="flex flex-col">
-                        <p className="text-[10px] font-bold text-white/90 flex items-center gap-1">
-                          <span className={`w-1.5 h-1.5 rounded-full ${isOnline(activeChat.uid === 'global' ? null : activeChat.lastSeen) ? 'bg-green-400 animate-pulse' : 'bg-slate-400'}`}></span>
-                          {isOnline(activeChat.uid === 'global' ? null : activeChat.lastSeen) ? 'Online' : 'Offline'}
-                        </p>
-                        <p className="text-[10px] font-bold text-white/90 flex items-center gap-1">
-                          {getSubjectIcon(activeChat.subject || '')}
-                          {activeChat.subject || 'Teacher'} • {activeChat.level || 'General'}
-                        </p>
-                        <p className="text-[9px] font-bold text-white/70 flex items-center gap-1">
-                          <MapPin className="w-2 h-2" /> {activeChat.wilaya || 'Algeria'} • <Clock className="w-2 h-2" /> {activeChat.yearsOfExperience || 0} ans exp
-                        </p>
-                      </div>
+                      <h4 className={`font-black text-white leading-tight ${isMobile && isKeyboardOpen ? 'text-[12px]' : 'text-sm'}`}>{activeChat.displayName}</h4>
+                      {!isKeyboardOpen && (
+                        <div className="flex flex-col">
+                          <p className="text-[10px] font-bold text-white/90 flex items-center gap-1">
+                            <span className={`w-1.5 h-1.5 rounded-full ${isOnline(activeChat.uid === 'global' ? null : activeChat.lastSeen) ? 'bg-green-400 animate-pulse' : 'bg-slate-400'}`}></span>
+                            {isOnline(activeChat.uid === 'global' ? null : activeChat.lastSeen) ? 'Online' : 'Offline'}
+                          </p>
+                          {!isMobile && (
+                            <>
+                              <p className="text-[10px] font-bold text-white/90 flex items-center gap-1">
+                                {getSubjectIcon(activeChat.subject || '')}
+                                {activeChat.subject || 'Teacher'} • {activeChat.level || 'General'}
+                              </p>
+                              <p className="text-[9px] font-bold text-white/70 flex items-center gap-1">
+                                <MapPin className="w-2 h-2" /> {activeChat.wilaya || 'Algeria'} • <Clock className="w-2 h-2" /> {activeChat.yearsOfExperience || 0} ans exp
+                              </p>
+                            </>
+                          )}
+                        </div>
+                      )}
+                      {isMobile && isKeyboardOpen && (
+                         <p className="text-[9px] font-bold text-white/80">Online</p>
+                      )}
                     </div>
                   </>
                 ) : (
@@ -1198,7 +1212,7 @@ export default function ChatBubble() {
                 )}
               </div>
             <div className="flex items-center gap-1">
-                {activeChat && activeChat.uid !== 'global' && (
+                {activeChat && activeChat.uid !== 'global' && !isKeyboardOpen && (
                   <>
                     <button 
                       onClick={handleConnect}
@@ -1220,10 +1234,10 @@ export default function ChatBubble() {
                 )}
                 <button 
                   onClick={() => setIsOpen(false)} 
-                  className="bg-white/10 text-white p-2 hover:bg-red-500 rounded-xl transition-all shadow-lg border border-white/20"
+                  className={`bg-white/10 text-white hover:bg-red-500 rounded-xl transition-all shadow-lg border border-white/20 ${isMobile && isKeyboardOpen ? 'p-1' : 'p-2'}`}
                   title="Close / أغلق"
                 >
-                  <X className="w-5 h-5" />
+                  <X className={isMobile && isKeyboardOpen ? 'w-4 h-4' : 'w-5 h-5'} />
                 </button>
               </div>
             </div>
@@ -1348,30 +1362,35 @@ export default function ChatBubble() {
                 )}
               </AnimatePresence>
               {!activeChat ? (
-                <div className="flex-1 flex flex-col p-4 overflow-hidden">
-                  <div className="relative mb-4">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
-                    <input 
-                      type="text" 
-                      placeholder="Search colleagues..."
-                      className="w-full bg-slate-900 border border-slate-800 rounded-2xl pl-10 pr-4 py-2.5 text-sm text-slate-100 outline-none focus:ring-2 focus:ring-purple-500/30 transition-all font-medium"
-                      value={searchTerm}
-                      onChange={(e) => setSearchTerm(e.target.value)}
-                    />
-                  </div>
-                  <div className="flex gap-2 mb-4">
-                    <button 
-                      onClick={() => setFilterSameSubject(false)}
-                      className={`flex-1 py-2 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all ${!filterSameSubject ? 'bg-purple-600 text-white shadow-lg shadow-purple-500/20' : 'bg-slate-900 text-slate-500 hover:text-slate-300'}`}
-                    >
-                      All
-                    </button>
-                    <button 
-                      onClick={() => setFilterSameSubject(true)}
-                      className={`flex-1 py-2 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all ${filterSameSubject ? 'bg-purple-600 text-white shadow-lg shadow-purple-500/20' : 'bg-slate-900 text-slate-500 hover:text-slate-300'}`}
-                    >
-                      Same Subject
-                    </button>
+                <>
+                  <div className={`p-4 transition-all ${isMobile && isKeyboardOpen ? 'p-2' : ''}`}>
+                    <div className="relative mb-4">
+                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
+                      <input 
+                        ref={chatInputRef}
+                        type="text" 
+                        placeholder="Search colleagues..."
+                        className="w-full bg-slate-900 border border-slate-800 rounded-2xl pl-10 pr-4 py-2.5 text-sm text-slate-100 outline-none focus:ring-2 focus:ring-purple-500/30 transition-all font-medium"
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                      />
+                    </div>
+                    {!isKeyboardOpen && (
+                      <div className="flex gap-2 mb-4">
+                        <button 
+                          onClick={() => setFilterSameSubject(false)}
+                          className={`flex-1 py-2 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all ${!filterSameSubject ? 'bg-purple-600 text-white shadow-lg shadow-purple-500/20' : 'bg-slate-900 text-slate-500 hover:text-slate-300'}`}
+                        >
+                          All
+                        </button>
+                        <button 
+                          onClick={() => setFilterSameSubject(true)}
+                          className={`flex-1 py-2 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all ${filterSameSubject ? 'bg-purple-600 text-white shadow-lg shadow-purple-500/20' : 'bg-slate-900 text-slate-500 hover:text-slate-300'}`}
+                        >
+                          Same Subject
+                        </button>
+                      </div>
+                    )}
                   </div>
                   <div className="flex-1 overflow-y-auto space-y-2 pr-2 custom-scrollbar">
                     {/* Online Colleagues horizontal scroll */}
@@ -1491,7 +1510,7 @@ export default function ChatBubble() {
                       </button>
                     ))}
                   </div>
-                </div>
+                </>
               ) : (
                 <>
                   <div ref={scrollRef} className="flex-1 overflow-y-auto p-4 space-y-4 custom-scrollbar overscroll-contain">
@@ -1690,6 +1709,7 @@ export default function ChatBubble() {
                   }} className="p-4 bg-slate-900 border-t border-slate-800 flex flex-col gap-3">
                     <div className="flex items-center gap-2">
                       <input
+                        ref={chatInputRef}
                         type="text"
                         placeholder={isUploading ? "Uploading..." : "Type your message..."}
                         disabled={isUploading}
