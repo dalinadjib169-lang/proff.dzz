@@ -1,25 +1,51 @@
 rules_version = '2';
 service firebase.storage {
   match /b/{bucket}/o {
+    
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isImage() {
+      return request.resource.contentType.matches('image/.*');
+    }
+
+    function isVideo() {
+      return request.resource.contentType.matches('video/.*');
+    }
+
+    function isAudio() {
+      return request.resource.contentType.matches('audio/.*');
+    }
+
     match /posts/{allPaths=**} {
       allow read: if true;
-      allow write: if request.auth != null && request.resource.size < 20 * 1024 * 1024;
+      allow write: if isSignedIn() && (isImage() || isVideo()) && request.resource.size < 20 * 1024 * 1024;
     }
+    
     match /profiles/{allPaths=**} {
       allow read: if true;
-      allow write: if request.auth != null && request.resource.size < 5 * 1024 * 1024;
+      allow write: if isSignedIn() && isImage() && request.resource.size < 5 * 1024 * 1024;
     }
+    
     match /avatars/{allPaths=**} {
       allow read: if true;
-      allow write: if request.auth != null && request.resource.size < 5 * 1024 * 1024;
+      allow write: if isSignedIn() && isImage() && request.resource.size < 5 * 1024 * 1024;
     }
+    
     match /products/{allPaths=**} {
       allow read: if true;
-      allow write: if request.auth != null && request.resource.size < 5 * 1024 * 1024;
+      allow write: if isSignedIn() && isImage() && request.resource.size < 5 * 1024 * 1024;
     }
+    
     match /chats/{allPaths=**} {
-      allow read: if request.auth != null;
-      allow write: if request.auth != null && request.resource.size < 10 * 1024 * 1024;
+      allow read: if isSignedIn();
+      allow write: if isSignedIn() && (isImage() || isVideo() || isAudio()) && request.resource.size < 10 * 1024 * 1024;
+    }
+
+    match /comment_images/{allPaths=**} {
+      allow read: if true;
+      allow write: if isSignedIn() && isImage() && request.resource.size < 5 * 1024 * 1024;
     }
   }
 }

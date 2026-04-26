@@ -174,64 +174,72 @@ service cloud.firestore {
     // ===============================================================
 
     match /users/{userId} {
-      allow get: if isSignedIn();
+      allow get: if isSignedIn() && isValidId(userId);
       allow list: if isSignedIn();
-      allow create: if isOwner(userId) && isValidUserProfile(incoming());
-      allow update: if (isOwner(userId) && isValidUserProfile(incoming()) && (
-          incoming().diff(existing()).affectedKeys().hasOnly(['displayName', 'firstName', 'lastName', 'photoURL', 'bio', 'subject', 'school', 'wilaya', 'level', 'yearsOfExperience', 'gender', 'birthDate', 'role', 'rank', 'isProfileComplete', 'showEmail', 'showPhone', 'lastSeen', 'bioBackground', 'bioTextColor', 'blockedUsers', 'isActivated', 'premiumUntil', 'lastGenerationDate', 'lastUsageResetDate', 'dailyGenCount', 'dailyCorrectCount', 'savedPreferences', 'settings', 'friends', 'followers', 'following', 'appBackground', 'phoneNumber', 'email'])
+      allow create: if isOwner(userId) && isValidId(userId) && isValidUserProfile(incoming());
+      allow update: if isValidId(userId) && ((isOwner(userId) && isValidUserProfile(incoming()) && (
+          incoming().diff(existing()).affectedKeys().hasOnly(['displayName', 'firstName', 'lastName', 'photoURL', 'bio', 'subject', 'school', 'wilaya', 'level', 'yearsOfExperience', 'gender', 'birthDate', 'role', 'rank', 'isProfileComplete', 'showEmail', 'showPhone', 'lastSeen', 'bioBackground', 'bioTextColor', 'blockedUsers', 'isActivated', 'premiumUntil', 'lastGenerationDate', 'lastUsageResetDate', 'dailyGenCount', 'dailyCorrectCount', 'savedPreferences', 'settings', 'friends', 'followers', 'following', 'appBackground', 'phoneNumber', 'email']) &&
+          incoming().uid == existing().uid &&
+          incoming().createdAt == existing().createdAt
         )) || (
           // Social interaction: anyone can add themselves to followers/following/friends
           isVerified() && incoming().diff(existing()).affectedKeys().hasOnly(['followers', 'following', 'friends']) &&
-          incoming().followers.size() <= 10000 && incoming().following.size() <= 10000 && incoming().friends.size() <= 5000
-        ) || isAdmin();
+          incoming().followers.size() <= 10000 && incoming().following.size() <= 10000 && incoming().friends.size() <= 5000 &&
+          incoming().uid == existing().uid
+        ) || isAdmin());
       allow delete: if isAdmin();
     }
 
     match /users_private/{userId} {
-      allow read: if isOwner(userId) || isAdmin();
-      allow create: if isOwner(userId) && isValidUserPrivateData(incoming());
-      allow update: if (isOwner(userId) && isValidUserPrivateData(incoming())) || isAdmin();
+      allow read: if (isOwner(userId) || isAdmin()) && isValidId(userId);
+      allow create: if isOwner(userId) && isValidId(userId) && isValidUserPrivateData(incoming());
+      allow update: if isValidId(userId) && ((isOwner(userId) && isValidUserPrivateData(incoming())) || isAdmin());
     }
 
     match /posts/{postId} {
-      allow get: if isSignedIn();
+      allow get: if isSignedIn() && isValidId(postId);
       allow list: if isSignedIn() && (resource.data.privacy == 'public' || resource.data.authorId == request.auth.uid);
-      allow create: if isVerified() && isValidPost(incoming());
-      allow update: if (isOwner(existing().authorId) && isValidPost(incoming()) && (
-          incoming().diff(existing()).affectedKeys().hasOnly(['content', 'privacy', 'imageUrl', 'videoUrl', 'background', 'reactions'])
+      allow create: if isVerified() && isValidId(postId) && isValidPost(incoming());
+      allow update: if isValidId(postId) && ((isOwner(existing().authorId) && isValidPost(incoming()) && (
+          incoming().diff(existing()).affectedKeys().hasOnly(['content', 'privacy', 'imageUrl', 'videoUrl', 'background', 'reactions']) &&
+          incoming().authorId == existing().authorId &&
+          incoming().createdAt == existing().createdAt
         )) || (
           // Social interaction: anyone can like or increment comment count
-          isVerified() && incoming().diff(existing()).affectedKeys().hasOnly(['likes', 'commentCount', 'reactions'])
-        ) || isAdmin();
-      allow delete: if isOwner(existing().authorId) || isAdmin();
+          isVerified() && incoming().diff(existing()).affectedKeys().hasOnly(['likes', 'commentCount', 'reactions']) &&
+          incoming().authorId == existing().authorId
+        ) || isAdmin());
+      allow delete: if (isOwner(existing().authorId) || isAdmin()) && isValidId(postId);
     }
 
     match /comments/{commentId} {
-      allow get: if isSignedIn();
+      allow get: if isSignedIn() && isValidId(commentId);
       allow list: if isSignedIn();
-      allow create: if isSignedIn() && isValidComment(incoming()) && exists(/databases/$(database)/documents/posts/$(incoming().postId));
-      allow update: if (isOwner(existing().authorId) && isValidComment(incoming()) && (
-          incoming().diff(existing()).affectedKeys().hasOnly(['content'])
-        )) || isAdmin();
-      allow delete: if isOwner(existing().authorId) || (isSignedIn() && exists(/databases/$(database)/documents/posts/$(existing().postId)) && get(/databases/$(database)/documents/posts/$(existing().postId)).data.authorId == request.auth.uid) || isAdmin();
+      allow create: if isSignedIn() && isValidId(commentId) && isValidComment(incoming()) && exists(/databases/$(database)/documents/posts/$(incoming().postId));
+      allow update: if isValidId(commentId) && ((isOwner(existing().authorId) && isValidComment(incoming()) && (
+          incoming().diff(existing()).affectedKeys().hasOnly(['content']) &&
+          incoming().authorId == existing().authorId &&
+          incoming().postId == existing().postId
+        )) || isAdmin());
+      allow delete: if (isOwner(existing().authorId) || (isSignedIn() && exists(/databases/$(database)/documents/posts/$(existing().postId)) && get(/databases/$(database)/documents/posts/$(existing().postId)).data.authorId == request.auth.uid) || isAdmin()) && isValidId(commentId);
     }
 
     match /notifications/{notificationId} {
-      allow get: if isOwner(resource.data.recipientId) || isAdmin();
-      allow list: if isOwner(resource.data.recipientId) || isAdmin();
-      allow create: if isSignedIn() && isValidNotification(incoming());
-      allow update: if (isOwner(existing().recipientId) && incoming().diff(existing()).affectedKeys().hasOnly(['read'])) || isAdmin();
-      allow delete: if isOwner(existing().recipientId) || isAdmin();
+      allow get: if (isOwner(resource.data.recipientId) || isAdmin()) && isValidId(notificationId);
+      allow list: if isSignedIn() && resource.data.recipientId == request.auth.uid;
+      allow create: if isSignedIn() && isValidId(notificationId) && isValidNotification(incoming());
+      allow update: if isValidId(notificationId) && ((isOwner(existing().recipientId) && incoming().diff(existing()).affectedKeys().hasOnly(['read'])) || isAdmin());
+      allow delete: if (isOwner(existing().recipientId) || isAdmin()) && isValidId(notificationId);
     }
 
     match /messages/{messageId} {
-      allow get: if isSignedIn() && (resource.data.roomId == 'global' || request.auth.uid in resource.data.participants);
-      allow list: if isSignedIn() && (resource.data.roomId == 'global' || request.auth.uid in resource.data.participants);
-      allow create: if isSignedIn() && isValidMessage(incoming());
-      allow update: if (isSignedIn() && (existing().roomId == 'global' || request.auth.uid in existing().participants) && (
+      allow get: if isSignedIn() && isValidId(messageId) && (resource.data.roomId == 'global' || request.auth.uid in resource.data.participants);
+      allow list: if isSignedIn();
+      allow create: if isSignedIn() && isValidId(messageId) && isValidMessage(incoming());
+      allow update: if isValidId(messageId) && ((isSignedIn() && (existing().roomId == 'global' || request.auth.uid in existing().participants) && (
           incoming().diff(existing()).affectedKeys().hasOnly(['seen', 'reactions', 'deletedFor'])
-        )) || isAdmin();
-      allow delete: if (isOwner(existing().senderId)) || isAdmin();
+        )) || isAdmin());
+      allow delete: if (isOwner(existing().senderId) || isAdmin()) && isValidId(messageId);
     }
 
     match /invitations/{invitationId} {
@@ -242,20 +250,21 @@ service cloud.firestore {
     }
 
     match /products/{productId} {
-      allow get: if isSignedIn();
+      allow get: if isSignedIn() && isValidId(productId);
       allow list: if isSignedIn();
-      allow create: if isSignedIn() && isValidProduct(incoming());
-      allow update: if (isOwner(existing().sellerId) && isValidProduct(incoming()) && (
-          incoming().diff(existing()).affectedKeys().hasOnly(['title', 'description', 'price', 'category', 'wilaya', 'images', 'status', 'hasDelivery'])
-        )) || isAdmin();
-      allow delete: if isOwner(existing().sellerId) || isAdmin();
+      allow create: if isSignedIn() && isValidId(productId) && isValidProduct(incoming());
+      allow update: if isValidId(productId) && ((isOwner(existing().sellerId) && isValidProduct(incoming()) && (
+          incoming().diff(existing()).affectedKeys().hasOnly(['title', 'description', 'price', 'category', 'wilaya', 'images', 'status', 'hasDelivery']) &&
+          incoming().sellerId == existing().sellerId
+        )) || isAdmin());
+      allow delete: if (isOwner(existing().sellerId) || isAdmin()) && isValidId(productId);
     }
 
     match /calls/{callId} {
-      allow read: if isSignedIn() && (request.auth.uid == resource.data.senderId || request.auth.uid == resource.data.recipientId);
-      allow create: if isSignedIn() && incoming().senderId == request.auth.uid;
-      allow update: if isSignedIn() && (request.auth.uid == existing().senderId || request.auth.uid == existing().recipientId);
-      allow delete: if isSignedIn() && (request.auth.uid == existing().senderId || request.auth.uid == existing().recipientId);
+      allow read: if isSignedIn() && isValidId(callId) && (request.auth.uid == resource.data.senderId || request.auth.uid == resource.data.recipientId);
+      allow create: if isSignedIn() && isValidId(callId) && incoming().senderId == request.auth.uid;
+      allow update: if isValidId(callId) && isSignedIn() && (request.auth.uid == existing().senderId || request.auth.uid == existing().recipientId);
+      allow delete: if isValidId(callId) && isSignedIn() && (request.auth.uid == existing().senderId || request.auth.uid == existing().recipientId);
     }
 
     match /typing/{roomId} {
