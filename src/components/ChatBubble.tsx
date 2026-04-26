@@ -217,13 +217,20 @@ export default function ChatBubble() {
   const typingTimeoutRef = useRef<any>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const chatInputRef = useRef<HTMLInputElement>(null);
-  const searchInputRef = useRef<HTMLInputElement>(null);
+  const chatInputRef = useRef<HTMLInputElement | HTMLTextAreaElement>(null);
+  const searchInputRef = useRef<HTMLInputElement | HTMLTextAreaElement>(null);
   const ringtoneRef = useRef<HTMLAudioElement | null>(null);
 
   const [vHeight, setVHeight] = useState('100dvh');
   const [isMobile, setIsMobile] = useState(false);
   const [isKeyboardOpen, setIsKeyboardOpen] = useState(false);
+  const [isConnected, setIsConnected] = useState(true);
+
+  useEffect(() => {
+    const handleConnection = (status: boolean) => setIsConnected(status);
+    // @ts-ignore - Assuming exported from firebase.ts
+    import('../firebase').then(m => m.onConnectionChange(handleConnection));
+  }, []);
 
   useEffect(() => {
     const checkMobile = () => setIsMobile(window.innerWidth < 640);
@@ -1181,7 +1188,10 @@ export default function ChatBubble() {
                       <div className={`absolute -bottom-1 -right-1 w-3 h-3 rounded-full border-2 border-slate-900 ${isOnline(activeChat.uid === 'global' ? null : activeChat.lastSeen) ? 'bg-green-500' : 'bg-slate-500'}`}></div>
                     </div>
                     <div>
-                      <h4 className={`font-black text-white leading-tight ${isMobile && isKeyboardOpen ? 'text-[12px]' : 'text-sm'}`}>{activeChat.displayName}</h4>
+                      <h4 className={`font-black text-white leading-tight ${isMobile && isKeyboardOpen ? 'text-[12px]' : 'text-sm'}`}>
+                        {activeChat.displayName}
+                        {!isConnected && <span className="ml-2 text-[10px] text-yellow-400 font-normal animate-pulse">(Connecting...)</span>}
+                      </h4>
                       {!isKeyboardOpen && (
                         <div className="flex flex-col">
                           <p className="text-[10px] font-bold text-white/90 flex items-center gap-1">
@@ -1370,14 +1380,18 @@ export default function ChatBubble() {
                   <div className={`p-4 transition-all ${isMobile && isKeyboardOpen ? 'p-2' : ''}`}>
                     <div className="relative mb-4">
                       <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
-                      <input 
-                        ref={searchInputRef}
-                        type="text" 
-                        name="q_colleague_search"
-                        id="q_colleague_search"
+                      <textarea 
+                        ref={searchInputRef as any}
+                        rows={1}
+                        name={`s_${Math.floor(Math.random() * 1000)}`}
                         autoComplete="off"
+                        autoCorrect="off"
+                        autoCapitalize="off"
+                        spellCheck={false}
+                        data-form-type="other"
+                        data-lpignore="true"
                         placeholder="Search colleagues..."
-                        className="w-full bg-slate-900 border border-slate-800 rounded-2xl pl-10 pr-4 py-2.5 text-sm text-slate-100 outline-none focus:ring-2 focus:ring-purple-500/30 transition-all font-medium"
+                        className="w-full bg-slate-900 border border-slate-800 rounded-2xl pl-10 pr-4 py-2 text-sm text-slate-100 outline-none focus:ring-2 focus:ring-purple-500/30 transition-all font-medium resize-none overflow-hidden pt-2.5"
                         value={searchTerm}
                         onChange={(e) => setSearchTerm(e.target.value)}
                       />
@@ -1710,25 +1724,29 @@ export default function ChatBubble() {
                       </div>
                     )}
                   </div>
-                  <form autoComplete="off" onSubmit={(e) => {
-                    handleSendMessage(e);
-                    handleTyping(false);
-                  }} className="p-4 bg-slate-900 border-t border-slate-800 flex flex-col gap-3">
+                  <div className="p-4 bg-slate-900 border-t border-slate-800 flex flex-col gap-3">
                     <div className="flex items-center gap-2">
-                      <input
-                        ref={chatInputRef}
-                        type="text"
-                        name="q_chat_msg_input"
-                        id="q_chat_msg_input"
+                      <textarea
+                        ref={chatInputRef as any}
+                        rows={1}
+                        name={`m_${Math.floor(Math.random() * 1000)}`}
                         placeholder={isUploading ? "Uploading..." : "Type your message..."}
                         disabled={isUploading}
                         autoComplete="off"
                         autoCorrect="off"
                         autoCapitalize="off"
-                        spellCheck="false"
-                        inputMode="text"
-                        className="flex-1 bg-slate-950 border border-slate-800 rounded-xl px-4 py-2 text-sm text-slate-100 outline-none focus:ring-2 focus:ring-purple-500/30 transition-all font-medium disabled:opacity-50"
+                        spellCheck={false}
+                        data-form-type="other"
+                        data-lpignore="true"
+                        className="flex-1 bg-slate-950 border border-slate-800 rounded-xl px-4 py-2 text-sm text-slate-100 outline-none focus:ring-2 focus:ring-purple-500/30 transition-all font-medium disabled:opacity-50 resize-none overflow-hidden pt-2.5"
                         value={newMessage}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter' && !e.shiftKey) {
+                            e.preventDefault();
+                            handleSendMessage(null as any);
+                            handleTyping(false);
+                          }
+                        }}
                         onChange={(e) => {
                           setNewMessage(e.target.value);
                           handleTyping(e.target.value.length > 0);
@@ -1736,7 +1754,11 @@ export default function ChatBubble() {
                         onBlur={() => handleTyping(false)}
                       />
                       <button 
-                        type="submit" 
+                        type="button"
+                        onClick={() => {
+                          handleSendMessage(null as any);
+                          handleTyping(false);
+                        }}
                         disabled={isUploading}
                         onMouseDown={(e) => e.preventDefault()} // Prevent focus stealing
                         className="bg-purple-600 hover:bg-purple-700 text-white p-2.5 rounded-xl transition-all active:scale-90 disabled:opacity-50"
@@ -1820,7 +1842,7 @@ export default function ChatBubble() {
                       accept="image/*" 
                       onChange={handleFileSelect}
                     />
-                  </form>
+                  </div>
                 </>
               )}
             </div>

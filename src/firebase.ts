@@ -16,37 +16,48 @@ const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);
 
 // Use initializeFirestore with settings optimized for the AI Studio environment
-// experimentalForceLongPolling is crucial for bypassing proxy/websocket issues
 export const db = initializeFirestore(app, {
   experimentalForceLongPolling: true,
   ignoreUndefinedProperties: true,
 }, (firebaseConfig as any).firestoreDatabaseId || "(default)");
 
+// Tracking connection status
+export let isFirestoreConnected = false;
+const connectionListeners: ((connected: boolean) => void)[] = [];
+
+export const onConnectionChange = (callback: (connected: boolean) => void) => {
+  connectionListeners.push(callback);
+  callback(isFirestoreConnected);
+};
+
+const notifyListeners = (status: boolean) => {
+  isFirestoreConnected = status;
+  connectionListeners.forEach(cb => cb(status));
+};
+
 export const storage = getStorage(app);
 
 // Test connection to Firestore as per guidelines with retry logic
-async function testConnection(retries = 3) {
+async function testConnection(retries = 5) {
   try {
-    // Attempt to get a non-existent document from server to test connectivity
-    // Using a timeout to prevent long hangs
     const testPromise = getDocFromServer(doc(db, '_connection_test_', 'test'));
-    const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error("Timeout")), 15000));
+    const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error("Timeout")), 10000));
     
     await Promise.race([testPromise, timeoutPromise]);
     console.log("Firestore connection test successful");
+    notifyListeners(true);
   } catch (error: any) {
+    notifyListeners(false);
     if (retries > 0) {
-      console.warn(`Firestore connection test failed, retrying... (${retries} left)`);
-      await new Promise(resolve => setTimeout(resolve, 5000));
+      console.warn(`Firestore connectivity issue, retrying... (${retries} left)`);
+      await new Promise(resolve => setTimeout(resolve, 3000));
       return testConnection(retries - 1);
     }
     
-    // If it's just a timeout or "offline", we don't necessarily want to crash the app
-    // Firestore SDK will handle the reconnection automatically.
     if (error.message === "Timeout" || (error.code === 'unavailable') || (error.message && error.message.includes('the client is offline'))) {
       console.warn("Firestore is currently unreachable. The app will continue in offline mode.");
     } else {
-      console.error("Firestore connection test critical failure:", error);
+      console.error("Firestore connection test failure:", error);
     }
   }
 }
