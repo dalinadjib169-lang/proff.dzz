@@ -2,24 +2,109 @@ import { useState, useEffect, useRef } from 'react';
 import { db } from '../firebase';
 import { doc, updateDoc, arrayUnion, arrayRemove, collection, addDoc, serverTimestamp, query, where, orderBy, onSnapshot, deleteDoc, increment, Timestamp, limit } from 'firebase/firestore';
 import { useAuth } from '../hooks/useAuth';
-import { Post, Comment } from '../types';
-import { ThumbsUp, MessageCircle, Share2, MoreHorizontal, GraduationCap, Send, Trash2, Globe, Users, Lock as LockIcon, X, Smile } from 'lucide-react';
+import { Post, Comment as CommentType } from '../types';
+import { ThumbsUp, MessageCircle, Share2, MoreHorizontal, GraduationCap, Send, Trash2, Globe, Users, Lock as LockIcon, X, Smile, Edit2, Reply, Image as ImageIcon, Camera, EyeOff, Loader2 } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { Link } from 'react-router-dom';
 import React from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { playSound } from '../lib/sounds';
+import { useUpload } from '../hooks/useUpload';
+import { cn } from '../lib/utils';
 
-function CommentItem({ comment }: { comment: Comment }) {
+// Helper for dropdown
+function Dropdown({ children, trigger, align = 'right' }: { children: React.ReactNode, trigger: React.ReactNode, align?: 'left' | 'right' }) {
+  const [isOpen, setIsOpen] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setIsOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
   return (
-    <div className="flex gap-2 p-2 bg-slate-950 rounded-xl">
-      <img src={comment.authorPhoto} className="w-8 h-8 rounded-lg object-cover" alt="" />
-      <div className="flex-1">
-        <div className="flex justify-between items-center">
-          <p className="text-xs font-black text-primary">{comment.authorName}</p>
-          <span className="text-[10px] text-slate-600 font-bold">{formatDistanceToNow(comment.createdAt.toDate())}</span>
+    <div className="relative" ref={dropdownRef}>
+      <div onClick={(e) => { e.stopPropagation(); setIsOpen(!isOpen); }} className="cursor-pointer">
+        {trigger}
+      </div>
+      <AnimatePresence>
+        {isOpen && (
+          <motion.div
+            initial={{ opacity: 0, y: 10, scale: 0.95 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 10, scale: 0.95 }}
+            className={cn(
+              "absolute mt-2 w-48 bg-slate-900 border border-slate-800 rounded-2xl shadow-2xl z-[100] py-2",
+              align === 'right' ? "right-0" : "left-0"
+            )}
+          >
+            {React.Children.map(children, (child: any) => 
+              child && React.cloneElement(child, { onClick: (...args: any[]) => {
+                setIsOpen(false);
+                child.props.onClick?.(...args);
+              }})
+            )}
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}
+
+function CommentCard({ 
+  comment, 
+  onReply, 
+  onEdit, 
+  onDelete, 
+  onHide,
+  isPostOwner,
+  currentUserId 
+}: { 
+  comment: CommentType, 
+  onReply: (comment: CommentType) => void,
+  onEdit: (comment: CommentType) => void,
+  onDelete: (id: string) => void,
+  onHide: (comment: CommentType) => void,
+  isPostOwner: boolean,
+  currentUserId?: string 
+}) {
+  const isAuthor = currentUserId === comment.authorId;
+  const showDropdown = isAuthor || isPostOwner;
+
+  return (
+    <div className="flex gap-2 group/comment">
+      <img src={comment.authorPhoto} className="w-8 h-8 rounded-lg object-cover flex-shrink-0" alt="" />
+      <div className="flex-1 min-w-0">
+        <div className="bg-slate-950/80 rounded-2xl px-3 py-2 border border-white/5 inline-block max-w-full">
+          <div className="flex items-center justify-between gap-4 mb-0.5">
+            <p className="text-[11px] font-black text-primary truncate">{comment.authorName}</p>
+            {showDropdown && (
+              <Dropdown align="left" trigger={<MoreHorizontal className="w-3 h-3 text-slate-600 hover:text-slate-400 opacity-0 group-hover/comment:opacity-100 transition-opacity" />}>
+                {isAuthor && <button onClick={() => onEdit(comment)} className="w-full text-right px-4 py-2 text-xs font-bold text-slate-300 hover:bg-slate-800 flex items-center justify-end gap-2"><Edit2 className="w-3 h-3" /> تعديل</button>}
+                {isAuthor && <button onClick={() => onDelete(comment.id)} className="w-full text-right px-4 py-2 text-xs font-bold text-red-400 hover:bg-slate-800 flex items-center justify-end gap-2"><Trash2 className="w-3 h-3" /> حذف</button>}
+                {isPostOwner && !isAuthor && <button onClick={() => onHide(comment)} className="w-full text-right px-4 py-2 text-xs font-bold text-amber-400 hover:bg-slate-800 flex items-center justify-end gap-2"><EyeOff className="w-3 h-3" /> إخفاء</button>}
+              </Dropdown>
+            )}
+          </div>
+          {comment.replyTo && <p className="text-[10px] font-bold text-primary/60 mb-1 leading-none italic">@ {comment.replyTo}</p>}
+          <p className="text-sm text-slate-200 leading-tight whitespace-pre-wrap break-words">{comment.content}</p>
+          {comment.imageUrl && (
+            <div className="mt-2 rounded-xl overflow-hidden border border-white/5 max-w-[200px]">
+              <img src={comment.imageUrl} className="w-full h-auto object-cover hover:scale-105 transition-transform cursor-pointer" alt="" onClick={() => window.open(comment.imageUrl, '_blank')} />
+            </div>
+          )}
         </div>
-        <p className="text-sm text-slate-300 leading-tight">{comment.content}</p>
+        <div className="flex items-center gap-3 mt-1 ml-1">
+          <span className="text-[10px] text-slate-600 font-bold">
+            {comment.createdAt?.toDate ? formatDistanceToNow(comment.createdAt.toDate()) : 'الآن'}
+          </span>
+          <button onClick={() => onReply(comment)} className="text-[10px] font-black text-slate-400 hover:text-primary uppercase tracking-tighter">رد</button>
+        </div>
       </div>
     </div>
   );
@@ -36,16 +121,24 @@ const REACTIONS = [
 
 export default function PostCard({ post }: { post: Post }) {
   const { profile } = useAuth();
+  const { startUpload } = useUpload();
   const [likes, setLikes] = useState(post.likes || []);
   const [reactions, setReactions] = useState<Record<string, string>>(post.reactions || {});
   const [isLiked, setIsLiked] = useState(post.likes?.includes(profile?.uid || ''));
   const [showReactions, setShowReactions] = useState(false);
   const [showComments, setShowComments] = useState(false);
-  const [comments, setComments] = useState<Comment[]>([]);
+  const [comments, setComments] = useState<CommentType[]>([]);
   const [newComment, setNewComment] = useState('');
+  const [replyTo, setReplyTo] = useState<CommentType | null>(null);
+  const [editingComment, setEditingComment] = useState<CommentType | null>(null);
+  const [isEditingPost, setIsEditingPost] = useState(false);
+  const [editedPostContent, setEditedPostContent] = useState(post.content);
   const [commentCount, setCommentCount] = useState(post.commentCount || 0);
   const [loading, setLoading] = useState(false);
+  const [commentImage, setCommentImage] = useState<File | null>(null);
+  const [commentImagePreview, setCommentImagePreview] = useState<string | null>(null);
   const reactionTimeoutRef = React.useRef<any>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     setIsLiked(likes.includes(profile?.uid || ''));
@@ -106,41 +199,110 @@ export default function PostCard({ post }: { post: Post }) {
       collection(db, 'comments'), 
       where('postId', '==', post.id), 
       orderBy('createdAt', 'asc'),
-      limit(20)
+      limit(50)
     );
     return onSnapshot(q, (snapshot) => {
       setComments(snapshot.docs.map(d => ({ 
         id: d.id, 
         ...d.data(),
         createdAt: d.data().createdAt || Timestamp.now()
-      } as Comment)));
+      } as CommentType)));
     });
   }, [showComments, post.id]);
 
+  const handleCommentImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setCommentImage(file);
+    const reader = new FileReader();
+    reader.onloadend = () => setCommentImagePreview(reader.result as string);
+    reader.readAsDataURL(file);
+  };
+
   const handleComment = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newComment.trim() || !profile || loading) return;
+    if (!profile || loading) return;
+    if (!newComment.trim() && !commentImage) return;
     
     setLoading(true);
     const text = newComment;
-    setNewComment('');
-    setCommentCount(prev => prev + 1);
-    playSound('comment');
+    const isReply = !!replyTo;
+    const isEditing = !!editingComment;
 
     try {
-      await addDoc(collection(db, 'comments'), {
-        postId: post.id,
-        authorId: profile.uid,
-        authorName: profile.displayName,
-        authorPhoto: profile.photoURL,
-        content: text,
-        createdAt: serverTimestamp(),
-      });
+      let imageUrl = '';
+      if (commentImage) {
+        imageUrl = await startUpload(commentImage, 'comment', { skipFirestore: true }) || '';
+      }
+
+      if (isEditing && editingComment) {
+        await updateDoc(doc(db, 'comments', editingComment.id), {
+          content: text,
+          updatedAt: serverTimestamp(),
+          ...(imageUrl && { imageUrl })
+        });
+      } else {
+        await addDoc(collection(db, 'comments'), {
+          postId: post.id,
+          authorId: profile.uid,
+          authorName: profile.displayName,
+          authorPhoto: profile.photoURL,
+          content: text,
+          imageUrl,
+          parentId: isReply ? (replyTo.parentId || replyTo.id) : null,
+          replyTo: isReply ? replyTo.authorName : null,
+          createdAt: serverTimestamp(),
+        });
+        await updateDoc(doc(db, 'posts', post.id), {
+          commentCount: increment(1)
+        });
+        setCommentCount(prev => prev + 1);
+        playSound('comment');
+      }
+      
+      setNewComment('');
+      setReplyTo(null);
+      setEditingComment(null);
+      setCommentImage(null);
+      setCommentImagePreview(null);
+    } catch (error) {
+      console.error(error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDeleteComment = async (commentId: string) => {
+    if (window.confirm('حذف هذا التعليق؟')) {
+      try {
+        await deleteDoc(doc(db, 'comments', commentId));
+        await updateDoc(doc(db, 'posts', post.id), {
+          commentCount: increment(-1)
+        });
+        setCommentCount(prev => prev - 1);
+      } catch (e) {
+        console.error(e);
+      }
+    }
+  };
+
+  const handleHideComment = async (comment: CommentType) => {
+    if (window.confirm('إخفاء هذا التعليق؟ سيتم حذفه من المنشور.')) {
+      handleDeleteComment(comment.id);
+    }
+  };
+
+  const handleUpdatePost = async () => {
+    if (!editedPostContent.trim() || loading) return;
+    setLoading(true);
+    try {
       await updateDoc(doc(db, 'posts', post.id), {
-        commentCount: increment(1)
+        content: editedPostContent.trim(),
+        updatedAt: serverTimestamp()
       });
+      setIsEditingPost(false);
     } catch (e) {
-      setCommentCount(prev => prev - 1);
+      console.error(e);
     } finally {
       setLoading(false);
     }
@@ -153,6 +315,9 @@ export default function PostCard({ post }: { post: Post }) {
       } catch (e) {}
     }
   };
+
+  const topLevelComments = comments.filter(c => !c.parentId);
+  const getReplies = (parentId: string) => comments.filter(c => c.parentId === parentId);
 
   return (
     <div className="bg-slate-900 border border-slate-800 rounded-3xl overflow-hidden shadow-xl mb-4 sm:mb-6">
@@ -179,15 +344,44 @@ export default function PostCard({ post }: { post: Post }) {
         </Link>
         
         {(profile?.uid === post.authorId || profile?.email === 'dalinadjib1990@gmail.com') && (
-          <button onClick={handleDelete} className="p-2 text-slate-500 hover:text-red-500 transition-colors">
-            <Trash2 className="w-4 h-4" />
-          </button>
+          <Dropdown align="left" trigger={<button className="p-2 text-slate-500 hover:text-white transition-colors"><MoreHorizontal className="w-5 h-5" /></button>}>
+            <button onClick={() => setIsEditingPost(true)} className="w-full text-right px-4 py-2 text-xs font-bold text-slate-300 hover:bg-slate-800 flex items-center justify-end gap-2">
+              <Edit2 className="w-3 h-3" /> تعديل المنشور
+            </button>
+            <button onClick={handleDelete} className="w-full text-right px-4 py-2 text-xs font-bold text-red-400 hover:bg-slate-800 flex items-center justify-end gap-2">
+              <Trash2 className="w-3 h-3" /> حذف المنشور
+            </button>
+          </Dropdown>
         )}
       </div>
 
       {/* Content */}
       <div className="px-4 py-3">
-        {post.background ? (
+        {isEditingPost ? (
+          <div className="space-y-3">
+            <textarea
+              value={editedPostContent}
+              onChange={(e) => setEditedPostContent(e.target.value)}
+              className="w-full bg-slate-950 border border-slate-800 rounded-2xl p-4 text-white font-bold outline-none focus:border-primary min-h-[120px] resize-none"
+            />
+            <div className="flex justify-end gap-2">
+              <button 
+                onClick={() => setIsEditingPost(false)} 
+                className="px-4 py-2 text-xs font-black text-slate-400 hover:text-white transition-all uppercase"
+              >
+                إلغاء
+              </button>
+              <button 
+                onClick={handleUpdatePost}
+                disabled={loading}
+                className="px-6 py-2 bg-primary hover:bg-primary/80 text-white text-xs font-black rounded-xl transition-all shadow-lg shadow-primary/20 flex items-center gap-2"
+              >
+                {loading && <Loader2 className="w-3 h-3 animate-spin" />}
+                حفظ التعديلات
+              </button>
+            </div>
+          </div>
+        ) : post.background ? (
           <div className="p-8 rounded-2xl flex items-center justify-center text-center text-lg sm:text-xl font-black text-white min-h-[160px] shadow-inner" style={{ background: post.background }}>
             <p className="leading-tight drop-shadow-md">{post.content}</p>
           </div>
@@ -197,7 +391,7 @@ export default function PostCard({ post }: { post: Post }) {
       </div>
 
       {/* Image */}
-      {post.imageUrl && (
+      {post.imageUrl && !isEditingPost && (
         <div className="px-2 pb-2">
           <div className="relative rounded-2xl overflow-hidden border border-white/5 bg-slate-950/50 min-h-[100px] flex items-center justify-center">
             <img 
@@ -279,24 +473,105 @@ export default function PostCard({ post }: { post: Post }) {
 
       {/* Comments */}
       {showComments && (
-        <div className="p-3 border-t border-white/5 space-y-3 bg-slate-950/20">
-          <div className="space-y-3 max-h-48 overflow-y-auto custom-scrollbar pr-1">
-            {comments.map(c => <CommentItem key={c.id} comment={c} />)}
+        <div className="p-3 border-t border-white/5 space-y-4 bg-slate-950/20">
+          <div className="space-y-4 max-h-80 overflow-y-auto custom-scrollbar pr-1">
+            {topLevelComments.map(c => (
+              <div key={c.id} className="space-y-3">
+                <CommentCard 
+                  comment={c} 
+                  currentUserId={profile?.uid}
+                  isPostOwner={profile?.uid === post.authorId}
+                  onReply={(target) => {
+                    setReplyTo(target);
+                    setEditingComment(null);
+                  }}
+                  onEdit={(target) => {
+                    setEditingComment(target);
+                    setNewComment(target.content);
+                    setReplyTo(null);
+                  }}
+                  onDelete={handleDeleteComment}
+                  onHide={handleHideComment}
+                />
+                
+                {/* Replies */}
+                <div className="mr-8 space-y-3 border-r-2 border-white/5 pr-2">
+                  {getReplies(c.id).map(reply => (
+                    <CommentCard 
+                      key={reply.id} 
+                      comment={reply}
+                      currentUserId={profile?.uid}
+                      isPostOwner={profile?.uid === post.authorId}
+                      onReply={() => {
+                        setReplyTo(c); // Always reply to thread
+                        setEditingComment(null);
+                      }}
+                      onEdit={(target) => {
+                        setEditingComment(target);
+                        setNewComment(target.content);
+                        setReplyTo(null);
+                      }}
+                      onDelete={handleDeleteComment}
+                      onHide={handleHideComment}
+                    />
+                  ))}
+                </div>
+              </div>
+            ))}
             {comments.length === 0 && <p className="text-[10px] text-center text-slate-600 font-bold uppercase py-2">No comments yet</p>}
           </div>
-          <form onSubmit={handleComment} className="flex gap-2 relative">
-            <input 
-              value={newComment}
-              onChange={(e) => setNewComment(e.target.value)}
-              placeholder="اكتب تعليقاً..." 
-              className="flex-1 bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white outline-none focus:border-primary font-bold"
-            />
-            <button className="bg-primary p-2 rounded-xl text-white shadow-lg active:scale-95 transition-transform" disabled={loading}>
-              {loading ? <div className="w-4 h-4 border-2 border-white/20 border-t-white rounded-full animate-spin"></div> : <Send className="w-4 h-4" />}
-            </button>
-          </form>
+
+          <div className="space-y-2">
+            {replyTo && (
+              <div className="flex items-center justify-between bg-slate-900 border border-slate-800 rounded-lg px-3 py-1.5">
+                <p className="text-[10px] font-bold text-slate-400">الرد على <span className="text-primary">{replyTo.authorName}</span></p>
+                <button onClick={() => setReplyTo(null)} className="text-slate-500 hover:text-white"><X className="w-3 h-3" /></button>
+              </div>
+            )}
+            {editingComment && (
+              <div className="flex items-center justify-between bg-slate-900 border border-slate-800 rounded-lg px-3 py-1.5">
+                <p className="text-[10px] font-bold text-amber-500">تعديل التعليق...</p>
+                <button onClick={() => { setEditingComment(null); setNewComment(''); }} className="text-slate-500 hover:text-white"><X className="w-3 h-3" /></button>
+              </div>
+            )}
+            
+            {commentImagePreview && (
+              <div className="relative w-20 h-20 rounded-xl overflow-hidden border border-slate-800 mb-2">
+                <img src={commentImagePreview} className="w-full h-full object-cover" alt="" />
+                <button onClick={() => { setCommentImage(null); setCommentImagePreview(null); }} className="absolute top-1 right-1 bg-red-500 p-0.5 rounded-md text-white shadow-lg">
+                  <X className="w-2.5 h-2.5" />
+                </button>
+              </div>
+            )}
+
+            <form onSubmit={handleComment} className="flex gap-2 items-end relative">
+              <div className="flex-1 relative">
+                <textarea 
+                  value={newComment}
+                  onChange={(e) => setNewComment(e.target.value)}
+                  placeholder={replyTo ? "اكتب ردك..." : "اكتب تعليقاً..."}
+                  rows={1}
+                  className="w-full bg-slate-950 border border-slate-800 rounded-2xl px-4 py-2.5 text-xs text-white outline-none focus:border-primary font-bold resize-none min-h-[40px] pr-10"
+                />
+                <button 
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  className="absolute right-3 bottom-2.5 text-slate-500 hover:text-primary transition-colors"
+                >
+                  <Camera className="w-4 h-4" />
+                </button>
+              </div>
+              <button 
+                className="bg-primary p-3 rounded-2xl text-white shadow-lg active:scale-95 transition-transform disabled:opacity-50" 
+                disabled={loading || (!newComment.trim() && !commentImage)}
+              >
+                {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+              </button>
+            </form>
+          </div>
         </div>
       )}
+      <input type="file" ref={fileInputRef} onChange={handleCommentImageSelect} accept="image/*" className="hidden" />
     </div>
   );
 }

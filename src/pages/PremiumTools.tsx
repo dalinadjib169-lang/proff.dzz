@@ -675,75 +675,44 @@ export default function PremiumTools() {
         </div>
       )}
 
-      {/* Pro External Tool Promotion */}
-      <motion.div 
-        initial={{ opacity: 0, scale: 0.95 }}
-        whileInView={{ opacity: 1, scale: 1 }}
-        className="bg-gradient-to-br from-amber-600/20 via-slate-900 to-amber-900/20 border-2 border-amber-500/40 p-6 rounded-[32px] relative overflow-hidden group mb-8"
-      >
-        <div className="absolute top-0 right-0 w-32 h-32 bg-amber-500/10 blur-3xl -mr-16 -mt-16 group-hover:bg-amber-500/20 transition-all"></div>
-        <div className="flex flex-col md:flex-row items-center gap-6 relative z-10">
-          <div className="bg-amber-500 p-4 rounded-2xl shadow-lg shadow-amber-500/20">
-            <ExternalLink className="w-8 h-8 text-slate-950" />
-          </div>
-          <div className="text-right flex-1">
-            <h3 className="text-2xl font-black text-white mb-1">Mothakira PRO - المولد الاحترافي</h3>
-            <p className="text-amber-400/80 text-sm font-medium">استخدم المولد الخارجي المخصص للمحترفين للحصول على خيارات بيداغوجية أوسع.</p>
-          </div>
-          <a 
-            href="https://pro-mat-1243.vercel.app/" 
-            target="_blank" 
-            rel="noopener noreferrer"
-            className="px-8 py-4 bg-amber-500 hover:bg-amber-400 text-slate-950 font-black rounded-2xl shadow-xl shadow-amber-500/10 transition-all flex items-center gap-2 group/btn active:scale-95"
-          >
-            فتح المولد الخارجي
-            <ChevronRight className="w-5 h-5 group-hover:translate-x-[-4px] transition-transform" />
-          </a>
-        </div>
-      </motion.div>
-
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <motion.div 
+        <motion.a 
           whileHover={{ y: -4, scale: 1.01 }} 
           whileTap={{ scale: 0.98 }}
-          className={cn(
-            "p-6 rounded-3xl border-2 transition-all cursor-pointer group flex flex-col items-center text-center", 
-            activeTool === 'generator' 
-              ? "bg-slate-900 border-purple-500 shadow-[0_0_30px_-10px_rgba(168,85,247,0.3)]" 
-              : "bg-slate-900/50 border-slate-800 hover:border-slate-700"
-          )} 
-          onClick={() => setActiveTool('generator')}
+          href="https://pro-mat-1243.vercel.app/"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="p-8 rounded-[38px] border-2 bg-slate-900 border-slate-800 hover:border-amber-500/50 hover:bg-slate-800/80 transition-all cursor-pointer group flex flex-col items-center text-center shadow-xl hover:shadow-amber-500/10"
         >
-          <div className={cn(
-            "w-12 h-12 rounded-2xl flex items-center justify-center mb-4 transition-colors",
-            activeTool === 'generator' ? "bg-purple-500 text-white" : "bg-slate-800 text-slate-400 group-hover:text-purple-400"
-          )}>
-            <Wand2 className="w-6 h-6" />
+          <div className="w-16 h-16 rounded-[1.5rem] bg-amber-500 flex items-center justify-center mb-6 shadow-lg shadow-amber-500/20 group-hover:rotate-6 transition-transform">
+            <Wand2 className="w-8 h-8 text-slate-950" />
           </div>
-          <h2 className="text-xl font-black text-white mb-2">منصة المؤطر التربوي الشاملة</h2>
-          <p className="text-slate-500 font-medium text-xs">توليد مذكرات وفروض احترافية حسب المنهاج الجزائري.</p>
-        </motion.div>
+          <h2 className="text-2xl font-black text-white mb-2">منصة المؤطر التربوي الشاملة</h2>
+          <p className="text-slate-400 font-medium text-sm mb-6">توليد مذكرات وفروض احترافية حسب المنهاج الجزائري.</p>
+          <div className="px-6 py-2 bg-amber-500/10 text-amber-500 border border-amber-500/20 rounded-xl text-xs font-black uppercase tracking-widest flex items-center gap-2">
+            فتح المولد الخارجي
+            <ExternalLink className="w-3 h-3" />
+          </div>
+        </motion.a>
 
-        <motion.div 
+        <motion.a 
           whileHover={{ y: -4, scale: 1.01 }} 
           whileTap={{ scale: 0.98 }}
-          className={cn(
-            "p-6 rounded-3xl border-2 transition-all cursor-pointer group flex flex-col items-center text-center", 
-            activeTool === 'corrector' 
-              ? "bg-slate-900 border-blue-500 shadow-[0_0_30px_-10px_rgba(59,130,246,0.3)]" 
-              : "bg-slate-900/50 border-slate-800 hover:border-slate-700"
-          )} 
-          onClick={() => setActiveTool('corrector')}
+          href="https://mosa7i7-ai.vercel.app/"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="p-8 rounded-[38px] border-2 bg-slate-900 border-slate-800 hover:border-blue-500/50 hover:bg-slate-800/80 transition-all cursor-pointer group flex flex-col items-center text-center shadow-xl hover:shadow-blue-500/10"
         >
-          <div className={cn(
-            "w-12 h-12 rounded-2xl flex items-center justify-center mb-4 transition-colors",
-            activeTool === 'corrector' ? "bg-blue-500 text-white" : "bg-slate-800 text-slate-400 group-hover:text-blue-400"
-          )}>
-            <Zap className="w-6 h-6" />
+          <div className="w-16 h-16 rounded-[1.5rem] bg-blue-500 flex items-center justify-center mb-6 shadow-lg shadow-blue-500/20 group-hover:rotate-6 transition-transform">
+            <Zap className="w-8 h-8 text-white" />
           </div>
-          <h2 className="text-xl font-black text-white mb-2">المصحح الذكي</h2>
-          <p className="text-slate-500 font-medium text-xs">تصحيح الأوراق والوضعيات الإدماجية بدقة عالية.</p>
-        </motion.div>
+          <h2 className="text-2xl font-black text-white mb-2">المصحح الذكي</h2>
+          <p className="text-slate-400 font-medium text-sm mb-6">تصحيح الأوراق والوضعيات الإدماجية بدقة عالية.</p>
+          <div className="px-6 py-2 bg-blue-500/10 text-blue-500 border border-blue-500/20 rounded-xl text-xs font-black uppercase tracking-widest flex items-center gap-2">
+            فتح المصحح الخارجي
+            <ExternalLink className="w-3 h-3" />
+          </div>
+        </motion.a>
       </div>
 
       <AnimatePresence mode="wait">

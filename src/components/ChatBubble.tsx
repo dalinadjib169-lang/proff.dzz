@@ -39,8 +39,12 @@ import {
   StopCircle,
   Play,
   Trash2,
+  Edit2,
   AlertCircle,
-  Loader2
+  Loader2,
+  Users,
+  Globe,
+  TrendingUp
 } from 'lucide-react';
 import { db, storage } from '../firebase';
 import { collection, query, orderBy, onSnapshot, addDoc, serverTimestamp, where, limit, Timestamp, updateDoc, doc, arrayUnion, arrayRemove, setDoc, writeBatch, getDoc, deleteDoc, getDocs } from 'firebase/firestore';
@@ -48,6 +52,7 @@ import { ref, uploadBytes, getDownloadURL, uploadString, uploadBytesResumable } 
 import { useAuth } from '../hooks/useAuth';
 import { UserProfile } from '../types';
 import { formatDistanceToNow } from 'date-fns';
+import { Link } from 'react-router-dom';
 import { handleFirestoreError, OperationType } from '../lib/firestore-errors';
 import { playSound } from '../lib/sounds';
 import { useUpload } from '../hooks/useUpload';
@@ -984,40 +989,59 @@ export default function ChatBubble() {
   };
 
   const handleAcceptCall = async () => {
-    if (!incomingCall || !activePeerCall) return;
+    if (!incomingCall) return;
+    
+    // Stop ringtone immediately
+    if (ringtoneRef.current) {
+      ringtoneRef.current.pause();
+      ringtoneRef.current = null;
+    }
+
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
         video: incomingCall.type === 'video',
         audio: true
       });
       setLocalStream(stream);
-      
-      activePeerCall.answer(stream);
-      activePeerCall.on('stream', (remoteStream: MediaStream) => {
-        setRemoteStream(remoteStream);
-      });
-      activePeerCall.on('close', () => {
-        endCall();
-      });
+
+      if (activePeerCall) {
+        activePeerCall.answer(stream);
+        activePeerCall.on('stream', (remoteStream: MediaStream) => {
+          setRemoteStream(remoteStream);
+        });
+        activePeerCall.on('close', () => {
+          endCall();
+        });
+      }
 
       await updateDoc(doc(db, 'calls', incomingCall.id), { status: 'connected' });
       setIsCalling(incomingCall.type);
       setIncomingCall(null);
+      playSound('message'); 
     } catch (err) {
       console.error("Accept call error:", err);
+      alert("تعذر الوصول إلى الكاشيرا أو الميكروفون.");
+      handleRejectCall();
     }
   };
 
   const handleRejectCall = async () => {
     if (!incomingCall) return;
+
+    // Stop ringtone immediately
+    if (ringtoneRef.current) {
+      ringtoneRef.current.pause();
+      ringtoneRef.current = null;
+    }
+
     try {
       await updateDoc(doc(db, 'calls', incomingCall.id), { status: 'rejected' });
       
       // Add missed call notification
       await addDoc(collection(db, 'notifications'), {
-        recipientId: profile?.uid,
-        senderId: incomingCall.senderId,
-        senderName: incomingCall.senderName,
+        recipientId: incomingCall.senderId,
+        senderId: profile?.uid,
+        senderName: profile?.displayName,
         type: 'missed_call',
         callType: incomingCall.type,
         read: false,
@@ -1101,34 +1125,15 @@ export default function ChatBubble() {
   const handleDeleteMessage = async (messageId: string, forEveryone: boolean) => {
     if (!profile) return;
     try {
+      const msgRef = doc(db, 'messages', messageId);
       if (forEveryone) {
-        await addDoc(collection(db, 'notifications'), {
-          recipientId: activeChat?.uid,
-          senderId: profile.uid,
-          senderName: profile.displayName,
-          type: 'missed_call', // Using an existing type or adding a new one if needed, but here we just delete
-          read: false,
-          createdAt: serverTimestamp(),
-          text: 'Message deleted'
-        }).catch(() => {}); // Optional notification
-        
-        await doc(db, 'messages', messageId);
-        // We just delete the document
-        const msgRef = doc(db, 'messages', messageId);
+        // Hard delete for everyone
         const msgSnap = await getDoc(msgRef);
         if (msgSnap.exists() && msgSnap.data().senderId === profile.uid) {
-          await addDoc(collection(db, 'notifications'), {
-             recipientId: 'system',
-             text: 'Deleting...'
-          }).catch(() => {});
-          // Actually just delete it
-          const batch = writeBatch(db);
-          batch.delete(msgRef);
-          await batch.commit();
+          await deleteDoc(msgRef);
         }
       } else {
         // Delete for me (soft delete)
-        const msgRef = doc(db, 'messages', messageId);
         await updateDoc(msgRef, {
           deletedFor: arrayUnion(profile.uid)
         });
@@ -1195,17 +1200,26 @@ export default function ChatBubble() {
                       {!isKeyboardOpen && (
                         <div className="flex flex-col">
                           <p className="text-[10px] font-bold text-white/90 flex items-center gap-1">
-                            <span className={`w-1.5 h-1.5 rounded-full ${isOnline(activeChat.uid === 'global' ? null : activeChat.lastSeen) ? 'bg-green-400 animate-pulse' : 'bg-slate-400'}`}></span>
-                            {isOnline(activeChat.uid === 'global' ? null : activeChat.lastSeen) ? 'Online' : 'Offline'}
+                            {activeChat.uid === 'global' ? (
+                              <>
+                                <Users className="w-2 h-2" />
+                                <span>Professional Global Lounge</span>
+                              </>
+                            ) : (
+                              <>
+                                <span className={`w-1.5 h-1.5 rounded-full ${isOnline(activeChat.lastSeen) ? 'bg-green-400 animate-pulse' : 'bg-slate-400'}`}></span>
+                                {isOnline(activeChat.lastSeen) ? 'Online' : 'Offline'}
+                              </>
+                            )}
                           </p>
-                          {!isMobile && (
+                          {!isKeyboardOpen && (
                             <>
                               <p className="text-[10px] font-bold text-white/90 flex items-center gap-1">
-                                {getSubjectIcon(activeChat.subject || '')}
-                                {activeChat.subject || 'Teacher'} • {activeChat.level || 'General'}
+                                {activeChat.uid === 'global' ? <Globe className="w-2 h-2" /> : getSubjectIcon(activeChat.subject || '')}
+                                {activeChat.uid === 'global' ? 'All Subjects' : (activeChat.subject || 'Teacher')} • {activeChat.level || 'General'}
                               </p>
                               <p className="text-[9px] font-bold text-white/70 flex items-center gap-1">
-                                <MapPin className="w-2 h-2" /> {activeChat.wilaya || 'Algeria'} • <Clock className="w-2 h-2" /> {activeChat.yearsOfExperience || 0} ans exp
+                                <MapPin className="w-2 h-2" /> {activeChat.uid === 'global' ? 'Algeria (National)' : (activeChat.wilaya || 'Algeria')} • <Clock className="w-2 h-2" /> {activeChat.uid === 'global' ? '24/7 Live' : `${activeChat.yearsOfExperience || 0} ans exp`}
                               </p>
                             </>
                           )}
@@ -1221,7 +1235,13 @@ export default function ChatBubble() {
                     <div className="bg-white/20 p-2 rounded-xl">
                       <MessageSquare className="w-5 h-5 text-white" />
                     </div>
-                    <h4 className="font-black text-white">Teacher Lounge</h4>
+                    <div>
+                      <h4 className="font-black text-white">Teacher Lounge</h4>
+                      <Link to="/discussions" className="text-[10px] text-white/70 hover:text-white flex items-center gap-1 transition-all">
+                        <TrendingUp className="w-2 h-2" />
+                        <span>Visit Forum - اذهب إلى منتدى النقاشات</span>
+                      </Link>
+                    </div>
                   </>
                 )}
               </div>
@@ -1383,13 +1403,15 @@ export default function ChatBubble() {
                       <textarea 
                         ref={searchInputRef as any}
                         rows={1}
-                        name={`s_${Math.floor(Math.random() * 1000)}`}
+                        id="chat_search_field"
+                        name="search_query_input"
                         autoComplete="off"
                         autoCorrect="off"
                         autoCapitalize="off"
                         spellCheck={false}
                         data-form-type="other"
                         data-lpignore="true"
+                        data-1p-ignore
                         placeholder="Search colleagues..."
                         className="w-full bg-slate-900 border border-slate-800 rounded-2xl pl-10 pr-4 py-2 text-sm text-slate-100 outline-none focus:ring-2 focus:ring-purple-500/30 transition-all font-medium resize-none overflow-hidden pt-2.5"
                         value={searchTerm}
@@ -1674,9 +1696,12 @@ export default function ChatBubble() {
                           {msg.senderId === profile.uid && (
                             <div className="flex items-center">
                               {msg.seen ? (
-                                <div className="flex -space-x-1">
-                                  <Check className="w-3 h-3 text-purple-300" strokeWidth={4} />
-                                  <Check className="w-3 h-3 text-purple-300" strokeWidth={4} />
+                                <div className="flex items-center gap-0.5 bg-purple-500/10 px-1 rounded-full border border-purple-500/20">
+                                  <span className="text-[10px]" title="Seen / شوهد">👀</span>
+                                  <div className="flex -space-x-1">
+                                    <Check className="w-2.5 h-2.5 text-purple-400" strokeWidth={4} />
+                                    <Check className="w-2.5 h-2.5 text-purple-400" strokeWidth={4} />
+                                  </div>
                                 </div>
                               ) : (
                                 <Check className="w-3 h-3 text-white/40" strokeWidth={4} />
@@ -1711,14 +1736,27 @@ export default function ChatBubble() {
                     
                     {isOtherTyping && (
                       <div className="flex justify-start">
-                        <div className="bg-slate-900/50 border border-slate-800/50 rounded-2xl rounded-tl-none p-3 flex items-center gap-2">
-                          <div className="flex gap-1">
-                            <div className="w-1 h-1 bg-purple-500 rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></div>
-                            <div className="w-1 h-1 bg-purple-500 rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></div>
-                            <div className="w-1 h-1 bg-purple-500 rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></div>
+                        <div className="bg-slate-900/80 border border-purple-500/30 rounded-2xl rounded-tl-none p-3 flex items-center gap-3 shadow-lg animate-in fade-in slide-in-from-left-2 transition-all">
+                          <div className="flex gap-1.5 h-6 items-center">
+                            <motion.div 
+                              animate={{ scale: [1, 1.2, 1], opacity: [1, 0.5, 1] }} 
+                              transition={{ repeat: Infinity, duration: 1, delay: 0 }}
+                              className="w-1.5 h-1.5 bg-purple-500 rounded-full" 
+                            />
+                            <motion.div 
+                              animate={{ scale: [1, 1.2, 1], opacity: [1, 0.5, 1] }} 
+                              transition={{ repeat: Infinity, duration: 1, delay: 0.2 }}
+                              className="w-1.5 h-1.5 bg-purple-500 rounded-full" 
+                            />
+                            <motion.div 
+                              animate={{ scale: [1, 1.2, 1], opacity: [1, 0.5, 1] }} 
+                              transition={{ repeat: Infinity, duration: 1, delay: 0.4 }}
+                              className="w-1.5 h-1.5 bg-purple-500 rounded-full" 
+                            />
                           </div>
-                          <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">
-                            {activeChat?.uid === 'global' ? 'Someone' : activeChat?.displayName.split(' ')[0]} is typing... / يكتب...
+                          <span className="text-[11px] font-black text-purple-400 uppercase tracking-wider flex items-center gap-2">
+                            {activeChat?.uid === 'global' ? 'زميل يكتب...' : `${activeChat?.displayName.split(' ')[0]} يكتب الآن...`}
+                            <Edit2 className="w-3 h-3 animate-bounce" />
                           </span>
                         </div>
                       </div>
@@ -1729,7 +1767,8 @@ export default function ChatBubble() {
                       <textarea
                         ref={chatInputRef as any}
                         rows={1}
-                        name={`m_${Math.floor(Math.random() * 1000)}`}
+                        id="chat_message_field"
+                        name="chat_message_input"
                         placeholder={isUploading ? "Uploading..." : "Type your message..."}
                         disabled={isUploading}
                         autoComplete="off"
@@ -1738,6 +1777,7 @@ export default function ChatBubble() {
                         spellCheck={false}
                         data-form-type="other"
                         data-lpignore="true"
+                        data-1p-ignore
                         className="flex-1 bg-slate-950 border border-slate-800 rounded-xl px-4 py-2 text-sm text-slate-100 outline-none focus:ring-2 focus:ring-purple-500/30 transition-all font-medium disabled:opacity-50 resize-none overflow-hidden pt-2.5"
                         value={newMessage}
                         onKeyDown={(e) => {

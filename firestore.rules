@@ -119,9 +119,10 @@ service cloud.firestore {
       return data.keys().hasAll(['postId', 'authorId', 'authorName', 'authorPhoto', 'content', 'createdAt']) &&
              data.authorId == request.auth.uid &&
              data.postId is string &&
-             data.content is string && data.content.size() > 0 && data.content.size() <= 2000 &&
+             data.content is string && (data.content.size() > 0 || ('imageUrl' in data)) && data.content.size() <= 2000 &&
              (!('parentId' in data) || (data.parentId is string)) &&
              (!('replyTo' in data) || (data.replyTo is string)) &&
+             (!('imageUrl' in data) || (data.imageUrl is string && data.imageUrl.size() <= 1000)) &&
              (request.method == 'create' ? data.createdAt == request.time : data.createdAt == existing().createdAt);
     }
 
