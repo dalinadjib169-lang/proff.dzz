@@ -27,8 +27,10 @@ import FriendSuggestions from './components/FriendSuggestions';
 import CompleteProfile from './components/CompleteProfile';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { GraduationCap, LogOut, AlertCircle, Lock, Unlock, ChevronRight, ChevronLeft } from 'lucide-react';
-import { auth } from './firebase';
+import { auth, db } from './firebase';
 import { signOut } from 'firebase/auth';
+import { collection, query, where, orderBy, limit, onSnapshot } from 'firebase/firestore';
+import { playSound } from './lib/sounds';
 import { motion, AnimatePresence } from 'motion/react';
 
 import { UploadProvider } from './hooks/useUpload';
@@ -87,6 +89,39 @@ export default function App() {
       }
     }
   }, [profile?.settings]);
+
+  useEffect(() => {
+    if (!profile?.uid) return;
+
+    // Global listener for new notifications to play sound immediately
+    const q = query(
+      collection(db, 'notifications'),
+      where('recipientId', '==', profile.uid),
+      where('read', '==', false),
+      orderBy('createdAt', 'desc'),
+      limit(1)
+    );
+
+    let isFirstLoad = true;
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      if (isFirstLoad) {
+        isFirstLoad = false;
+        return;
+      }
+      
+      if (!snapshot.empty) {
+        const newNotif = snapshot.docs[0].data();
+        // Only play if it was created in the last 10 seconds (avoid processing old unread ones as "new")
+        const now = Date.now();
+        const createdAt = newNotif.createdAt?.toMillis?.() || 0;
+        if (now - createdAt < 10000) {
+          playSound('notification');
+        }
+      }
+    });
+
+    return unsubscribe;
+  }, [profile?.uid]);
 
   return (
     <ErrorBoundary>

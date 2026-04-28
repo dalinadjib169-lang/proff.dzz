@@ -38,19 +38,8 @@ export default function CloudinaryUploader() {
     try {
       let fileToUpload = file;
 
-      // ضغط الصورة لجعل الرفع أسرع
-      if (file.size > 200 * 1024) {
-        setIsOptimizing(true);
-        const options = {
-          maxSizeMB: 0.7,
-          maxWidthOrHeight: 1280,
-          useWebWorker: true,
-          initialQuality: 0.7
-        };
-        fileToUpload = await imageCompression(file, options);
-        setIsOptimizing(false);
-      }
-
+      // REMOVED client-side compression for speed as requested
+      
       const formData = new FormData();
       formData.append('file', fileToUpload);
       formData.append('upload_preset', CLOUDINARY_UPLOAD_PRESET);
