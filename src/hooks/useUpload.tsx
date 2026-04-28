@@ -103,14 +103,19 @@ export function UploadProvider({ children }: { children: React.ReactNode }) {
       let fileToUpload = file;
 
       // COMPRESSION: Only for images, skipped for small files
-      if (isImage && file.size > 150 * 1024) { // Fast trigger
+      if (isImage && file.size > 1024 * 1024) { // Increased threshold to 1MB for speed
         setActiveUploads(prev => prev.map(u => u.id === id ? { ...u, progress: 1 } : u)); 
         try {
           const options = {
-            maxSizeMB: 0.5, // Faster target
-            maxWidthOrHeight: 1080,
+            maxSizeMB: 1.5, // Faster target
+            maxWidthOrHeight: 1600, // Reasonable balance
             useWebWorker: true,
-            initialQuality: 0.6 // Speed over quality
+            initialQuality: 0.7,
+            onProgress: (p: number) => {
+              // Update progress during compression (0 to 5%)
+              const compressionProgress = Math.min(5, Math.max(1, (p * 5) / 100));
+              setActiveUploads(prev => prev.map(u => u.id === id ? { ...u, progress: compressionProgress } : u));
+            }
           };
           fileToUpload = await imageCompression(file, options);
           console.log(`Image compressed from ${file.size / 1024 / 1024}MB to ${fileToUpload.size / 1024 / 1024}MB`);
