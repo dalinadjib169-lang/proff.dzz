@@ -1,0 +1,37 @@
+{
+  "name": "TeachDZ - منصة الأساتذة والطلاب",
+  "short_name": "TeachDZ",
+  "description": "منصة تعليمية تواصلية متكاملة للأساتذة والطلاب في الجزائر",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#020617",
+  "theme_color": "#8b5cf6",
+  "orientation": "portrait",
+  "scope": "/",
+  "icons": [
+    {
+      "src": "https://res.cloudinary.com/doaxziqm7/image/upload/v1714243644/logo_teach_dz.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "https://res.cloudinary.com/doaxziqm7/image/upload/v1714243644/logo_teach_dz.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "https://res.cloudinary.com/doaxziqm7/image/upload/v1714243644/logo_teach_dz.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "https://res.cloudinary.com/doaxziqm7/image/upload/v1714243644/logo_teach_dz.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ]
+}

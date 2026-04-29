@@ -34,6 +34,7 @@ import { playSound } from './lib/sounds';
 import { motion, AnimatePresence } from 'motion/react';
 
 import { UploadProvider } from './hooks/useUpload';
+import InstallPrompt from './components/InstallPrompt';
 
 import { useTranslation } from './hooks/useTranslation';
 
@@ -137,6 +138,7 @@ export default function App() {
               />
             )}
             <div className="relative z-10 w-full h-full">
+              <InstallPrompt />
               {loading ? (
               <div className="min-h-screen flex flex-col items-center justify-center bg-slate-950 p-8">
                 <div className="relative mb-8">
