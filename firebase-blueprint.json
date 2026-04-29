@@ -114,8 +114,10 @@
         "authorName": { "type": "string" },
         "authorPhoto": { "type": "string" },
         "content": { "type": "string" },
+        "imageUrl": { "type": "string" },
         "parentId": { "type": "string" },
         "replyTo": { "type": "string" },
+        "likes": { "type": "array", "items": { "type": "string" } },
         "createdAt": { "type": "string", "format": "date-time" }
       },
       "required": ["postId", "authorId", "authorName", "authorPhoto", "content", "createdAt"]

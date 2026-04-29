@@ -133,6 +133,7 @@ export interface Comment {
   imageUrl?: string;
   parentId?: string;
   replyTo?: string;
+  likes?: string[];
   createdAt: Timestamp | any;
 }
 

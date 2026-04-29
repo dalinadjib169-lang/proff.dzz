@@ -56,59 +56,7 @@ function Dropdown({ children, trigger, align = 'right' }: { children: React.Reac
   );
 }
 
-function CommentCard({ 
-  comment, 
-  onReply, 
-  onEdit, 
-  onDelete, 
-  onHide,
-  isPostOwner,
-  currentUserId 
-}: { 
-  comment: CommentType, 
-  onReply: (comment: CommentType) => void,
-  onEdit: (comment: CommentType) => void,
-  onDelete: (id: string) => void,
-  onHide: (comment: CommentType) => void,
-  isPostOwner: boolean,
-  currentUserId?: string 
-}) {
-  const isAuthor = currentUserId === comment.authorId;
-  const showDropdown = isAuthor || isPostOwner;
-
-  return (
-    <div className="flex gap-2 group/comment">
-      <img src={comment.authorPhoto} className="w-8 h-8 rounded-lg object-cover flex-shrink-0" alt="" />
-      <div className="flex-1 min-w-0">
-        <div className="bg-slate-950/80 rounded-2xl px-3 py-2 border border-white/5 inline-block max-w-full">
-          <div className="flex items-center justify-between gap-4 mb-0.5">
-            <p className="text-[11px] font-black text-primary truncate">{comment.authorName}</p>
-            {showDropdown && (
-              <Dropdown align="left" trigger={<MoreHorizontal className="w-3 h-3 text-slate-600 hover:text-slate-400 opacity-0 group-hover/comment:opacity-100 transition-opacity" />}>
-                {isAuthor && <button onClick={() => onEdit(comment)} className="w-full text-right px-4 py-2 text-xs font-bold text-slate-300 hover:bg-slate-800 flex items-center justify-end gap-2"><Edit2 className="w-3 h-3" /> تعديل</button>}
-                {isAuthor && <button onClick={() => onDelete(comment.id)} className="w-full text-right px-4 py-2 text-xs font-bold text-red-400 hover:bg-slate-800 flex items-center justify-end gap-2"><Trash2 className="w-3 h-3" /> حذف</button>}
-                {isPostOwner && !isAuthor && <button onClick={() => onHide(comment)} className="w-full text-right px-4 py-2 text-xs font-bold text-amber-400 hover:bg-slate-800 flex items-center justify-end gap-2"><EyeOff className="w-3 h-3" /> إخفاء</button>}
-              </Dropdown>
-            )}
-          </div>
-          {comment.replyTo && <p className="text-[10px] font-bold text-primary/60 mb-1 leading-none italic">@ {comment.replyTo}</p>}
-          <p className="text-sm text-slate-200 leading-tight whitespace-pre-wrap break-words">{comment.content}</p>
-          {comment.imageUrl && (
-            <div className="mt-2 rounded-xl overflow-hidden border border-white/5 max-w-[200px]">
-              <img src={comment.imageUrl} className="w-full h-auto object-cover hover:scale-105 transition-transform cursor-pointer" alt="" onClick={() => window.open(comment.imageUrl, '_blank')} />
-            </div>
-          )}
-        </div>
-        <div className="flex items-center gap-3 mt-1 ml-1">
-          <span className="text-[10px] text-slate-600 font-bold">
-            {comment.createdAt?.toDate ? formatDistanceToNow(comment.createdAt.toDate()) : 'الآن'}
-          </span>
-          <button onClick={() => onReply(comment)} className="text-[10px] font-black text-slate-400 hover:text-primary uppercase tracking-tighter">رد</button>
-        </div>
-      </div>
-    </div>
-  );
-}
+import CommentItem from './CommentItem';
 
 const REACTIONS = [
   { type: 'like', emoji: '👍', label: 'Like', color: 'text-blue-400' },
@@ -198,15 +146,20 @@ export default function PostCard({ post }: { post: Post }) {
     const q = query(
       collection(db, 'comments'), 
       where('postId', '==', post.id), 
-      orderBy('createdAt', 'asc'),
       limit(50)
     );
     return onSnapshot(q, (snapshot) => {
-      setComments(snapshot.docs.map(d => ({ 
+      const allComments = snapshot.docs.map(d => ({ 
         id: d.id, 
         ...d.data(),
         createdAt: d.data().createdAt || Timestamp.now()
-      } as CommentType)));
+      } as CommentType));
+      
+      // Sort manually to avoid composite index requirement
+      const sorted = allComments.sort((a, b) => 
+        (a.createdAt?.toMillis?.() || 0) - (b.createdAt?.toMillis?.() || 0)
+      );
+      setComments(sorted);
     });
   }, [showComments, post.id]);
 
@@ -477,48 +430,41 @@ export default function PostCard({ post }: { post: Post }) {
           <div className="space-y-4 max-h-80 overflow-y-auto custom-scrollbar pr-1">
             {topLevelComments.map(c => (
               <div key={c.id} className="space-y-3">
-                <CommentCard 
-                  comment={c} 
-                  currentUserId={profile?.uid}
+                <CommentItem 
+                  comment={c}
+                  postId={post.id}
                   isPostOwner={profile?.uid === post.authorId}
+                  canEdit={profile?.uid === c.authorId}
+                  canDelete={profile?.uid === c.authorId}
                   onReply={(target) => {
                     setReplyTo(target);
-                    setEditingComment(null);
-                  }}
-                  onEdit={(target) => {
-                    setEditingComment(target);
-                    setNewComment(target.content);
-                    setReplyTo(null);
+                    if (fileInputRef.current) fileInputRef.current.scrollIntoView({ behavior: 'smooth' });
                   }}
                   onDelete={handleDeleteComment}
-                  onHide={handleHideComment}
                 />
                 
                 {/* Replies */}
                 <div className="mr-8 space-y-3 border-r-2 border-white/5 pr-2">
                   {getReplies(c.id).map(reply => (
-                    <CommentCard 
+                    <CommentItem 
                       key={reply.id} 
                       comment={reply}
-                      currentUserId={profile?.uid}
+                      postId={post.id}
+                      isReply
                       isPostOwner={profile?.uid === post.authorId}
+                      canEdit={profile?.uid === reply.authorId}
+                      canDelete={profile?.uid === reply.authorId}
                       onReply={() => {
                         setReplyTo(c); // Always reply to thread
-                        setEditingComment(null);
-                      }}
-                      onEdit={(target) => {
-                        setEditingComment(target);
-                        setNewComment(target.content);
-                        setReplyTo(null);
+                        if (fileInputRef.current) fileInputRef.current.scrollIntoView({ behavior: 'smooth' });
                       }}
                       onDelete={handleDeleteComment}
-                      onHide={handleHideComment}
                     />
                   ))}
                 </div>
               </div>
             ))}
-            {comments.length === 0 && <p className="text-[10px] text-center text-slate-600 font-bold uppercase py-2">No comments yet</p>}
+            {comments.length === 0 && <p className="text-[10px] text-center text-slate-600 font-bold uppercase py-4">لا توجد تعليقات بعد</p>}
           </div>
 
           <div className="space-y-2">
