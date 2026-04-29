@@ -4,6 +4,7 @@ import { Download, X, Smartphone, Share, PlusSquare } from 'lucide-react';
 
 export default function InstallPrompt() {
   const [isVisible, setIsVisible] = useState(false);
+  const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
   const [platform, setPlatform] = useState<'ios' | 'android' | 'other'>('other');
 
   useEffect(() => {
@@ -22,15 +23,49 @@ export default function InstallPrompt() {
       setPlatform('android');
     }
 
-    // Show after 5 seconds if mobile
+    // Handle the browser's install prompt event
+    const handleBeforeInstallPrompt = (e: any) => {
+      // Prevent the mini-infobar from appearing on mobile
+      e.preventDefault();
+      // Stash the event so it can be triggered later.
+      setDeferredPrompt(e);
+      // Update UI notify the user they can install the PWA
+      setIsVisible(true);
+    };
+
+    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+
+    // Show fallback instructions after 10 seconds if no official prompt event
     const timer = setTimeout(() => {
-      if (/iphone|ipad|ipod|android/.test(userAgent)) {
+      if (!deferredPrompt && /iphone|ipad|ipod|android/.test(userAgent)) {
         setIsVisible(true);
       }
-    }, 5000);
+    }, 10000);
 
-    return () => clearTimeout(timer);
-  }, []);
+    return () => {
+      window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+      clearTimeout(timer);
+    };
+  }, [deferredPrompt]);
+
+  const handleInstallClick = async () => {
+    if (!deferredPrompt) {
+      // If no official prompt, just close and let them use manual menu
+      setIsVisible(false);
+      return;
+    }
+    
+    // Show the install prompt
+    deferredPrompt.prompt();
+    
+    // Wait for the user to respond to the prompt
+    const { outcome } = await deferredPrompt.userChoice;
+    console.log(`User response to the install prompt: ${outcome}`);
+    
+    // We've used the prompt, and can't use it again, throw it away
+    setDeferredPrompt(null);
+    setIsVisible(false);
+  };
 
   if (!isVisible) return null;
 
@@ -62,25 +97,27 @@ export default function InstallPrompt() {
           </div>
 
           <div className="bg-slate-950/50 rounded-xl p-3 mb-4 space-y-2">
-            {platform === 'ios' ? (
+            {deferredPrompt ? (
+              <p className="text-xs text-slate-300 text-center">اضغط على الزر أدناه لتثبيت التطبيق فوراً على هاتفك</p>
+            ) : platform === 'ios' ? (
               <div className="flex items-center gap-2 text-xs text-slate-300">
                 <Share className="w-4 h-4 text-blue-400" />
-                <span>اضغط على <span className="text-white font-bold">مشاركة</span> ثم <span className="text-white font-bold">"إضافة للشاشة الرئيسية"</span></span>
+                <span>اضغط على <span className="text-white font-bold">Partager</span> ثم <span className="text-white font-bold">"Sur l'écran d'accueil"</span></span>
               </div>
             ) : (
               <div className="flex items-center gap-2 text-xs text-slate-300">
                 <PlusSquare className="w-4 h-4 text-primary" />
-                <span>اضغط على <span className="text-white font-bold">النقاط الثلاث (⋮)</span> ثم <span className="text-white font-bold">"تثبيت التطبيق"</span></span>
+                <span>اضغط على النقاط الثلاث واختر <span className="text-white font-bold">"Ajouter à l'écran d'accueil"</span></span>
               </div>
             )}
           </div>
 
           <button 
-            onClick={() => setIsVisible(false)}
-            className="w-full bg-primary hover:bg-primary-hover text-white py-2 rounded-xl text-sm font-bold flex items-center justify-center gap-2 transition-colors"
+            onClick={deferredPrompt ? handleInstallClick : () => setIsVisible(false)}
+            className="w-full bg-primary hover:bg-primary-hover text-white py-2 rounded-xl text-sm font-bold flex items-center justify-center gap-2 transition-colors shadow-lg shadow-primary/30"
           >
             <Download className="w-4 h-4" />
-            فهمت، سأقوم بالتثبيت
+            {deferredPrompt ? 'تثبيت التطبيق الآن' : 'فهمت، شكراً'}
           </button>
         </div>
       </motion.div>
