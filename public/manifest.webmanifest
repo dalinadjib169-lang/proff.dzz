@@ -8,6 +8,7 @@
   "theme_color": "#8b5cf6",
   "orientation": "portrait",
   "scope": "/",
+  "id": "/?source=pwa",
   "icons": [
     {
       "src": "https://res.cloudinary.com/doaxziqm7/image/upload/v1714243644/logo_teach_dz.png",
@@ -29,9 +30,9 @@
     },
     {
       "src": "https://res.cloudinary.com/doaxziqm7/image/upload/v1714243644/logo_teach_dz.png",
-      "sizes": "512x512",
+      "sizes": "1024x1024",
       "type": "image/png",
-      "purpose": "maskable"
+      "purpose": "any"
     }
   ]
 }

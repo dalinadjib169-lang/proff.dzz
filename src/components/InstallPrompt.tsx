@@ -8,6 +8,10 @@ export default function InstallPrompt() {
   const [platform, setPlatform] = useState<'ios' | 'android' | 'other'>('other');
 
   useEffect(() => {
+    // Check if dismissed before
+    const isDismissed = localStorage.getItem('pwa_prompt_dismissed');
+    if (isDismissed) return;
+
     // Check if already installed
     const isStandalone = window.matchMedia('(display-mode: standalone)').matches 
       || (window.navigator as any).standalone 
@@ -25,22 +29,20 @@ export default function InstallPrompt() {
 
     // Handle the browser's install prompt event
     const handleBeforeInstallPrompt = (e: any) => {
-      // Prevent the mini-infobar from appearing on mobile
       e.preventDefault();
-      // Stash the event so it can be triggered later.
       setDeferredPrompt(e);
-      // Update UI notify the user they can install the PWA
+      // Automatically show if we have the official prompt
       setIsVisible(true);
     };
 
     window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
 
-    // Show fallback instructions after 10 seconds if no official prompt event
+    // Show fallback instructions after 8 seconds if mobile and not dismissed
     const timer = setTimeout(() => {
       if (!deferredPrompt && /iphone|ipad|ipod|android/.test(userAgent)) {
         setIsVisible(true);
       }
-    }, 10000);
+    }, 8000);
 
     return () => {
       window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
@@ -48,21 +50,24 @@ export default function InstallPrompt() {
     };
   }, [deferredPrompt]);
 
+  const dismissPrompt = () => {
+    localStorage.setItem('pwa_prompt_dismissed', 'true');
+    setIsVisible(false);
+  };
+
   const handleInstallClick = async () => {
     if (!deferredPrompt) {
-      // If no official prompt, just close and let them use manual menu
-      setIsVisible(false);
+      dismissPrompt();
       return;
     }
     
-    // Show the install prompt
     deferredPrompt.prompt();
-    
-    // Wait for the user to respond to the prompt
     const { outcome } = await deferredPrompt.userChoice;
-    console.log(`User response to the install prompt: ${outcome}`);
     
-    // We've used the prompt, and can't use it again, throw it away
+    if (outcome === 'accepted') {
+      localStorage.setItem('pwa_prompt_dismissed', 'true');
+    }
+    
     setDeferredPrompt(null);
     setIsVisible(false);
   };
@@ -113,11 +118,11 @@ export default function InstallPrompt() {
           </div>
 
           <button 
-            onClick={deferredPrompt ? handleInstallClick : () => setIsVisible(false)}
+            onClick={deferredPrompt ? handleInstallClick : dismissPrompt}
             className="w-full bg-primary hover:bg-primary-hover text-white py-2 rounded-xl text-sm font-bold flex items-center justify-center gap-2 transition-colors shadow-lg shadow-primary/30"
           >
             <Download className="w-4 h-4" />
-            {deferredPrompt ? 'تثبيت التطبيق الآن' : 'فهمت، شكراً'}
+            {deferredPrompt ? 'تثبيت التطبيق الآن' : 'فهمت، لا تظهر مجدداً'}
           </button>
         </div>
       </motion.div>
