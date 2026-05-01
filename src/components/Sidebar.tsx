@@ -80,6 +80,7 @@ function Sidebar() {
     { icon: CheckSquare, label: 'المصحح الذكي - Mosa7i7', path: 'https://mosa7i7-ai.vercel.app/', external: true },
     { icon: Car, label: 'سوق السيارات بالجزائر', path: 'https://market-dz-two.vercel.app/', external: true },
     { icon: Users, label: t('colleagues'), path: '/colleagues' },
+    { icon: Users, label: 'المجموعات التربوية', path: '/groups' },
     { icon: BookOpen, label: t('curriculum'), path: '/curriculum' },
     { icon: Sparkles, label: t('premium_tools'), path: '/premium-tools' },
     { icon: Image, label: 'Image Uploader', path: '/image-uploader' },

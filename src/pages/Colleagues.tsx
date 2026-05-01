@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { db } from '../firebase';
-import { collection, query, orderBy, onSnapshot, where, limit } from 'firebase/firestore';
+import { collection, query, orderBy, onSnapshot, where, limit, updateDoc, doc, arrayUnion, arrayRemove } from 'firebase/firestore';
 import { UserProfile } from '../types';
-import { Users, Search, MapPin, GraduationCap, MessageSquare, UserPlus, Filter } from 'lucide-react';
+import { Users, Search, MapPin, GraduationCap, MessageSquare, UserPlus, Filter, MoreVertical, ShieldAlert, UserMinus, Ban } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
+import { handleFirestoreError, OperationType } from '../lib/firestore-errors';
 
 import { useAuth } from '../hooks/useAuth';
 
@@ -14,14 +15,20 @@ export default function Colleagues() {
   const [search, setSearch] = useState('');
   const [wilayaFilter, setWilayaFilter] = useState('');
   const [loading, setLoading] = useState(true);
+  const [actionUserId, setActionUserId] = useState<string | null>(null);
 
   useEffect(() => {
     const q = query(collection(db, 'users'), orderBy('lastSeen', 'desc'), limit(100));
     return onSnapshot(q, (snapshot) => {
       const allUsers = snapshot.docs.map(doc => ({ uid: doc.id, ...doc.data() })) as UserProfile[];
       
-      // Filter out self
-      const otherUsers = allUsers.filter(u => u.uid !== loggedInProfile?.uid);
+      // Filter out self and blocked users
+      const otherUsers = allUsers.filter(u => {
+        const isSelf = u.uid === loggedInProfile?.uid;
+        const isBlockedByMe = loggedInProfile?.blockedUsers?.includes(u.uid);
+        const blockedMe = u.blockedUsers?.includes(loggedInProfile?.uid || '');
+        return !isSelf && !isBlockedByMe && !blockedMe;
+      });
 
       // Advanced sorting: Same Wilaya > Same Level > Same Subject
       if (loggedInProfile) {
@@ -56,6 +63,39 @@ export default function Colleagues() {
     });
   }, [loggedInProfile]);
 
+  const handleBlockUser = async (targetUserId: string) => {
+    if (!loggedInProfile || !window.confirm('هل أنت متأكد من حظر هذا المستخدم؟ لن يتمكن من التواصل معك مجدداً.')) return;
+    try {
+      const myRef = doc(db, 'users', loggedInProfile.uid);
+      await updateDoc(myRef, {
+        blockedUsers: arrayUnion(targetUserId),
+        friends: arrayRemove(targetUserId)
+      });
+      // Also remove me from their friends
+      const theirRef = doc(db, 'users', targetUserId);
+      await updateDoc(theirRef, {
+        friends: arrayRemove(loggedInProfile.uid)
+      });
+      setActionUserId(null);
+    } catch (error) {
+      handleFirestoreError(error, OperationType.UPDATE, `users/${loggedInProfile.uid}`);
+    }
+  };
+
+  const handleRemoveFriend = async (targetUserId: string) => {
+    if (!loggedInProfile || !window.confirm('هل تريد إزالة هذا الزميل من قائمة الأصدقاء؟')) return;
+    try {
+      const myRef = doc(db, 'users', loggedInProfile.uid);
+      const theirRef = doc(db, 'users', targetUserId);
+      
+      await updateDoc(myRef, { friends: arrayRemove(targetUserId) });
+      await updateDoc(theirRef, { friends: arrayRemove(loggedInProfile.uid) });
+      setActionUserId(null);
+    } catch (error) {
+      handleFirestoreError(error, OperationType.UPDATE, `users/${loggedInProfile.uid}`);
+    }
+  };
+
   const filteredUsers = users.filter(u => {
     const matchesSearch = 
       u.displayName?.toLowerCase().includes(search.toLowerCase()) || 
@@ -76,7 +116,7 @@ export default function Colleagues() {
 
   return (
     <div className="space-y-6">
-      <div className="bg-slate-900 rounded-3xl p-6 border border-slate-800 shadow-xl">
+      <div className="bg-slate-900 rounded-3xl p-6 border border-slate-800 shadow-xl min-h-[600px]">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
           <div className="flex items-center gap-3">
             <div className="bg-purple-600/10 p-3 rounded-2xl">
@@ -123,8 +163,44 @@ export default function Colleagues() {
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: idx * 0.05 }}
-                  className="bg-slate-950/50 p-4 rounded-2xl border border-slate-800/50 hover:border-purple-500/30 transition-all group"
+                  className="bg-slate-950/50 p-4 rounded-2xl border border-slate-800/50 hover:border-purple-500/30 transition-all group relative"
                 >
+                  <div className="absolute top-4 right-4 z-10">
+                    <button 
+                      onClick={() => setActionUserId(actionUserId === user.uid ? null : user.uid)}
+                      className="p-1.5 text-slate-600 hover:text-white transition-colors"
+                    >
+                      <MoreVertical className="w-4 h-4" />
+                    </button>
+                    <AnimatePresence>
+                      {actionUserId === user.uid && (
+                        <motion.div
+                          initial={{ opacity: 0, scale: 0.9, y: -10 }}
+                          animate={{ opacity: 1, scale: 1, y: 0 }}
+                          exit={{ opacity: 0, scale: 0.9, y: -10 }}
+                          className="absolute right-0 top-8 bg-slate-900 border border-slate-800 rounded-xl py-2 w-40 shadow-2xl z-20"
+                        >
+                          {loggedInProfile?.friends?.includes(user.uid) && (
+                            <button 
+                              onClick={() => handleRemoveFriend(user.uid)}
+                              className="w-full px-4 py-2 text-right text-xs font-bold text-slate-400 hover:text-white hover:bg-slate-800 flex items-center justify-between"
+                            >
+                              <span>حذف من الزملاء</span>
+                              <UserMinus className="w-3.5 h-3.5" />
+                            </button>
+                          )}
+                          <button 
+                            onClick={() => handleBlockUser(user.uid)}
+                            className="w-full px-4 py-2 text-right text-xs font-bold text-red-500 hover:bg-red-500/10 flex items-center justify-between"
+                          >
+                            <span>حظر المستخدم</span>
+                            <Ban className="w-3.5 h-3.5" />
+                          </button>
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+                  </div>
+
                   <div className="flex gap-4">
                     <img 
                       src={user.photoURL} 

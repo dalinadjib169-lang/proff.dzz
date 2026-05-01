@@ -2,8 +2,8 @@ import { useState, useEffect, useRef } from 'react';
 import { db } from '../firebase';
 import { doc, updateDoc, arrayUnion, arrayRemove, collection, addDoc, serverTimestamp, query, where, orderBy, onSnapshot, deleteDoc, increment, Timestamp, limit } from 'firebase/firestore';
 import { useAuth } from '../hooks/useAuth';
-import { Post, Comment as CommentType } from '../types';
-import { ThumbsUp, MessageCircle, Share2, MoreHorizontal, GraduationCap, Send, Trash2, Globe, Users, Lock as LockIcon, X, Smile, Edit2, Reply, Image as ImageIcon, Camera, EyeOff, Loader2 } from 'lucide-react';
+import { Post, Comment as CommentType, GroupPost } from '../types';
+import { ThumbsUp, MessageCircle, Share2, MoreHorizontal, GraduationCap, Send, Trash2, Globe, Users, Lock as LockIcon, X, Smile, Edit2, Reply, Image as ImageIcon, Camera, EyeOff, Loader2, Flag } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { Link } from 'react-router-dom';
 import React from 'react';
@@ -69,8 +69,8 @@ const REACTIONS = [
 
 import ImageLightbox from './ImageLightbox';
 
-export default function PostCard({ post }: { post: Post }) {
-  const { profile } = useAuth();
+export default function PostCard({ post, isGroupPost, groupId, onDelete }: { post: Post | GroupPost, isGroupPost?: boolean, groupId?: string, onDelete?: () => void }) {
+  const { profile, user } = useAuth();
   const { startUpload } = useUpload();
   const [likes, setLikes] = useState(post.likes || []);
   const [reactions, setReactions] = useState<Record<string, string>>(post.reactions || {});
@@ -91,9 +91,42 @@ export default function PostCard({ post }: { post: Post }) {
   const reactionTimeoutRef = React.useRef<any>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  const collectionName = isGroupPost ? 'group_posts' : 'posts';
+  const commentCollectionName = isGroupPost ? 'group_comments' : 'comments';
+
   useEffect(() => {
     setIsLiked(likes.includes(profile?.uid || ''));
   }, [likes, profile?.uid]);
+
+  const handleReport = async () => {
+    if (!user || !profile) return;
+    const reason = window.prompt('يرجى كتابة سبب التبليغ:');
+    if (!reason) return;
+
+    try {
+      const postRef = doc(db, collectionName, post.id);
+      await updateDoc(postRef, {
+        reports: arrayUnion({
+          userId: user.uid,
+          reason,
+          createdAt: serverTimestamp()
+        })
+      });
+      alert('تم إرسال التبليغ للإدارة. شكراً لتعاونكم.');
+    } catch (error) {
+      console.error("Error reporting post:", error);
+    }
+  };
+
+  const handleDeletePost = async () => {
+    if (!window.confirm('هل أنت متأكد من حذف هذا المنشور؟')) return;
+    try {
+      await deleteDoc(doc(db, collectionName, post.id));
+      if (onDelete) onDelete();
+    } catch (err) {
+      console.error("Error deleting post:", err);
+    }
+  };
 
   const handleReaction = async (type: string) => {
     if (!profile?.uid) return;
@@ -118,7 +151,7 @@ export default function PostCard({ post }: { post: Post }) {
     setLikes(newLikes);
 
     try {
-      await updateDoc(doc(db, 'posts', post.id), {
+      await updateDoc(doc(db, collectionName, post.id), {
         reactions: newReactions,
         likes: newLikes
       });
@@ -147,7 +180,7 @@ export default function PostCard({ post }: { post: Post }) {
   useEffect(() => {
     if (!showComments) return;
     const q = query(
-      collection(db, 'comments'), 
+      collection(db, commentCollectionName), 
       where('postId', '==', post.id), 
       limit(50)
     );
@@ -192,13 +225,13 @@ export default function PostCard({ post }: { post: Post }) {
       }
 
       if (isEditing && editingComment) {
-        await updateDoc(doc(db, 'comments', editingComment.id), {
+        await updateDoc(doc(db, commentCollectionName, editingComment.id), {
           content: text,
           updatedAt: serverTimestamp(),
           ...(imageUrl && { imageUrl })
         });
       } else {
-        await addDoc(collection(db, 'comments'), {
+        await addDoc(collection(db, commentCollectionName), {
           postId: post.id,
           authorId: profile.uid,
           authorName: profile.displayName,
@@ -209,7 +242,7 @@ export default function PostCard({ post }: { post: Post }) {
           replyTo: isReply ? replyTo.authorName : null,
           createdAt: serverTimestamp(),
         });
-        await updateDoc(doc(db, 'posts', post.id), {
+        await updateDoc(doc(db, collectionName, post.id), {
           commentCount: increment(1)
         });
         setCommentCount(prev => prev + 1);
@@ -231,8 +264,8 @@ export default function PostCard({ post }: { post: Post }) {
   const handleDeleteComment = async (commentId: string) => {
     if (window.confirm('حذف هذا التعليق؟')) {
       try {
-        await deleteDoc(doc(db, 'comments', commentId));
-        await updateDoc(doc(db, 'posts', post.id), {
+        await deleteDoc(doc(db, commentCollectionName, commentId));
+        await updateDoc(doc(db, collectionName, post.id), {
           commentCount: increment(-1)
         });
         setCommentCount(prev => prev - 1);
@@ -252,7 +285,7 @@ export default function PostCard({ post }: { post: Post }) {
     if (!editedPostContent.trim() || loading) return;
     setLoading(true);
     try {
-      await updateDoc(doc(db, 'posts', post.id), {
+      await updateDoc(doc(db, collectionName, post.id), {
         content: editedPostContent.trim(),
         updatedAt: serverTimestamp()
       });
@@ -261,14 +294,6 @@ export default function PostCard({ post }: { post: Post }) {
       console.error(e);
     } finally {
       setLoading(false);
-    }
-  };
-
-  const handleDelete = async () => {
-    if (window.confirm('حذف هذا المنشور؟')) {
-      try {
-        await deleteDoc(doc(db, 'posts', post.id));
-      } catch (e) {}
     }
   };
 
@@ -318,16 +343,28 @@ export default function PostCard({ post }: { post: Post }) {
           </div>
         </Link>
         
-        {(profile?.uid === post.authorId || profile?.email === 'dalinadjib1990@gmail.com') && (
-          <Dropdown align="left" trigger={<button className="p-2 text-slate-500 hover:text-white transition-colors"><MoreHorizontal className="w-5 h-5" /></button>}>
-            <button onClick={() => setIsEditingPost(true)} className="w-full text-right px-4 py-2 text-xs font-bold text-slate-300 hover:bg-slate-800 flex items-center justify-end gap-2">
-              <Edit2 className="w-3 h-3" /> تعديل المنشور
+        <Dropdown align="left" trigger={<button className="p-2 text-slate-500 hover:text-white transition-colors"><MoreHorizontal className="w-5 h-5" /></button>}>
+          {(profile?.uid === post.authorId || profile?.email === 'dalinadjib1990@gmail.com') && (
+            <>
+              <button onClick={() => setIsEditingPost(true)} className="w-full text-right px-4 py-2 text-xs font-bold text-slate-300 hover:bg-slate-800 flex items-center justify-end gap-2">
+                <Edit2 className="w-3 h-3" /> تعديل المنشور
+              </button>
+              <button onClick={handleDeletePost} className="w-full text-right px-4 py-2 text-xs font-bold text-red-500 hover:bg-slate-800 flex items-center justify-end gap-2">
+                <Trash2 className="w-3 h-3" /> حذف المنشور
+              </button>
+            </>
+          )}
+          {profile?.uid !== post.authorId && (
+             <button onClick={handleReport} className="w-full text-right px-4 py-2 text-xs font-bold text-amber-500 hover:bg-slate-800 flex items-center justify-end gap-2">
+              <Flag className="w-3 h-3" /> تبليغ للإدارة (سينيال)
             </button>
-            <button onClick={handleDelete} className="w-full text-right px-4 py-2 text-xs font-bold text-red-400 hover:bg-slate-800 flex items-center justify-end gap-2">
-              <Trash2 className="w-3 h-3" /> حذف المنشور
+          )}
+          {onDelete && (
+             <button onClick={handleDeletePost} className="w-full text-right px-4 py-2 text-xs font-bold text-red-500 hover:bg-slate-800 flex items-center justify-end gap-2 border-t border-slate-800">
+              <ShieldAlert className="w-3 h-3" /> حذف (أدمن المجموعة)
             </button>
-          </Dropdown>
-        )}
+          )}
+        </Dropdown>
       </div>
 
       {/* Content */}
@@ -526,6 +563,12 @@ export default function PostCard({ post }: { post: Post }) {
             )}
 
             <form onSubmit={handleComment} className="flex gap-2 items-end relative">
+              <button 
+                className="bg-primary p-3 rounded-2xl text-white shadow-lg active:scale-95 transition-transform disabled:opacity-50" 
+                disabled={loading || (!newComment.trim() && !commentImage)}
+              >
+                {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4 rotate-180" />}
+              </button>
               <div className="flex-1 relative">
                 <textarea 
                   value={newComment}
@@ -542,12 +585,6 @@ export default function PostCard({ post }: { post: Post }) {
                   <Camera className="w-4 h-4" />
                 </button>
               </div>
-              <button 
-                className="bg-primary p-3 rounded-2xl text-white shadow-lg active:scale-95 transition-transform disabled:opacity-50" 
-                disabled={loading || (!newComment.trim() && !commentImage)}
-              >
-                {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
-              </button>
             </form>
           </div>
         </div>

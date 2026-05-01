@@ -291,7 +291,7 @@ export default function Discussions() {
               <form onSubmit={handleSendMessage} className="relative">
                 <textarea
                   placeholder="شارك برأيك في هذا الموضوع..."
-                  className="w-full bg-slate-950 border border-slate-800 rounded-[1.5rem] pl-20 pr-6 py-4 text-sm text-slate-100 outline-none focus:ring-2 focus:ring-indigo-500/50 transition-all font-bold min-h-[100px] resize-none"
+                  className="w-full bg-slate-950 border border-slate-800 rounded-[1.5rem] pr-20 pl-6 py-4 text-sm text-slate-100 outline-none focus:ring-2 focus:ring-indigo-500/50 transition-all font-bold min-h-[100px] resize-none"
                   value={newMessage}
                   onChange={(e) => setNewMessage(e.target.value)}
                   dir="rtl"
@@ -299,9 +299,9 @@ export default function Discussions() {
                 <button
                   type="submit"
                   disabled={!newMessage.trim()}
-                  className="absolute left-4 bottom-4 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 disabled:grayscale text-white p-3 rounded-2xl transition-all active:scale-95 shadow-lg shadow-indigo-500/20"
+                  className="absolute right-4 bottom-4 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 disabled:grayscale text-white p-3 rounded-2xl transition-all active:scale-95 shadow-lg shadow-indigo-500/20"
                 >
-                  <Send className="w-5 h-5" />
+                  <Send className="w-5 h-5 rotate-180" />
                 </button>
               </form>
             </div>

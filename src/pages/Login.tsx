@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
-import { signInWithPopup, GoogleAuthProvider, signInWithEmailAndPassword, createUserWithEmailAndPassword, setPersistence, browserLocalPersistence, browserSessionPersistence, signOut } from 'firebase/auth';
+import { signInWithPopup, GoogleAuthProvider, signInWithEmailAndPassword, createUserWithEmailAndPassword, setPersistence, browserLocalPersistence, browserSessionPersistence, signOut, sendPasswordResetEmail } from 'firebase/auth';
 import { auth } from '../firebase';
 import { motion } from 'motion/react';
-import { BookOpen, GraduationCap, Mail, Lock, User, LogIn, RefreshCw, AlertCircle, Sparkles, UserCircle } from 'lucide-react';
+import { BookOpen, GraduationCap, Mail, Lock, User, LogIn, RefreshCw, AlertCircle, Sparkles, UserCircle, KeyRound, CheckCircle2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
 export default function Login() {
@@ -14,9 +14,28 @@ export default function Login() {
   const [password, setPassword] = useState('');
   const [rememberMe, setRememberMe] = useState(true);
   const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
   const [networkStatus, setNetworkStatus] = useState<{ google: boolean | null; firebase: boolean | null }>({ google: null, firebase: null });
 
   const navigate = useNavigate();
+
+  const handleForgotPassword = async () => {
+    if (!email) {
+      setError('يرجى إدخال البريد الإلكتروني أولاً لإرسال رابط استعادة كلمة السر');
+      return;
+    }
+    setLoading(true);
+    setError('');
+    setSuccess('');
+    try {
+      await sendPasswordResetEmail(auth, email);
+      setSuccess('تم إرسال رابط إعادة تعيين كلمة السر إلى بريدك الإلكتروني بنجاح!');
+    } catch (err: any) {
+      setError(err.message || 'فشل إرسال رابط الاستعادة');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   React.useEffect(() => {
     const checkConnectivity = async () => {
@@ -222,8 +241,20 @@ export default function Login() {
             <div className="flex items-start gap-3">
               <AlertCircle className="w-5 h-5 shrink-0 mt-0.5" />
               <div>
-                <p className="font-bold mb-1">خطأ في تسجيل الدخول</p>
+                <p className="font-bold mb-1">خطأ</p>
                 <p className="text-xs opacity-90 whitespace-pre-wrap">{error}</p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {success && (
+          <div className="bg-green-500/10 text-green-500 p-4 rounded-2xl mb-6 text-sm font-medium border border-green-500/20 shadow-lg">
+            <div className="flex items-start gap-3">
+              <CheckCircle2 className="w-5 h-5 shrink-0 mt-0.5" />
+              <div>
+                <p className="font-bold mb-1">نجاح</p>
+                <p className="text-xs opacity-90">{success}</p>
               </div>
             </div>
           </div>
@@ -311,14 +342,23 @@ export default function Login() {
               />
               <span className="text-xs font-bold text-slate-400 group-hover:text-slate-300 transition-colors">تذكرني</span>
             </label>
-            <button 
-              type="button"
-              onClick={handleSwitchAccount}
-              className="text-xs font-bold text-slate-500 hover:text-purple-400 transition-colors flex items-center gap-1"
-            >
-              <RefreshCw className="w-3 h-3" />
-              تبديل الحساب
-            </button>
+            <div className="flex flex-col items-end gap-2">
+              <button 
+                type="button"
+                onClick={handleForgotPassword}
+                className="text-[10px] font-black text-amber-500 hover:text-amber-400 transition-all uppercase tracking-tighter"
+              >
+                نسيت كلمة السر؟
+              </button>
+              <button 
+                type="button"
+                onClick={handleSwitchAccount}
+                className="text-xs font-bold text-slate-500 hover:text-purple-400 transition-colors flex items-center gap-1"
+              >
+                <RefreshCw className="w-3 h-3" />
+                تبديل الحساب
+              </button>
+            </div>
           </div>
 
           <button

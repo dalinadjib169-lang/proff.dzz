@@ -17,6 +17,8 @@ import Discussions from './pages/Discussions';
 import Saved from './pages/Saved';
 import Colleagues from './pages/Colleagues';
 import Curriculum from './pages/Curriculum';
+import Groups from './pages/Groups';
+import GroupDetails from './pages/GroupDetails';
 import ProfileRedirect from './pages/ProfileRedirect';
 import CloudinaryUploader from './components/CloudinaryUploader';
 import Navbar from './components/Navbar';
@@ -198,7 +200,7 @@ export default function App() {
                 {/* Profile completion is now optional, users can edit it from their profile page anytime */}
                 {user && <Navbar />}
                 {user && <BottomNav />}
-                
+                {user && profile && !profile.isProfileComplete && <CompleteProfile />}
                 {/* Mobile Sidebar Toggle - Disconnected to free screen space */}
                 {/* {user && (
                   <div className="lg:hidden fixed left-0 top-1/2 -translate-y-1/2 z-[60]">
@@ -266,6 +268,8 @@ export default function App() {
                         <Route path="/discussions" element={user ? <Discussions /> : <Navigate to="/login" />} />
                         <Route path="/saved" element={user ? <Saved /> : <Navigate to="/login" />} />
                         <Route path="/colleagues" element={user ? <Colleagues /> : <Navigate to="/login" />} />
+                        <Route path="/groups" element={user ? <Groups /> : <Navigate to="/login" />} />
+                        <Route path="/groups/:groupId" element={user ? <GroupDetails /> : <Navigate to="/login" />} />
                         <Route path="/curriculum" element={user ? <Curriculum /> : <Navigate to="/login" />} />
                         <Route path="/premium-tools" element={(user || window.location.search.includes('mode=guest')) ? <PremiumTools /> : <Navigate to="/login" />} />
                         <Route path="/market" element={user ? <Market /> : <Navigate to="/login" />} />

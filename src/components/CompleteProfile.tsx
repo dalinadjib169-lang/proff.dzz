@@ -2,6 +2,8 @@ import React, { useState } from 'react';
 import { useAuth } from '../hooks/useAuth';
 import { motion } from 'motion/react';
 import { GraduationCap, MapPin, BookOpen, Clock, User, CheckCircle2 } from 'lucide-react';
+import { db } from '../firebase';
+import { collection, query, where, getDocs } from 'firebase/firestore';
 
 const WILAYAS = [
   "01 - أدرار (Adrar)", "02 - الشلف (Chlef)", "03 - الأغواط (Laghouat)", "04 - أم البواقي (Oum El Bouaghi)", "05 - باتنة (Batna)", "06 - بجاية (Béjaïa)", "07 - بسكرة (Biskra)", "08 - بشار (Béchar)", "09 - البليدة (Blida)", "10 - البويرة (Bouira)",
@@ -58,6 +60,21 @@ export default function CompleteProfile() {
     setLoading(true);
     setError(null);
     try {
+      // Check if phone number is already used by another user
+      if (formData.phoneNumber) {
+        const phoneCheckQuery = query(
+          collection(db, 'users'),
+          where('phoneNumber', '==', formData.phoneNumber)
+        );
+        const phoneCheckSnap = await getDocs(phoneCheckQuery);
+        if (!phoneCheckSnap.empty) {
+          const otherUser = phoneCheckSnap.docs.find(d => d.id !== profile?.uid);
+          if (otherUser) {
+            throw new Error('رقم الهاتف هذا مستخدم بالفعل من قبل حساب آخر');
+          }
+        }
+      }
+
       const finalData = {
         ...formData,
         displayName: `${formData.firstName} ${formData.lastName}`.trim() || formData.displayName

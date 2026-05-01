@@ -1,7 +1,7 @@
 import React, { memo } from 'react';
 import { NavLink } from 'react-router-dom';
 import { cn } from '../lib/utils';
-import { Home, Bell, MessageSquare, User, Sparkles, Image, Menu, Car, ShoppingBag, Wand2, Zap } from 'lucide-react';
+import { Home, Bell, MessageSquare, User, Sparkles, Image, Menu, Car, ShoppingBag, Wand2, Zap, Users } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
 import { useUnreadMessages } from '../hooks/useUnreadMessages';
 
@@ -12,8 +12,8 @@ function BottomNav() {
   const navItems = [
     { icon: Home, label: 'Home', path: '/', external: false },
     { icon: MessageSquare, label: 'Discussions', path: '/discussions', external: false },
-    { icon: Wand2, label: 'Generator', path: 'https://pro-mat-1243.vercel.app/', external: true },
-    { icon: Zap, label: 'Corrector', path: 'https://mosa7i7-ai.vercel.app/', external: true },
+    { icon: Users, label: 'Groups', path: '/groups', external: false },
+    { icon: ShoppingBag, label: 'Market', path: '/market', external: false },
     { icon: Menu, label: 'Menu', path: '#', external: false, onClick: (e: any) => { e.preventDefault(); window.dispatchEvent(new CustomEvent('toggle-sidebar')); } },
   ];
 

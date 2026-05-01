@@ -142,11 +142,36 @@ export interface Notification {
   recipientId: string;
   senderId: string;
   senderName: string;
-  type: 'like' | 'comment' | 'follow' | 'market_interest';
+  type: 'like' | 'comment' | 'follow' | 'market_interest' | 'group_invite' | 'group_request' | 'group_accepted' | 'group_rejected';
   postId?: string;
+  groupId?: string;
   message?: string;
   read: boolean;
   createdAt: Timestamp;
+}
+
+export interface EducationalGroup {
+  id: string;
+  name: string;
+  description: string;
+  coverImage?: string;
+  creatorId: string;
+  admins: string[];
+  members: string[];
+  pendingRequests?: string[];
+  privacy: 'public' | 'private' | 'hidden'; // public: anyone see/join, private: see/request, hidden: invite only
+  autoJoin: boolean;
+  requireTeacherVerification: boolean; // Must have role 'teacher' or rank verified
+  memberCount: number;
+  tags?: string[];
+  rules?: string[];
+  createdAt: Timestamp | any;
+}
+
+export interface GroupPost extends Post {
+  groupId: string;
+  reports?: { userId: string, reason: string, createdAt: Timestamp }[];
+  isLocked?: boolean;
 }
 
 export interface SavedPreferences {

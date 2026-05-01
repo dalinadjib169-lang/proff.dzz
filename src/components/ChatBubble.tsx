@@ -1828,6 +1828,22 @@ export default function ChatBubble() {
                   </div>
                   <div className="p-4 bg-slate-900 border-t border-slate-800 flex flex-col gap-3">
                     <div className="flex items-center gap-2">
+                      <button 
+                        type="button"
+                        onClick={() => {
+                          handleSendMessage(null as any);
+                          handleTyping(false);
+                        }}
+                        disabled={isUploading}
+                        onMouseDown={(e) => e.preventDefault()} // Prevent focus stealing
+                        className="bg-purple-600 hover:bg-purple-700 text-white p-2.5 rounded-xl transition-all active:scale-90 disabled:opacity-50 shrink-0"
+                      >
+                        {isUploading ? (
+                          <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                        ) : (
+                          <Send className="w-5 h-5 rotate-180" />
+                        )}
+                      </button>
                       <textarea
                         ref={chatInputRef as any}
                         rows={1}
@@ -1842,7 +1858,7 @@ export default function ChatBubble() {
                         data-form-type="other"
                         data-lpignore="true"
                         data-1p-ignore
-                        className="flex-1 bg-slate-950 border border-slate-800 rounded-xl px-4 py-2 text-sm text-slate-100 outline-none focus:ring-2 focus:ring-purple-500/30 transition-all font-medium disabled:opacity-50 resize-none overflow-hidden pt-2.5"
+                        className="flex-1 bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-sm text-slate-100 outline-none focus:ring-2 focus:ring-purple-500/30 transition-all font-medium disabled:opacity-50 resize-none overflow-hidden"
                         value={newMessage}
                         onKeyDown={(e) => {
                           if (e.key === 'Enter' && !e.shiftKey) {
@@ -1857,22 +1873,6 @@ export default function ChatBubble() {
                         }}
                         onBlur={() => handleTyping(false)}
                       />
-                      <button 
-                        type="button"
-                        onClick={() => {
-                          handleSendMessage(null as any);
-                          handleTyping(false);
-                        }}
-                        disabled={isUploading}
-                        onMouseDown={(e) => e.preventDefault()} // Prevent focus stealing
-                        className="bg-purple-600 hover:bg-purple-700 text-white p-2.5 rounded-xl transition-all active:scale-90 disabled:opacity-50"
-                      >
-                        {isUploading ? (
-                          <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                        ) : (
-                          <Send className="w-5 h-5" />
-                        )}
-                      </button>
                     </div>
                     <div className="flex items-center justify-between px-1">
                       <div className="flex items-center gap-4">

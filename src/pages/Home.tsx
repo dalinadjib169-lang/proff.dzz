@@ -166,13 +166,15 @@ export default function Home() {
             )}
 
             <div className="flex justify-between items-center pt-2">
-              <div className="flex gap-4">
-                <button onClick={() => fileInputRef.current?.click()} className="flex items-center gap-2 text-slate-400 font-bold hover:text-primary transition-colors">
-                  <ImageIcon className="w-5 h-5 text-primary" />
-                  <span className="text-xs uppercase tracking-tight">صورة</span>
-                </button>
-              </div>
               <div className="flex items-center gap-3">
+                <button
+                  onClick={() => handleCreatePost()}
+                  disabled={loading || (!content.trim() && !selectedImage)}
+                  className="bg-primary hover:bg-primary-dark text-white px-6 py-2.5 rounded-xl font-black transition-all active:scale-95 disabled:opacity-50 flex items-center gap-2 shadow-lg shadow-primary/20"
+                >
+                  {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4 rotate-180" />}
+                  <span className="text-sm">نشر الآن</span>
+                </button>
                 <div className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-800/50 rounded-xl border border-white/5">
                   {privacy === 'public' ? <Globe className="w-3.5 h-3.5 text-blue-400" /> : privacy === 'friends' ? <Users className="w-3.5 h-3.5 text-green-400" /> : <Lock className="w-3.5 h-3.5 text-amber-400" />}
                   <select 
@@ -185,13 +187,11 @@ export default function Home() {
                     <option value="private">خاص</option>
                   </select>
                 </div>
-                <button
-                  onClick={() => handleCreatePost()}
-                  disabled={loading || (!content.trim() && !selectedImage)}
-                  className="bg-primary hover:bg-primary-dark text-white px-6 py-2.5 rounded-xl font-black transition-all active:scale-95 disabled:opacity-50 flex items-center gap-2 shadow-lg shadow-primary/20"
-                >
-                  {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
-                  <span className="text-sm">نشر الآن</span>
+              </div>
+              <div className="flex gap-4">
+                <button onClick={() => fileInputRef.current?.click()} className="flex items-center gap-2 text-slate-400 font-bold hover:text-primary transition-colors">
+                  <ImageIcon className="w-5 h-5 text-primary" />
+                  <span className="text-xs uppercase tracking-tight">صورة</span>
                 </button>
               </div>
             </div>
