@@ -11,9 +11,9 @@ function BottomNav() {
 
   const navItems = [
     { icon: Home, label: 'Home', path: '/', external: false },
-    { icon: MessageSquare, label: 'Discussions', path: '/discussions', external: false },
+    { icon: Wand2, label: 'Generator', path: 'https://pro-mat-1243.vercel.app/', external: true },
     { icon: Users, label: 'Groups', path: '/groups', external: false },
-    { icon: ShoppingBag, label: 'Market', path: '/market', external: false },
+    { icon: Zap, label: 'Corrector', path: 'https://mosa7i7-ai.vercel.app/', external: true },
     { icon: Menu, label: 'Menu', path: '#', external: false, onClick: (e: any) => { e.preventDefault(); window.dispatchEvent(new CustomEvent('toggle-sidebar')); } },
   ];
 
@@ -31,13 +31,13 @@ function BottomNav() {
             >
               <div className={cn(
                 "p-2 rounded-xl shadow-lg transition-transform group-hover:scale-110 group-active:scale-95 animate-pulse",
-                item.label === 'Generator' ? "bg-amber-500 shadow-amber-500/20" : "bg-blue-500 shadow-blue-500/20"
+                (item.label === 'Generator' || item.label === 'Corrector') ? "bg-amber-500 shadow-amber-500/20" : "bg-blue-500 shadow-blue-500/20"
               )}>
-                <item.icon className={cn("w-6 h-6", item.label === 'Generator' ? "text-slate-900" : "text-white")} />
+                <item.icon className={cn("w-6 h-6", (item.label === 'Generator' || item.label === 'Corrector') ? "text-slate-900" : "text-white")} />
               </div>
               <span className={cn(
                 "absolute -top-1 right-1/4 w-2 h-2 rounded-full animate-bounce",
-                item.label === 'Generator' ? "bg-primary" : "bg-blue-400"
+                (item.label === 'Generator' || item.label === 'Corrector') ? "bg-primary" : "bg-blue-400"
               )}></span>
             </a>
           ) : item.path === '#' ? (
