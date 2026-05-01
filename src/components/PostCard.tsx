@@ -3,7 +3,7 @@ import { db } from '../firebase';
 import { doc, updateDoc, arrayUnion, arrayRemove, collection, addDoc, serverTimestamp, query, where, orderBy, onSnapshot, deleteDoc, increment, Timestamp, limit } from 'firebase/firestore';
 import { useAuth } from '../hooks/useAuth';
 import { Post, Comment as CommentType, GroupPost } from '../types';
-import { ThumbsUp, MessageCircle, Share2, MoreHorizontal, GraduationCap, Send, Trash2, Globe, Users, Lock as LockIcon, X, Smile, Edit2, Reply, Image as ImageIcon, Camera, EyeOff, Loader2, Flag } from 'lucide-react';
+import { ThumbsUp, MessageCircle, Share2, MoreHorizontal, GraduationCap, Send, Trash2, Globe, Users, Lock as LockIcon, X, Smile, Edit2, Reply, Image as ImageIcon, Camera, EyeOff, Loader2, Flag, ShieldAlert } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { Link } from 'react-router-dom';
 import React from 'react';

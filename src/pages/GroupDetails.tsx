@@ -12,7 +12,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { 
   Users, Shield, Settings, MessageSquare, Send, Image as ImageIcon, 
   MoreVertical, Flag, Trash2, Check, X, ShieldAlert, Globe, Lock, 
-  UserPlus, LogOut, ChevronLeft, Loader2, AlertCircle, Sparkles, UserCheck 
+  UserPlus, LogOut, ChevronLeft, Loader2, AlertCircle, Sparkles, UserCheck, ShieldCheck
 } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { ar } from 'date-fns/locale';

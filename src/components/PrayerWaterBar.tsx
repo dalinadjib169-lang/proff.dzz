@@ -18,6 +18,7 @@ import { useAuth } from '../hooks/useAuth';
 import { doc, updateDoc } from 'firebase/firestore';
 import { db, isFirestoreConnected } from '../firebase';
 import { format } from 'date-fns';
+import { cn } from '../lib/utils';
 import { playSound } from '../lib/sounds';
 
 interface PrayerTimes {
@@ -226,21 +227,50 @@ export const PrayerWaterBar: React.FC = () => {
     const hour = new Date().getHours();
     if (hour >= 5 && hour < 11) {
       return [
-        "☀️ أذكار الصباح: ", "أصبحنا وأصبح الملك لله", "اللهم بك أصبحنا وبك أمسينا", "يا حي يا قيوم برحمتك أستغيث",
-        "رضيت بالله رباً وبالإسلام ديناً", "سبحان الله وبحمده عدد خلقه", "اللهم ما أصبح بي من نعمة", "اللهم إني أسألك علماً نافعاً"
+        { text: "☀️ أذكار الصباح: ", type: 'title' },
+        { text: "سورة الإخلاص والمعوذتين (3 مرات)", type: 'surah' },
+        { text: "آية الكرسي: اللَّهُ لَا إِلَهَ إِلَّا هُوَ الْحَيُّ الْقَيُّومُ", type: 'surah' },
+        { text: "أصبحنا وأصبح الملك لله والحمد لله", type: 'zekr' },
+        { text: "اللهم بك أصبحنا وبك أمسينا وبك نحيا", type: 'dua' },
+        { text: "يا حي يا قيوم برحمتك أستغيث", type: 'dua' },
+        { text: "رضيت بالله رباً وبالإسلام ديناً وبمحمد ﷺ نبياً", type: 'zekr' },
+        { text: "سبحان الله وبحمده عدد خلقه ورضا نفسه", type: 'zekr' },
+        { text: "اللهم إني أسألك علماً نافعاً ورزقاً طيباً", type: 'dua' }
       ];
     } else if (hour >= 16 && hour < 20) {
       return [
-        "🌙 أذكار المساء: ", "أمسين وأمسى الملك لله", "اللهم بك أمسينا وبك أصبحنا", "أعوذ بكلمات الله التامات من شر ما خلق",
-        "اللهم إني أسألك العفو والعافية", "يا حي يا قيوم أصلح لي شأني كله", "اللهم أنت ربي لا إله إلا أنت", "اللهم قني شر نفسي"
+        { text: "🌙 أذكار المساء: ", type: 'title' },
+        { text: "آية الكرسي", type: 'surah' },
+        { text: "أمسين وأمسى الملك لله والحمد لله", type: 'zekr' },
+        { text: "اللهم بك أمسينا وبك أصبحنا", type: 'dua' },
+        { text: "أعوذ بكلمات الله التامات من شر ما خلق", type: 'dua' },
+        { text: "اللهم إني أسألك العفو والعافية في الدنيا والآخرة", type: 'dua' },
+        { text: "يا حي يا قيوم أصلح لي شأني كله", type: 'dua' },
+        { text: "اللهم أنت ربي لا إله إلا أنت خلقتني", type: 'zekr' },
+        { text: "اللهم قني شر نفسي واعزم لي على أرشد أمري", type: 'dua' }
       ];
     } else if (hour >= 21 || hour < 5) {
       return [
-        "💤 أذكار النوم: ", "باسمك اللهم أموت وأحيا", "اللهم قني عذابك يوم تبعث عبادك", "الحمد لله الذي أطعمنا وسقانا",
-        "آية الكرسي", "سورة الإخلاص", "المعوذتين", "سبحان الله (33)", "الحمد لله (33)", "الله أكبر (34)"
+        { text: "💤 أذكار النوم: ", type: 'title' },
+        { text: "سورة الملك: تَبَارَكَ الَّذِي بِيَدِهِ الْمُلْكُ", type: 'surah' },
+        { text: "آية الكرسي", type: 'surah' },
+        { text: "سورة الإخلاص والمعوذتين", type: 'surah' },
+        { text: "باسمك اللهم أموت وأحيا", type: 'zekr' },
+        { text: "اللهم قني عذابك يوم تبعث عبادك", type: 'dua' },
+        { text: "الحمد لله الذي أطعمنا وسقانا وكفانا", type: 'zekr' },
+        { text: "سبحان الله (33) | الحمد لله (33) | الله أكبر (34)", type: 'zekr' }
       ];
     }
-    return ["✨ أذكار اليوم: ", "سبحان الله", "الحمد لله", "لا إله إلا الله", "الله أكبر", "استغفر الله", "لاحول ولا قوة إلا بالله", "اللهم صل على محمد"];
+    return [
+      { text: "✨ أذكار اليوم: ", type: 'title' },
+      { text: "سورة الفاتحة", type: 'surah' },
+      { text: "سبحان الله وبحمده سبحان الله العظيم", type: 'zekr' },
+      { text: "الحمد لله حمداً كثيراً طيباً مباركاً فيه", type: 'zekr' },
+      { text: "لا إله إلا الله وحده لا شريك له", type: 'zekr' },
+      { text: "اللهم صل وسلم على نبينا محمد", type: 'dua' },
+      { text: "استغفر الله الذي لا إله إلا هو الحي القيوم", type: 'dua' },
+      { text: "لاحول ولا قوة إلا بالله العلي العظيم", type: 'zekr' }
+    ];
   };
 
   if (!isBarVisible) {
@@ -392,12 +422,23 @@ export const PrayerWaterBar: React.FC = () => {
       <motion.div 
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
-        className="w-full bg-slate-900/50 border border-red-500/10 rounded-full h-6 flex items-center overflow-hidden"
+        className="w-full bg-slate-900/50 border border-white/5 rounded-full h-7 flex items-center overflow-hidden"
       >
         <div className="whitespace-nowrap flex animate-marquee-slow py-0.5">
-          <div className="flex gap-24 text-[12px] font-black text-red-500 px-4 font-amiri tracking-wide">
-            {getAzkar().concat(getAzkar()).map((zekr, i) => (
-              <span key={i} className="drop-shadow-[0_0_8px_rgba(239,68,68,0.3)]">{zekr}</span>
+          <div className="flex gap-24 text-[13px] font-black px-4 font-amiri tracking-wide items-center">
+            {getAzkar().concat(getAzkar()).map((item, i) => (
+              <span 
+                key={i} 
+                className={cn(
+                  "transition-all",
+                  item.type === 'surah' ? 'text-green-500 drop-shadow-[0_0_8px_rgba(34,197,94,0.4)]' : 
+                  item.type === 'dua' ? 'text-amber-400 drop-shadow-[0_0_8px_rgba(251,191,36,0.4)]' : 
+                  item.type === 'zekr' ? 'text-red-500 drop-shadow-[0_0_8px_rgba(239,68,68,0.4)]' : 
+                  'text-slate-300'
+                )}
+              >
+                {item.text}
+              </span>
             ))}
           </div>
         </div>
