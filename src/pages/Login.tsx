@@ -212,7 +212,7 @@ export default function Login() {
             </div>
             
             <div className="flex flex-col items-center gap-1">
-              <p className="text-amber-400 font-black text-base md:text-lg" style={{ fontFamily: "var(--font-amiri)" }}>مرحبا بك في تطبيق Teac</p>
+              <p className="text-amber-400 font-black text-base md:text-lg" style={{ fontFamily: "var(--font-amiri)" }}>جرب توليد مذكرات واختبارات في ثواني</p>
               <p className="text-slate-500 text-[9px] md:text-[10px] font-black uppercase tracking-[0.2em]">The Algerian Teachers Network</p>
             </div>
           </div>

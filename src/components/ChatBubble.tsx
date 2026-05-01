@@ -58,6 +58,9 @@ import { playSound } from '../lib/sounds';
 import { useUpload } from '../hooks/useUpload';
 import { Peer } from 'peerjs';
 
+import ImageLightbox from './ImageLightbox';
+import { useUnreadMessages } from '../hooks/useUnreadMessages';
+
 interface Message {
   id: string;
   text?: string;
@@ -66,9 +69,9 @@ interface Message {
   senderId: string;
   senderName: string;
   createdAt: any;
+  reactions?: { [uid: string]: string };
+  deletedFor?: string[];
 }
-
-import { useUnreadMessages } from '../hooks/useUnreadMessages';
 
 // Emoji & Profile Trigger Component
 const ChatTrigger = ({ isOpen, setIsOpen, emojiState, activeChat, profile, unreadCount }: { 
@@ -230,6 +233,9 @@ export default function ChatBubble() {
   const [isMobile, setIsMobile] = useState(false);
   const [isKeyboardOpen, setIsKeyboardOpen] = useState(false);
   const [isConnected, setIsConnected] = useState(true);
+  const [lightboxSrc, setLightboxSrc] = useState<string | null>(null);
+  const [selectedMessageId, setSelectedMessageId] = useState<string | null>(null);
+  const pressTimer = useRef<any>(null);
 
   useEffect(() => {
     const handleConnection = (status: boolean) => setIsConnected(status);
@@ -669,6 +675,12 @@ export default function ChatBubble() {
           endCall();
         } else if (call.status === 'ended') {
           endCall();
+        } else if (call.status === 'connected') {
+          // Stop ringing once connected
+          if (ringtoneRef.current) {
+            ringtoneRef.current.pause();
+            ringtoneRef.current = null;
+          }
         }
       }
     });
@@ -950,6 +962,11 @@ export default function ChatBubble() {
       });
       setLocalStream(stream);
       setIsCalling(type);
+
+      // Start ringing for caller
+      if (!ringtoneRef.current) {
+        ringtoneRef.current = playSound('ringtone', true);
+      }
 
       const callDoc = await addDoc(collection(db, 'calls'), {
         senderId: profile.uid,
@@ -1263,6 +1280,14 @@ export default function ChatBubble() {
                       title={isOnline(activeChat.lastSeen) ? "Audio Call" : "Offline"}
                     >
                       <Phone className="w-4 h-4" />
+                    </button>
+                    <button 
+                      onClick={() => handleStartCall('video')}
+                      disabled={!isOnline(activeChat.lastSeen)}
+                      className={`p-2 rounded-xl transition-all ${!isOnline(activeChat.lastSeen) ? 'text-white/20 cursor-not-allowed' : 'text-white/80 hover:text-white hover:bg-white/10'}`}
+                      title={isOnline(activeChat.lastSeen) ? "Video Call" : "Offline"}
+                    >
+                      <Video className="w-4 h-4" />
                     </button>
                   </>
                 )}
@@ -1596,20 +1621,38 @@ export default function ChatBubble() {
                     )}
 
                     {messages.map((msg) => (
-                      <div key={msg.id} className={`flex flex-col ${msg.senderId === profile.uid ? 'items-end' : 'items-start'}`}>
+                      <div 
+                        key={msg.id} 
+                        className={`flex flex-col ${msg.senderId === profile.uid ? 'items-end' : 'items-start'}`}
+                        onMouseDown={() => {
+                          pressTimer.current = setTimeout(() => {
+                            setSelectedMessageId(msg.id);
+                            if (navigator.vibrate) navigator.vibrate(50);
+                          }, 600);
+                        }}
+                        onMouseUp={() => clearTimeout(pressTimer.current)}
+                        onTouchStart={() => {
+                          pressTimer.current = setTimeout(() => {
+                            setSelectedMessageId(msg.id);
+                            if (navigator.vibrate) navigator.vibrate(50);
+                          }, 600);
+                        }}
+                        onTouchEnd={() => clearTimeout(pressTimer.current)}
+                      >
                         <div className="group relative">
-                          <div className={`max-w-[80%] p-3 rounded-2xl text-sm font-medium shadow-sm ${
+                          <div className={`max-w-[80%] p-3 rounded-2xl text-sm font-medium shadow-sm transition-all ${
                             msg.senderId === profile.uid 
                               ? 'bg-purple-600 text-white rounded-tr-none' 
                               : 'bg-slate-900 text-slate-100 rounded-tl-none border border-slate-800'
-                          }`}>
+                          } ${selectedMessageId === msg.id ? 'ring-2 ring-amber-500 scale-95' : ''}`}>
                             {msg.text && <p>{msg.text}</p>}
                             {msg.imageUrl && (
                               <img 
                                 src={msg.imageUrl} 
-                                className="rounded-xl max-w-full h-auto mb-1" 
+                                className="rounded-xl max-w-full h-auto mb-1 cursor-pointer hover:opacity-90 transition-opacity" 
                                 alt="Chat media" 
                                 referrerPolicy="no-referrer"
+                                onClick={() => setLightboxSrc(msg.imageUrl || null)}
                               />
                             )}
                             {msg.audioUrl && (
@@ -1636,29 +1679,44 @@ export default function ChatBubble() {
                                 <Smile className="w-4 h-4" />
                               </button>
 
-                              {msg.senderId === profile.uid && (
-                                <div className="relative group/delete">
-                                  <button 
-                                    className="p-1.5 bg-slate-800 hover:bg-red-500/20 rounded-full text-slate-400 hover:text-red-500 transition-colors shadow-lg border border-slate-700"
+                              {/* Selected Context Menu */}
+                              <AnimatePresence>
+                                {selectedMessageId === msg.id && (
+                                  <motion.div
+                                    initial={{ opacity: 0, y: 10 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    exit={{ opacity: 0, y: 10 }}
+                                    className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 bg-slate-800 border border-slate-700 rounded-xl overflow-hidden shadow-2xl min-w-[140px] z-50"
                                   >
-                                    <Trash2 className="w-4 h-4" />
-                                  </button>
-                                  <div className="absolute bottom-full mb-2 right-0 hidden group-hover/delete:flex flex-col bg-slate-800 border border-slate-700 rounded-xl overflow-hidden shadow-2xl min-w-[120px] z-50">
                                     <button 
-                                      onClick={() => handleDeleteMessage(msg.id, false)}
-                                      className="px-3 py-2 text-[10px] font-bold text-slate-300 hover:bg-slate-700 text-right whitespace-nowrap"
+                                      onClick={() => {
+                                        handleDeleteMessage(msg.id, false);
+                                        setSelectedMessageId(null);
+                                      }}
+                                      className="w-full px-3 py-2 text-[10px] font-black text-slate-300 hover:bg-slate-700 text-right uppercase tracking-wider"
                                     >
                                       محو عندي فقط
                                     </button>
+                                    {msg.senderId === profile.uid && (
+                                      <button 
+                                        onClick={() => {
+                                          handleDeleteMessage(msg.id, true);
+                                          setSelectedMessageId(null);
+                                        }}
+                                        className="w-full px-3 py-2 text-[10px] font-black text-red-400 hover:bg-red-500/10 text-right border-t border-slate-700 uppercase tracking-wider"
+                                      >
+                                        محو عند الجميع
+                                      </button>
+                                    )}
                                     <button 
-                                      onClick={() => handleDeleteMessage(msg.id, true)}
-                                      className="px-3 py-2 text-[10px] font-bold text-red-400 hover:bg-red-500/10 text-right border-t border-slate-700 whitespace-nowrap"
+                                      onClick={() => setSelectedMessageId(null)}
+                                      className="w-full px-3 py-2 text-[10px] font-black text-slate-500 hover:bg-slate-700 text-right border-t border-slate-700 uppercase tracking-wider"
                                     >
-                                      محو عند الجميع
+                                      إلغاء
                                     </button>
-                                  </div>
-                                </div>
-                              )}
+                                  </motion.div>
+                                )}
+                              </AnimatePresence>
                               
                               <AnimatePresence initial={false}>
                                 {showEmojiPicker === msg.id && (
@@ -1711,6 +1769,12 @@ export default function ChatBubble() {
                         </div>
                       </div>
                     ))}
+
+                    <ImageLightbox 
+                      src={lightboxSrc || ''} 
+                      isOpen={!!lightboxSrc} 
+                      onClose={() => setLightboxSrc(null)} 
+                    />
                     
                     {/* Pending Uploads */}
                     {activeUploads

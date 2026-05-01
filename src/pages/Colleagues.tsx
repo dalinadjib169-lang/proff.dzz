@@ -57,8 +57,10 @@ export default function Colleagues() {
   }, [loggedInProfile]);
 
   const filteredUsers = users.filter(u => {
-    const matchesSearch = u.displayName?.toLowerCase().includes(search.toLowerCase()) || 
-                         u.subject?.toLowerCase().includes(search.toLowerCase());
+    const matchesSearch = 
+      u.displayName?.toLowerCase().includes(search.toLowerCase()) || 
+      u.subject?.toLowerCase().includes(search.toLowerCase()) ||
+      u.email?.toLowerCase().includes(search.toLowerCase());
     const matchesWilaya = !wilayaFilter || u.wilaya === wilayaFilter;
     return matchesSearch && matchesWilaya;
   });

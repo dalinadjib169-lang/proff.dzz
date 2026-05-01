@@ -67,6 +67,8 @@ const REACTIONS = [
   { type: 'angry', emoji: '😡', label: 'Angry', color: 'text-orange-500' },
 ];
 
+import ImageLightbox from './ImageLightbox';
+
 export default function PostCard({ post }: { post: Post }) {
   const { profile } = useAuth();
   const { startUpload } = useUpload();
@@ -85,6 +87,7 @@ export default function PostCard({ post }: { post: Post }) {
   const [loading, setLoading] = useState(false);
   const [commentImage, setCommentImage] = useState<File | null>(null);
   const [commentImagePreview, setCommentImagePreview] = useState<string | null>(null);
+  const [lightboxSrc, setLightboxSrc] = useState<string | null>(null);
   const reactionTimeoutRef = React.useRef<any>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -269,6 +272,25 @@ export default function PostCard({ post }: { post: Post }) {
     }
   };
 
+  const handleShare = async () => {
+    const shareData = {
+      title: `منشور من ${post.authorName} على Teac DZ`,
+      text: post.content,
+      url: window.location.origin + '/post/' + post.id
+    };
+
+    try {
+      if (navigator.share) {
+        await navigator.share(shareData);
+      } else {
+        await navigator.clipboard.writeText(shareData.url);
+        alert('تم نسخ رابط المنشور بنجاح!');
+      }
+    } catch (err) {
+      console.error('Share failed:', err);
+    }
+  };
+
   const topLevelComments = comments.filter(c => !c.parentId);
   const getReplies = (parentId: string) => comments.filter(c => c.parentId === parentId);
 
@@ -346,10 +368,13 @@ export default function PostCard({ post }: { post: Post }) {
       {/* Image */}
       {post.imageUrl && !isEditingPost && (
         <div className="px-2 pb-2">
-          <div className="relative rounded-2xl overflow-hidden border border-white/5 bg-slate-950/50 min-h-[100px] flex items-center justify-center">
+          <div 
+            className="relative rounded-2xl overflow-hidden border border-white/5 bg-slate-950/50 min-h-[100px] flex items-center justify-center cursor-zoom-in group/img"
+            onClick={() => setLightboxSrc(post.imageUrl || null)}
+          >
             <img 
               src={post.imageUrl} 
-              className="w-full h-auto max-h-[500px] object-cover transition-opacity duration-300" 
+              className="w-full h-auto max-h-[500px] object-cover transition-all duration-300 group-hover/img:scale-105" 
               alt="" 
               onLoad={(e) => (e.currentTarget.style.opacity = '1')}
               style={{ opacity: 0 }}
@@ -358,6 +383,13 @@ export default function PostCard({ post }: { post: Post }) {
           </div>
         </div>
       )}
+
+      {/* Lightbox */}
+      <ImageLightbox 
+        src={lightboxSrc || ''} 
+        isOpen={!!lightboxSrc} 
+        onClose={() => setLightboxSrc(null)} 
+      />
 
       {/* Actions */}
       <div className="px-4 py-2 border-t border-white/5 flex items-center justify-between relative">
@@ -419,7 +451,10 @@ export default function PostCard({ post }: { post: Post }) {
             <span>{commentCount > 0 ? commentCount : 'تعليق'}</span>
           </button>
         </div>
-        <button className="p-2 text-slate-500 hover:text-slate-300">
+        <button 
+          onClick={handleShare}
+          className="p-2 text-slate-500 hover:text-slate-300 transition-colors"
+        >
           <Share2 className="w-4 h-4" />
         </button>
       </div>

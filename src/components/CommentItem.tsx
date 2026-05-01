@@ -20,6 +20,8 @@ interface CommentItemProps {
   isPostOwner?: boolean;
 }
 
+import ImageLightbox from './ImageLightbox';
+
 export default function CommentItem({ 
   comment, 
   postId, 
@@ -35,6 +37,7 @@ export default function CommentItem({
   const [isEditing, setIsEditing] = useState(false);
   const [editContent, setEditContent] = useState(comment.content);
   const [isLiking, setIsLiking] = useState(false);
+  const [lightboxSrc, setLightboxSrc] = useState<string | null>(null);
   const pressTimer = useRef<any>(null);
 
   const likes = comment.likes || [];
@@ -196,14 +199,20 @@ export default function CommentItem({
                   <img 
                     src={comment.imageUrl} 
                     alt="Comment media" 
-                    className="w-full object-cover max-h-48 hover:scale-105 transition-transform duration-500 cursor-pointer" 
+                    className="w-full object-cover max-h-48 hover:scale-105 transition-transform duration-500 cursor-zoom-in" 
                     referrerPolicy="no-referrer"
-                    onClick={() => window.open(comment.imageUrl, '_blank')}
+                    onClick={() => setLightboxSrc(comment.imageUrl || null)}
                   />
                 </div>
               )}
             </div>
           )}
+
+          <ImageLightbox 
+            src={lightboxSrc || ''} 
+            isOpen={!!lightboxSrc} 
+            onClose={() => setLightboxSrc(null)} 
+          />
 
           {likes.length > 0 && (
             <div className="absolute -bottom-2 -left-1 flex items-center gap-1 bg-slate-900 border border-slate-800 rounded-full px-1.5 py-0.5 shadow-lg group-hover/comment:scale-110 transition-transform">

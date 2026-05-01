@@ -9,6 +9,15 @@
   --color-accent: var(--primary-accent, #d8b4fe);
   --color-dark: #0f172a; /* Slate 900 */
   --color-darker: #020617; /* Slate 950 */
+
+  @keyframes marquee-slow {
+    0% { transform: translateX(100%); }
+    100% { transform: translateX(-100%); }
+  }
+}
+
+.animate-marquee-slow {
+  animation: marquee-slow 240s linear infinite;
 }
 
 @layer base {

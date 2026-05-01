@@ -10,6 +10,10 @@ const SOUND_URLS = {
   notification: 'https://assets.mixkit.co/active_storage/sfx/2357/2357-preview.mp3',
   call: 'https://assets.mixkit.co/active_storage/sfx/2361/2361-preview.mp3',
   ringtone: 'https://assets.mixkit.co/active_storage/sfx/1359/1359-preview.mp3',
+  adhan: 'https://www.islamcan.com/audio/adhan/azan1.mp3',
+  adhan2: 'https://www.islamcan.com/audio/adhan/azan2.mp3',
+  adhan3: 'https://www.islamcan.com/audio/adhan/azan3.mp3',
+  water: 'https://assets.mixkit.co/active_storage/sfx/2013/2013-preview.mp3',
 };
 
 export type SoundType = keyof typeof SOUND_URLS;
