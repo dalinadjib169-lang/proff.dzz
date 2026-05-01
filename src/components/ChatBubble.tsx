@@ -12,6 +12,7 @@ import {
   Image as ImageIcon, 
   Smile, 
   Mic, 
+  Square,
   Paperclip, 
   Video, 
   Phone, 
@@ -451,6 +452,15 @@ export default function ChatBubble() {
 
     return unsubscribeSeen;
   }, [profile?.uid, activeChat?.uid, isOpen]);
+
+  // Cleanup recording on chat change or close
+  useEffect(() => {
+    return () => {
+      if (isRecording) {
+        cancelRecording();
+      }
+    };
+  }, [activeChat?.uid, isOpen, isRecording]);
 
   const handleTyping = async (isTyping: boolean) => {
     if (!profile || !activeChat) return;
@@ -955,6 +965,19 @@ export default function ChatBubble() {
       mediaRecorderRef.current.stop();
       setIsRecording(false);
       clearInterval(recordingIntervalRef.current);
+    }
+  };
+
+  const cancelRecording = () => {
+    if (mediaRecorderRef.current && isRecording) {
+      mediaRecorderRef.current.onstop = null; // Prevent sending on stop
+      mediaRecorderRef.current.stop();
+      setIsRecording(false);
+      clearInterval(recordingIntervalRef.current);
+      // Clean up tracks
+      if (mediaRecorderRef.current.stream) {
+        mediaRecorderRef.current.stream.getTracks().forEach(track => track.stop());
+      }
     }
   };
 
@@ -1854,8 +1877,12 @@ export default function ChatBubble() {
                       <button 
                         type="button"
                         onClick={() => {
-                          handleSendMessage(null as any);
-                          handleTyping(false);
+                          if (isRecording) {
+                            stopRecording();
+                          } else {
+                            handleSendMessage(null as any);
+                            handleTyping(false);
+                          }
                         }}
                         disabled={isUploading}
                         onMouseDown={(e) => e.preventDefault()} // Prevent focus stealing
@@ -1946,21 +1973,35 @@ export default function ChatBubble() {
                           <Paperclip className="w-5 h-5" />
                         </button>
                       </div>
-                      <button 
-                        type="button"
-                        onMouseDown={startRecording}
-                        onMouseUp={stopRecording}
-                        onTouchStart={startRecording}
-                        onTouchEnd={stopRecording}
-                        className={`p-2 rounded-full transition-all relative ${isRecording ? 'bg-red-500 text-white animate-pulse' : 'text-slate-500 hover:bg-slate-800'}`}
-                      >
-                        <Mic className="w-5 h-5" />
+                      <div className="flex items-center gap-2">
                         {isRecording && (
-                          <div className="absolute -top-8 left-1/2 -translate-x-1/2 bg-red-500 text-white text-[10px] font-black px-2 py-1 rounded-full whitespace-nowrap">
-                            {Math.floor(recordingDuration / 60)}:{(recordingDuration % 60).toString().padStart(2, '0')}
-                          </div>
+                          <button 
+                            type="button"
+                            onClick={cancelRecording}
+                            className="p-2 text-slate-500 hover:text-red-500 transition-colors animate-in slide-in-from-right-2"
+                          >
+                            <Trash2 className="w-5 h-5" />
+                          </button>
                         )}
-                      </button>
+                        <button 
+                          type="button"
+                          onClick={() => {
+                            if (isRecording) {
+                              stopRecording();
+                            } else {
+                              startRecording();
+                            }
+                          }}
+                          className={`p-2 rounded-full transition-all relative ${isRecording ? 'bg-red-500 text-white animate-pulse' : 'text-slate-500 hover:bg-slate-800'}`}
+                        >
+                          {isRecording ? <div className="w-5 h-5 flex items-center justify-center"><Square className="w-3 h-3 fill-current" /></div> : <Mic className="w-5 h-5" />}
+                          {isRecording && (
+                            <div className="absolute -top-8 left-1/2 -translate-x-1/2 bg-red-500 text-white text-[10px] font-black px-2 py-1 rounded-full whitespace-nowrap shadow-lg">
+                              {Math.floor(recordingDuration / 60)}:{(recordingDuration % 60).toString().padStart(2, '0')}
+                            </div>
+                          )}
+                        </button>
+                      </div>
                     </div>
                     <input 
                       type="file" 
