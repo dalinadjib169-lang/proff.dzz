@@ -605,6 +605,14 @@ export default function ChatBubble() {
     if (incomingCall?.id) {
       await updateDoc(doc(db, 'calls', incomingCall.id), { status: 'ended' }).catch(console.error);
     }
+    
+    // Stop any active ringtone
+    if (ringtoneRef.current) {
+      ringtoneRef.current.pause();
+      ringtoneRef.current.currentTime = 0;
+      ringtoneRef.current = null;
+    }
+
     setIsCalling(null);
     setIncomingCall(null);
     if (localStream) {
@@ -632,7 +640,8 @@ export default function ChatBubble() {
       if (!snapshot.empty) {
         const callData = { id: snapshot.docs[0].id, ...snapshot.docs[0].data() };
         setIncomingCall(callData);
-        if (!ringtoneRef.current) {
+        // Only play ringtone if one isn't already playing and we aren't already in a call
+        if (!ringtoneRef.current && !isCalling) {
           ringtoneRef.current = playSound('ringtone', true);
         }
         setEmojiState('happy');
@@ -640,6 +649,7 @@ export default function ChatBubble() {
         setIncomingCall(null);
         if (ringtoneRef.current) {
           ringtoneRef.current.pause();
+          ringtoneRef.current.currentTime = 0;
           ringtoneRef.current = null;
         }
       }
@@ -651,6 +661,7 @@ export default function ChatBubble() {
       unsubscribe();
       if (ringtoneRef.current) {
         ringtoneRef.current.pause();
+        ringtoneRef.current.currentTime = 0;
         ringtoneRef.current = null;
       }
     };
@@ -679,6 +690,7 @@ export default function ChatBubble() {
           // Stop ringing once connected
           if (ringtoneRef.current) {
             ringtoneRef.current.pause();
+            ringtoneRef.current.currentTime = 0;
             ringtoneRef.current = null;
           }
         }
@@ -956,6 +968,10 @@ export default function ChatBubble() {
     }
     
     try {
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        throw new Error("Media devices not supported");
+      }
+
       const stream = await navigator.mediaDevices.getUserMedia({
         video: type === 'video',
         audio: true
@@ -1001,7 +1017,8 @@ export default function ChatBubble() {
       }
     } catch (err) {
       console.error("Call error:", err);
-      alert("Could not access camera/microphone");
+      alert("تعذر بدء المكالمة. يرجى التأكد من منح أذونات الكاميرا والميكروفون.");
+      endCall();
     }
   };
 
@@ -1011,10 +1028,15 @@ export default function ChatBubble() {
     // Stop ringtone immediately
     if (ringtoneRef.current) {
       ringtoneRef.current.pause();
+      ringtoneRef.current.currentTime = 0;
       ringtoneRef.current = null;
     }
 
     try {
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        throw new Error("Media devices not supported");
+      }
+
       const stream = await navigator.mediaDevices.getUserMedia({
         video: incomingCall.type === 'video',
         audio: true
@@ -1037,7 +1059,7 @@ export default function ChatBubble() {
       playSound('message'); 
     } catch (err) {
       console.error("Accept call error:", err);
-      alert("تعذر الوصول إلى الكاشيرا أو الميكروفون.");
+      alert("تعذر الوصول إلى الكاميرا أو الميكروفون. يرجى التأكد من منح الأذونات في المتصفح.");
       handleRejectCall();
     }
   };
@@ -1048,6 +1070,7 @@ export default function ChatBubble() {
     // Stop ringtone immediately
     if (ringtoneRef.current) {
       ringtoneRef.current.pause();
+      ringtoneRef.current.currentTime = 0;
       ringtoneRef.current = null;
     }
 
