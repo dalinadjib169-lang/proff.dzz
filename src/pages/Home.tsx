@@ -28,8 +28,7 @@ export default function Home() {
     const q = query(
       collection(db, 'posts'),
       where('privacy', '==', 'public'),
-      orderBy('createdAt', 'desc'),
-      limit(30)
+      limit(50)
     );
     return onSnapshot(q, (snapshot) => {
       const postsData = snapshot.docs.map(doc => ({
@@ -110,10 +109,10 @@ export default function Home() {
     { type: 'image', value: 'url(https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?auto=format&fit=crop&q=80&w=800)', label: 'Jibal (Mountains)' },
     { type: 'image', value: 'url(https://images.unsplash.com/photo-1441974231531-c6227db76b6e?auto=format&fit=crop&q=80&w=800)', label: 'Ashjar (Trees)' },
     { type: 'image', value: 'url(https://images.unsplash.com/photo-1475924156734-496f6cac6ec1?auto=format&fit=crop&q=80&w=800)', label: 'Sama (Sky)' },
-    { type: 'image', value: 'url(https://images.unsplash.com/photo-1514888286974-6c03e2ca1dba?auto=format&fit=crop&q=80&w=800)', label: 'Cats (Qitat)' },
-    { type: 'image', value: 'url(https://flagpedia.net/data/flags/w580/dz.png)', label: 'Algeria (Djazair)' },
-    { type: 'image', value: 'url(https://images.unsplash.com/photo-1461896836934-ffe607ba8211?auto=format&fit=crop&q=80&w=800)', label: 'Sports (Riyada)' },
-    { type: 'image', value: 'url(https://images.unsplash.com/photo-1589718539308-144702521c75?auto=format&fit=crop&q=80&w=800)', label: 'Trump (Cute)' },
+    { type: 'image', value: 'url(https://images.unsplash.com/photo-1514888286974-6c03e2ca1dba?auto=format&fit=crop&q=80&w=800)', label: 'قطط كيوت (Cats)' },
+    { type: 'image', value: 'url(https://flagpedia.net/data/flags/w580/dz.png)', label: 'علم الجزائر (Algeria)' },
+    { type: 'image', value: 'url(https://images.unsplash.com/photo-1461896836934-ffe607ba8211?auto=format&fit=crop&q=80&w=800)', label: 'رياضة (Sports)' },
+    { type: 'image', value: 'url(https://images.unsplash.com/photo-1518020382113-a7e8fc38eac9?auto=format&fit=crop&q=80&w=800)', label: 'مضحك (Funny)' },
   ];
 
   return (
@@ -122,17 +121,19 @@ export default function Home() {
 
       <div className="bg-slate-900/20 backdrop-blur-3xl border border-slate-800/50 rounded-2xl p-4 shadow-lg overflow-hidden relative">
         {selectedBg && !selectedImage && (
-          <div className="absolute inset-0 opacity-20 pointer-events-none" style={{ background: selectedBg, backgroundSize: 'cover', backgroundPosition: 'center' }}></div>
+          <div className="absolute inset-0 pointer-events-none" style={{ background: selectedBg, backgroundSize: 'cover', backgroundPosition: 'center' }}>
+             <div className="absolute inset-0 bg-black/40"></div>
+          </div>
         )}
         <div className="flex gap-3 relative z-10">
-          <img src={profile?.photoURL} className="w-10 h-10 rounded-xl object-cover" alt="" referrerPolicy="no-referrer" />
+          <img src={profile?.photoURL} className="w-12 h-12 rounded-xl object-cover ring-2 ring-primary/20" alt="" referrerPolicy="no-referrer" />
           <div className="flex-1 space-y-3">
-            <div className={`relative rounded-xl overflow-hidden transition-all ${selectedBg && !selectedImage ? 'min-h-[120px] flex items-center justify-center p-4' : ''}`} style={{ background: !selectedImage ? selectedBg || 'transparent' : 'transparent', backgroundSize: 'cover', backgroundPosition: 'center' }}>
+            <div className={`relative rounded-3xl overflow-hidden transition-all shadow-2xl group/preview ${selectedBg && !selectedImage ? 'min-h-[220px] flex items-center justify-center p-8' : ''}`} style={{ background: !selectedImage ? selectedBg || 'transparent' : 'transparent', backgroundSize: 'cover', backgroundPosition: 'center' }}>
               <textarea
                 value={content}
                 onChange={(e) => setContent(e.target.value)}
                 placeholder="بماذا تفكر يا زميلي..."
-                className={`w-full bg-slate-950/20 border border-slate-800/50 rounded-xl p-3 text-white placeholder:text-slate-500 outline-none focus:border-primary resize-none font-bold transition-all ${selectedBg && !selectedImage ? 'text-center text-lg min-h-[120px] bg-transparent border-none' : 'min-h-[80px]'}`}
+                className={`w-full bg-slate-950/20 border border-slate-800/50 rounded-xl p-3 text-white placeholder:text-slate-400/70 outline-none focus:border-primary resize-none font-black transition-all ${selectedBg && !selectedImage ? 'text-center text-xl sm:text-2xl min-h-[220px] bg-transparent border-none placeholder:text-white/40 drop-shadow-2xl' : 'min-h-[80px]'}`}
               />
               {selectedBg && !selectedImage && (
                 <button 
