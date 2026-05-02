@@ -17,7 +17,9 @@ import {
   ShieldCheck,
   Zap,
   Save,
-  Trash2
+  Trash2,
+  Plus,
+  Image as ImageIcon
 } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
 import { db } from '../firebase';
@@ -26,6 +28,7 @@ import { UserProfile, UserSettings } from '../types';
 import { sendPasswordResetEmail, deleteUser, signOut } from 'firebase/auth';
 import { auth } from '../firebase';
 import { useTranslation } from '../hooks/useTranslation';
+import CloudinaryUploader from '../components/CloudinaryUploader';
 
 export default function Settings() {
   const { profile } = useAuth();
@@ -330,6 +333,48 @@ export default function Settings() {
                   </button>
                 ))}
               </div>
+            </div>
+          </div>
+        </section>
+
+        {/* App Background */}
+        <section className="bg-white dark:bg-slate-900 rounded-[2.5rem] p-8 shadow-xl border border-slate-100 dark:border-slate-800 space-y-8">
+          <div className="space-y-6">
+            <div className="flex items-center gap-3 text-amber-500">
+              <ImageIcon className="w-6 h-6" />
+              <h2 className="text-xl font-black uppercase tracking-tight">خلفية التطبيق</h2>
+            </div>
+
+            <div className="space-y-4">
+              <label className="block text-sm font-black text-slate-400 uppercase">اختر صورة خلفية للمنصة</label>
+              
+              {profile?.appBackground && (
+                <div className="relative group w-full aspect-video rounded-2xl overflow-hidden border border-slate-200 dark:border-slate-800">
+                  <img src={profile.appBackground} className="w-full h-full object-cover" alt="Background" />
+                  <button 
+                    onClick={async () => {
+                      if (!profile) return;
+                      await updateDoc(doc(db, 'users', profile.uid), { appBackground: null });
+                    }}
+                    className="absolute top-2 right-2 p-2 bg-red-500 text-white rounded-lg opacity-0 group-hover:opacity-100 transition-opacity shadow-lg"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </div>
+              )}
+
+              <CloudinaryUploader 
+                onUploadSuccess={async (url) => {
+                  if (!profile) return;
+                  await updateDoc(doc(db, 'users', profile.uid), { appBackground: url });
+                  alert("تم تحديث خلفية التطبيق");
+                }}
+              >
+                <div className="w-full py-8 border-2 border-dashed border-slate-200 dark:border-slate-800 rounded-3xl flex flex-col items-center justify-center gap-2 hover:bg-slate-50 dark:hover:bg-slate-800 transition-all cursor-pointer">
+                  <Plus className="w-8 h-8 text-slate-400" />
+                  <span className="text-sm font-black text-slate-500">اضغط لرفع صورة خلفية</span>
+                </div>
+              </CloudinaryUploader>
             </div>
           </div>
         </section>

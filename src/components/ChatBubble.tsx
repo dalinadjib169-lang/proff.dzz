@@ -211,8 +211,10 @@ export default function ChatBubble() {
   const [isUploading, setIsUploading] = useState(false);
   const [isCalling, setIsCalling] = useState<'video' | 'audio' | null>(null);
   const [incomingCall, setIncomingCall] = useState<any>(null);
+  const localStreamRef = useRef<MediaStream | null>(null);
   const [localStream, setLocalStream] = useState<MediaStream | null>(null);
   const [remoteStream, setRemoteStream] = useState<MediaStream | null>(null);
+  const activePeerCallRef = useRef<any>(null);
   const [activePeerCall, setActivePeerCall] = useState<any>(null);
   const [currentCallId, setCurrentCallId] = useState<string | null>(null);
   const peerRef = useRef<Peer | null>(null);
@@ -567,6 +569,8 @@ export default function ChatBubble() {
     });
 
     peer.on('call', async (call) => {
+      console.log('Incoming PeerJS call from:', call.peer);
+      activePeerCallRef.current = call;
       setActivePeerCall(call);
     });
 
@@ -625,14 +629,16 @@ export default function ChatBubble() {
 
     setIsCalling(null);
     setIncomingCall(null);
-    if (localStream) {
-      localStream.getTracks().forEach(track => track.stop());
+    if (localStreamRef.current) {
+      localStreamRef.current.getTracks().forEach(track => track.stop());
     }
     setLocalStream(null);
+    localStreamRef.current = null;
     setRemoteStream(null);
-    if (activePeerCall) {
-      activePeerCall.close();
+    if (activePeerCallRef.current) {
+      activePeerCallRef.current.close();
     }
+    activePeerCallRef.current = null;
     setActivePeerCall(null);
   };
 
@@ -992,13 +998,22 @@ export default function ChatBubble() {
     
     try {
       if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-        throw new Error("Media devices not supported");
+        throw new Error("Media devices not supported or unsecure context");
       }
 
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: type === 'video',
+      // More robust constraints
+      const constraints = {
+        video: type === 'video' ? {
+          facingMode: 'user',
+          width: { ideal: 640 },
+          height: { ideal: 480 }
+        } : false,
         audio: true
-      });
+      };
+
+      console.log('Requesting media with constraints:', constraints);
+      const stream = await navigator.mediaDevices.getUserMedia(constraints);
+      localStreamRef.current = stream;
       setLocalStream(stream);
       setIsCalling(type);
 
@@ -1057,23 +1072,49 @@ export default function ChatBubble() {
 
     try {
       if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-        throw new Error("Media devices not supported");
+        throw new Error("Media devices not supported or unsecure context");
       }
 
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: incomingCall.type === 'video',
+      const constraints = {
+        video: incomingCall.type === 'video' ? {
+          facingMode: 'user',
+          width: { ideal: 640 },
+          height: { ideal: 480 }
+        } : false,
         audio: true
-      });
+      };
+
+      console.log('Answering call with constraints:', constraints);
+      const stream = await navigator.mediaDevices.getUserMedia(constraints);
+      localStreamRef.current = stream;
       setLocalStream(stream);
 
-      if (activePeerCall) {
-        activePeerCall.answer(stream);
-        activePeerCall.on('stream', (remoteStream: MediaStream) => {
+      // Wait if peer call hasn't arrived yet (race condition with Firestore)
+      let currentPeerCall = activePeerCallRef.current;
+      if (!currentPeerCall) {
+        console.log("Peer call not found yet, waiting...");
+        for (let i = 0; i < 20; i++) {
+          await new Promise(r => setTimeout(r, 500));
+          if (activePeerCallRef.current) {
+            currentPeerCall = activePeerCallRef.current;
+            console.log("Peer call arrived after waiting");
+            break;
+          }
+        }
+      }
+
+      if (currentPeerCall) {
+        currentPeerCall.answer(stream);
+        currentPeerCall.on('stream', (remoteStream: MediaStream) => {
+          console.log('Received remote stream');
           setRemoteStream(remoteStream);
         });
-        activePeerCall.on('close', () => {
+        currentPeerCall.on('close', () => {
           endCall();
         });
+      } else {
+        console.error("Peer call failed to arrive after timeout");
+        throw new Error("Failed to establish peer connection");
       }
 
       await updateDoc(doc(db, 'calls', incomingCall.id), { status: 'connected' });
@@ -1403,7 +1444,9 @@ export default function ChatBubble() {
                       {remoteStream && (
                         <video
                           ref={(el) => {
-                            if (el) el.srcObject = remoteStream;
+                            if (el && el.srcObject !== remoteStream) {
+                              el.srcObject = remoteStream;
+                            }
                           }}
                           autoPlay
                           playsInline
@@ -1414,7 +1457,9 @@ export default function ChatBubble() {
                         {localStream && (
                           <video
                             ref={(el) => {
-                              if (el) el.srcObject = localStream;
+                              if (el && el.srcObject !== localStream) {
+                                el.srcObject = localStream;
+                              }
                             }}
                             autoPlay
                             playsInline
