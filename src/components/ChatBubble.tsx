@@ -46,7 +46,8 @@ import {
   Loader2,
   Users,
   Globe,
-  TrendingUp
+  TrendingUp,
+  ShieldAlert
 } from 'lucide-react';
 import { db, storage } from '../firebase';
 import { collection, query, orderBy, onSnapshot, addDoc, serverTimestamp, where, limit, Timestamp, updateDoc, doc, arrayUnion, arrayRemove, setDoc, writeBatch, getDoc, deleteDoc, getDocs } from 'firebase/firestore';
@@ -1853,13 +1854,14 @@ export default function ChatBubble() {
                                     className="fixed inset-0 bg-black/40 backdrop-blur-sm z-[99]"
                                   />
                                   <motion.div
-                                    initial={{ opacity: 0, scale: 0.9, x: 20 }}
+                                    initial={{ opacity: 0, scale: 0.9, x: -50 }}
                                     animate={{ opacity: 1, scale: 1, x: 0 }}
-                                    exit={{ opacity: 0, scale: 0.9, x: 20 }}
-                                    className="fixed top-1/2 right-4 -translate-y-1/2 w-[280px] shadow-2xl z-[100] flex flex-col bg-slate-950/95 backdrop-blur-3xl border border-white/10 rounded-[2.5rem] overflow-hidden ring-1 ring-white/10"
+                                    exit={{ opacity: 0, scale: 0.9, x: -50 }}
+                                    className="fixed top-1/2 left-4 -translate-y-1/2 w-[220px] max-w-[calc(100vw-2rem)] shadow-[0_0_50px_rgba(0,0,0,0.4)] z-[1000] flex flex-col bg-slate-950/98 backdrop-blur-3xl border border-white/10 rounded-[2rem] overflow-hidden ring-1 ring-white/10"
+                                    dir="rtl"
                                   >
                                     {/* Horizontal Emoji Bar */}
-                                    <div className="p-4 border-b border-white/10 bg-white/5 flex flex-row flex-wrap gap-2 justify-center">
+                                    <div className="p-3 border-b border-white/10 bg-white/5 flex flex-row flex-wrap gap-1.5 justify-center">
                                       {['👍', '❤️', '😂', '🤔', '😡', '🔥', '👏', '🙏'].map(emoji => (
                                         <button
                                           key={emoji}
@@ -1868,7 +1870,7 @@ export default function ChatBubble() {
                                             updateDoc(msgRef, { [`reactions.${profile.uid}`]: emoji });
                                             setSelectedMessageId(null);
                                           }}
-                                          className="text-2xl hover:scale-125 active:scale-90 transition-transform p-1.5"
+                                          className="text-xl hover:scale-125 active:scale-90 transition-transform p-1"
                                         >
                                           {emoji}
                                         </button>
@@ -1883,20 +1885,20 @@ export default function ChatBubble() {
                                           setSelectedMessageId(null);
                                           chatInputRef.current?.focus();
                                         }}
-                                        className="w-full text-right px-6 py-4 text-sm font-black text-slate-100 hover:bg-white/10 transition-colors flex items-center justify-end gap-4"
+                                        className="w-full text-right px-4 py-3 text-xs font-black text-slate-100 hover:bg-white/10 transition-colors flex items-center justify-start gap-3"
                                       >
+                                        <Reply className="w-4 h-4 text-blue-400 rotate-180" />
                                         <span>رد على الرسالة</span>
-                                        <Reply className="w-5 h-5 text-blue-400 rotate-180" />
                                       </button>
                                       <button 
                                         onClick={() => {
                                           handleDeleteMessage(msg.id, false);
                                           setSelectedMessageId(null);
                                         }}
-                                        className="w-full text-right px-6 py-4 text-sm font-black text-slate-100 hover:bg-white/10 transition-colors flex items-center justify-end gap-4 border-t border-white/5"
+                                        className="w-full text-right px-4 py-3 text-xs font-black text-slate-100 hover:bg-white/10 transition-colors flex items-center justify-start gap-3 border-t border-white/5"
                                       >
+                                        <Trash2 className="w-4 h-4 text-slate-400" />
                                         <span>حذف من عندي</span>
-                                        <Trash2 className="w-5 h-5 text-slate-400" />
                                       </button>
                                       {msg.senderId === profile.uid && (
                                         <button 
@@ -1904,15 +1906,15 @@ export default function ChatBubble() {
                                             handleDeleteMessage(msg.id, true);
                                             setSelectedMessageId(null);
                                           }}
-                                          className="w-full text-right px-6 py-4 text-sm font-black text-red-500 hover:bg-red-500/10 transition-colors flex items-center justify-end gap-4 border-t border-white/5"
+                                          className="w-full text-right px-4 py-3 text-xs font-black text-red-500 hover:bg-red-500/10 transition-colors flex items-center justify-start gap-3 border-t border-white/5"
                                         >
+                                          <ShieldAlert className="w-4 h-4" />
                                           <span>حذف للجميع</span>
-                                          <ShieldAlert className="w-5 h-5" />
                                         </button>
                                       )}
                                       <button 
                                         onClick={() => setSelectedMessageId(null)}
-                                        className="w-full text-center px-6 py-4 text-xs font-black text-slate-500 hover:text-white transition-colors border-t border-white/5"
+                                        className="w-full text-center px-4 py-3 text-[10px] font-black text-slate-500 hover:text-white transition-colors border-t border-white/5"
                                       >
                                         إلغاء
                                       </button>

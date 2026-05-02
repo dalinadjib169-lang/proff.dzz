@@ -102,14 +102,18 @@ export default function Home() {
   };
 
   const POST_BACKGROUNDS = [
-    'linear-gradient(to right, #4facfe 0%, #00f2fe 100%)',
-    'linear-gradient(to right, #f093fb 0%, #f5576c 100%)',
-    'linear-gradient(120deg, #84fab0 0%, #8fd3f4 100%)',
-    'linear-gradient(to right, #fa709a 0%, #fee140 100%)',
-    'linear-gradient(to top, #30cfd0 0%, #330867 100%)',
-    'linear-gradient(to top, #a18cd1 0%, #fbc2eb 100%)',
-    '#4f46e5',
-    '#0ea5e9'
+    { type: 'gradient', value: 'linear-gradient(to right, #4facfe 0%, #00f2fe 100%)' },
+    { type: 'gradient', value: 'linear-gradient(to right, #f093fb 0%, #f5576c 100%)' },
+    { type: 'gradient', value: 'linear-gradient(120deg, #84fab0 0%, #8fd3f4 100%)' },
+    { type: 'gradient', value: 'linear-gradient(to right, #fa709a 0%, #fee140 100%)' },
+    { type: 'image', value: 'url(https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&q=80&w=800)', label: 'Bahiyah (Sea)' },
+    { type: 'image', value: 'url(https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?auto=format&fit=crop&q=80&w=800)', label: 'Jibal (Mountains)' },
+    { type: 'image', value: 'url(https://images.unsplash.com/photo-1441974231531-c6227db76b6e?auto=format&fit=crop&q=80&w=800)', label: 'Ashjar (Trees)' },
+    { type: 'image', value: 'url(https://images.unsplash.com/photo-1475924156734-496f6cac6ec1?auto=format&fit=crop&q=80&w=800)', label: 'Sama (Sky)' },
+    { type: 'image', value: 'url(https://images.unsplash.com/photo-1514888286974-6c03e2ca1dba?auto=format&fit=crop&q=80&w=800)', label: 'Cats (Qitat)' },
+    { type: 'image', value: 'url(https://flagpedia.net/data/flags/w580/dz.png)', label: 'Algeria (Djazair)' },
+    { type: 'image', value: 'url(https://images.unsplash.com/photo-1461896836934-ffe607ba8211?auto=format&fit=crop&q=80&w=800)', label: 'Sports (Riyada)' },
+    { type: 'image', value: 'url(https://images.unsplash.com/photo-1589718539308-144702521c75?auto=format&fit=crop&q=80&w=800)', label: 'Trump (Cute)' },
   ];
 
   return (
@@ -118,12 +122,12 @@ export default function Home() {
 
       <div className="bg-slate-900/20 backdrop-blur-3xl border border-slate-800/50 rounded-2xl p-4 shadow-lg overflow-hidden relative">
         {selectedBg && !selectedImage && (
-          <div className="absolute inset-0 opacity-20 pointer-events-none" style={{ background: selectedBg }}></div>
+          <div className="absolute inset-0 opacity-20 pointer-events-none" style={{ background: selectedBg, backgroundSize: 'cover', backgroundPosition: 'center' }}></div>
         )}
         <div className="flex gap-3 relative z-10">
           <img src={profile?.photoURL} className="w-10 h-10 rounded-xl object-cover" alt="" referrerPolicy="no-referrer" />
           <div className="flex-1 space-y-3">
-            <div className={`relative rounded-xl overflow-hidden transition-all ${selectedBg && !selectedImage ? 'min-h-[120px] flex items-center justify-center p-4' : ''}`} style={{ background: !selectedImage ? selectedBg || 'transparent' : 'transparent' }}>
+            <div className={`relative rounded-xl overflow-hidden transition-all ${selectedBg && !selectedImage ? 'min-h-[120px] flex items-center justify-center p-4' : ''}`} style={{ background: !selectedImage ? selectedBg || 'transparent' : 'transparent', backgroundSize: 'cover', backgroundPosition: 'center' }}>
               <textarea
                 value={content}
                 onChange={(e) => setContent(e.target.value)}
@@ -155,11 +159,18 @@ export default function Home() {
                 <div className="flex flex-wrap gap-2">
                   {POST_BACKGROUNDS.map(bg => (
                     <button
-                      key={bg}
-                      onClick={() => setSelectedBg(bg)}
-                      className={`w-6 h-6 rounded-lg border-2 transition-all ${selectedBg === bg ? 'border-white scale-110 shadow-lg' : 'border-transparent hover:scale-105'}`}
-                      style={{ background: bg }}
-                    />
+                      key={bg.value}
+                      onClick={() => setSelectedBg(bg.value)}
+                      className={`w-8 h-8 rounded-lg border-2 transition-all relative group ${selectedBg === bg.value ? 'border-white scale-110 shadow-lg' : 'border-transparent hover:scale-105'}`}
+                      style={{ background: bg.value, backgroundSize: 'cover', backgroundPosition: 'center' }}
+                      title={bg.label}
+                    >
+                      {bg.type === 'image' && (
+                        <div className="absolute inset-x-0 bottom-0 top-0 flex items-center justify-center opacity-0 group-hover:opacity-100 bg-black/40 transition-opacity rounded-md">
+                           <span className="text-[6px] text-white font-black uppercase text-center px-1 leading-none">{bg.label}</span>
+                        </div>
+                      )}
+                    </button>
                   ))}
                 </div>
               </div>

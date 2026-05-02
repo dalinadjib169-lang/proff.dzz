@@ -3,7 +3,7 @@ import { db } from '../firebase';
 import { doc, updateDoc, arrayUnion, arrayRemove, collection, addDoc, serverTimestamp, query, where, orderBy, onSnapshot, deleteDoc, increment, Timestamp, limit } from 'firebase/firestore';
 import { useAuth } from '../hooks/useAuth';
 import { Post, Comment as CommentType, GroupPost } from '../types';
-import { ThumbsUp, MessageCircle, Share2, MoreHorizontal, GraduationCap, Send, Trash2, Globe, Users, Lock as LockIcon, X, Smile, Edit2, Reply, Image as ImageIcon, Camera, EyeOff, Loader2, Flag, ShieldAlert, Facebook } from 'lucide-react';
+import { ThumbsUp, MessageCircle, MessageSquare, Share2, MoreHorizontal, GraduationCap, Send, Trash2, Globe, Users, Lock as LockIcon, X, Smile, Edit2, Reply, Image as ImageIcon, Camera, EyeOff, Loader2, Flag, ShieldAlert, Facebook } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { Link } from 'react-router-dom';
 import React from 'react';
@@ -13,9 +13,18 @@ import { useUpload } from '../hooks/useUpload';
 import { cn } from '../lib/utils';
 
 // Helper for dropdown
-function Dropdown({ children, trigger, align = 'right' }: { children: React.ReactNode, trigger: React.ReactNode, align?: 'left' | 'right' }) {
+function Dropdown({ children, trigger, align = 'right', onOpenChange }: { 
+  children: React.ReactNode, 
+  trigger: React.ReactNode, 
+  align?: 'left' | 'right',
+  onOpenChange?: (open: boolean) => void
+}) {
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    onOpenChange?.(isOpen);
+  }, [isOpen, onOpenChange]);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -39,7 +48,7 @@ function Dropdown({ children, trigger, align = 'right' }: { children: React.Reac
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 10, scale: 0.95 }}
             className={cn(
-              "absolute mt-2 w-48 bg-slate-900 border border-slate-800 rounded-2xl shadow-2xl z-[100] py-2",
+              "absolute mt-2 w-48 bg-slate-900 border border-slate-800 rounded-2xl shadow-2xl z-[500] py-2",
               align === 'right' ? "right-0" : "left-0"
             )}
           >
@@ -67,6 +76,7 @@ const REACTIONS = [
 ];
 
 import ImageLightbox from './ImageLightbox';
+import InternalShareModal from './InternalShareModal';
 
 export default function PostCard({ post, isGroupPost, groupId, onDelete }: { post: Post | GroupPost, isGroupPost?: boolean, groupId?: string, onDelete?: () => void }) {
   const { profile, user } = useAuth();
@@ -87,6 +97,9 @@ export default function PostCard({ post, isGroupPost, groupId, onDelete }: { pos
   const [commentImage, setCommentImage] = useState<File | null>(null);
   const [commentImagePreview, setCommentImagePreview] = useState<string | null>(null);
   const [lightboxSrc, setLightboxSrc] = useState<string | null>(null);
+  const [isHeaderMenuOpen, setIsHeaderMenuOpen] = useState(false);
+  const [isShareMenuOpen, setIsShareMenuOpen] = useState(false);
+  const [isInternalShareOpen, setIsInternalShareOpen] = useState(false);
   const reactionTimeoutRef = React.useRef<any>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -296,8 +309,6 @@ export default function PostCard({ post, isGroupPost, groupId, onDelete }: { pos
     }
   };
 
-  const [isShareMenuOpen, setIsShareMenuOpen] = useState(false);
-
   const handleCopyLink = async () => {
     const url = window.location.origin + '/post/' + post.id;
     await navigator.clipboard.writeText(url);
@@ -306,36 +317,71 @@ export default function PostCard({ post, isGroupPost, groupId, onDelete }: { pos
   };
 
   const handleShareSystem = async () => {
+    const postUrl = window.location.origin + '/post/' + post.id;
     const shareData = {
       title: `منشور من ${post.authorName} على Teac DZ`,
-      text: post.content,
-      url: window.location.origin + '/post/' + post.id
+      text: post.content.substring(0, 100) + (post.content.length > 100 ? '...' : ''),
+      url: postUrl
     };
+
     try {
-      if (navigator.share) {
+      if (navigator.share && navigator.canShare && navigator.canShare(shareData)) {
         await navigator.share(shareData);
       } else {
-        handleCopyLink();
+        await handleCopyLink();
       }
-    } catch (err) {
-      console.error('Share failed:', err);
+    } catch (err: any) {
+      // AbortError is triggered when user cancels the share dialog
+      if (err.name !== 'AbortError') {
+        console.error('Share failed:', err);
+        // Fallback to copy link if share failed for other reasons
+        await handleCopyLink();
+      }
     }
     setIsShareMenuOpen(false);
   };
 
-  const handleShareToChat = async () => {
-    // Logic to share to chat - dispatch event
-    const postUrl = window.location.origin + '/post/' + post.id;
-    window.dispatchEvent(new CustomEvent('share-post', { detail: { post, url: postUrl } }));
+  const handleShareToChat = () => {
+    setIsInternalShareOpen(true);
     setIsShareMenuOpen(false);
-    alert('تم تحضير المنشور للمشاركة في المحادثة');
+  };
+
+  const handleRepublish = async () => {
+    if (!profile || !user) return;
+    if (!window.confirm('هل تريد إعادة حكاية هذا المنشور على صفحتك الشخصية؟')) return;
+    
+    setLoading(true);
+    try {
+      const postUrl = window.location.origin + '/post/' + post.id;
+      await addDoc(collection(db, 'posts'), {
+        authorId: profile.uid,
+        authorName: profile.displayName,
+        authorPhoto: profile.photoURL,
+        content: post.content,
+        imageUrl: post.imageUrl || '',
+        republishedFrom: post.id,
+        republishedAuthor: post.authorName,
+        likes: [],
+        commentCount: 0,
+        privacy: 'public',
+        createdAt: serverTimestamp()
+      });
+      alert('تم إعادة نشر المنشور على صفحتك الشخصية بنجاح!');
+    } catch (error) {
+      console.error("Error republishing:", error);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const topLevelComments = comments.filter(c => !c.parentId);
   const getReplies = (parentId: string) => comments.filter(c => c.parentId === parentId);
 
   return (
-    <div className="bg-slate-950/20 backdrop-blur-3xl border border-white/5 rounded-3xl shadow-xl mb-4 sm:mb-6 relative">
+    <div className={cn(
+      "bg-slate-950/20 backdrop-blur-3xl border border-white/5 rounded-3xl shadow-xl mb-4 sm:mb-6 relative transition-all duration-300",
+      showReactions || isShareMenuOpen || isHeaderMenuOpen ? "z-[60] ring-1 ring-primary/20 shadow-primary/10" : "z-0"
+    )}>
       {/* Header */}
       <div className="px-4 py-3 flex items-center justify-between border-b border-white/5">
         <Link to={`/profile/${post.authorId}`} className="flex items-center gap-3">
@@ -358,7 +404,11 @@ export default function PostCard({ post, isGroupPost, groupId, onDelete }: { pos
           </div>
         </Link>
         
-        <Dropdown align="left" trigger={<button className="p-2 text-slate-500 hover:text-white transition-colors"><MoreHorizontal className="w-5 h-5" /></button>}>
+        <Dropdown 
+          align="left" 
+          onOpenChange={setIsHeaderMenuOpen}
+          trigger={<button className="p-2 text-slate-500 hover:text-white transition-colors"><MoreHorizontal className="w-5 h-5" /></button>}
+        >
           {(profile?.uid === post.authorId || profile?.email === 'dalinadjib1990@gmail.com') && (
             <>
               <button onClick={() => setIsEditingPost(true)} className="w-full text-right px-4 py-2 text-xs font-bold text-slate-300 hover:bg-slate-800 flex items-center justify-end gap-2">
@@ -381,6 +431,13 @@ export default function PostCard({ post, isGroupPost, groupId, onDelete }: { pos
           )}
         </Dropdown>
       </div>
+
+      {post.republishedFrom && (
+        <div className="px-4 py-2 bg-primary/5 border-b border-white/5 flex items-center gap-2">
+          <Share2 className="w-3.5 h-3.5 text-primary" />
+          <span className="text-[10px] font-black text-primary uppercase">أعاد نشر محتوى زميله: {post.republishedAuthor}</span>
+        </div>
+      )}
 
       {/* Content */}
       <div className="px-4 py-3">
@@ -409,7 +466,7 @@ export default function PostCard({ post, isGroupPost, groupId, onDelete }: { pos
             </div>
           </div>
         ) : post.background ? (
-          <div className="p-8 rounded-2xl flex items-center justify-center text-center text-lg sm:text-xl font-black text-white min-h-[160px] shadow-inner" style={{ background: post.background }}>
+          <div className="p-8 rounded-2xl flex items-center justify-center text-center text-lg sm:text-xl font-black text-white min-h-[160px] shadow-inner" style={{ background: post.background, backgroundSize: 'cover', backgroundPosition: 'center' }}>
             <p className="leading-tight drop-shadow-md">{post.content}</p>
           </div>
         ) : (
@@ -454,7 +511,7 @@ export default function PostCard({ post, isGroupPost, groupId, onDelete }: { pos
                   initial={{ opacity: 0, y: 10, scale: 0.5, x: '-50%' }}
                   animate={{ opacity: 1, y: -55, scale: 1, x: '-50%' }}
                   exit={{ opacity: 0, y: 10, scale: 0.5, x: '-50%' }}
-                  className="absolute bottom-full left-1/2 mb-3 bg-slate-900 shadow-2xl border border-white/10 rounded-full flex items-center gap-1 p-1.5 z-[100] ring-1 ring-white/10 min-w-max"
+                  className="absolute bottom-full left-1/2 mb-3 bg-slate-900 shadow-2xl border border-white/10 rounded-full flex items-center gap-1 p-1.5 z-[500] ring-1 ring-white/10 min-w-max"
                   onMouseEnter={() => {
                     if (reactionTimeoutRef.current) clearTimeout(reactionTimeoutRef.current);
                   }}
@@ -505,19 +562,31 @@ export default function PostCard({ post, isGroupPost, groupId, onDelete }: { pos
             <span>{commentCount > 0 ? commentCount : 'تعليق'}</span>
           </button>
         </div>
-        <Dropdown align="left" trigger={
-          <button className="p-2 text-slate-500 hover:text-primary transition-all">
-            <Share2 className="w-4.5 h-4.5" />
+        <Dropdown 
+          align="left" 
+          onOpenChange={setIsShareMenuOpen}
+          trigger={
+            <button className="p-2 text-slate-500 hover:text-primary transition-all">
+              <Share2 className="w-4.5 h-4.5" />
+            </button>
+          }
+        >
+          <div className="p-1">
+            <button 
+              onClick={handleRepublish} 
+              className="w-full text-right px-4 py-3 text-[13px] font-black bg-primary text-white hover:bg-primary/90 flex items-center justify-end gap-2 rounded-xl shadow-lg shadow-primary/20 mb-1 active:scale-95 transition-all"
+            >
+              إعادة نشر بصفحتك المعلمة <Share2 className="w-4.5 h-4.5" />
+            </button>
+          </div>
+          <button onClick={handleShareToChat} className="w-full text-right px-4 py-2.5 text-xs font-bold text-slate-300 hover:bg-slate-800 flex items-center justify-end gap-2 border-t border-slate-800">
+            مشاركة مع زميل أو مجموعة <MessageSquare className="w-3.5 h-3.5" />
           </button>
-        }>
-          <button onClick={handleCopyLink} className="w-full text-right px-4 py-2.5 text-xs font-bold text-slate-300 hover:bg-slate-800 flex items-center justify-end gap-2">
+          <button onClick={handleCopyLink} className="w-full text-right px-4 py-2.5 text-xs font-bold text-slate-300 hover:bg-slate-800 flex items-center justify-end gap-2 border-t border-slate-800">
             نسخ الرابط <Send className="w-3.5 h-3.5 rotate-180" />
           </button>
-          <button onClick={handleShareToChat} className="w-full text-right px-4 py-2.5 text-xs font-bold text-slate-300 hover:bg-slate-800 flex items-center justify-end gap-2">
-            مشاركة في محادثة <MessageCircle className="w-3.5 h-3.5" />
-          </button>
           <button onClick={handleShareSystem} className="w-full text-right px-4 py-2.5 text-xs font-bold text-slate-300 hover:bg-slate-800 flex items-center justify-end gap-2 border-t border-slate-800">
-            مشاركة عبر تطبيقات أخرى <Share2 className="w-3.5 h-3.5" />
+            مشاركة عبر تطبيقات أخرى <Globe className="w-3.5 h-3.5" />
           </button>
           <a
             href={`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(window.location.origin + '/post/' + post.id)}`}
@@ -529,6 +598,12 @@ export default function PostCard({ post, isGroupPost, groupId, onDelete }: { pos
           </a>
         </Dropdown>
       </div>
+
+      <InternalShareModal 
+        post={post}
+        isOpen={isInternalShareOpen}
+        onClose={() => setIsInternalShareOpen(false)}
+      />
 
       {/* Comments */}
       {showComments && (

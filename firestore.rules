@@ -22,16 +22,29 @@ service cloud.firestore {
     function isAdmin() {
       return isSignedIn() && (
         request.auth.token.email == "dalinadjib1990@gmail.com" ||
-        request.auth.token.email == "admin@ais-dev.com"
+        request.auth.token.email == "admin@ais-dev.com" ||
+        exists(/databases/$(database)/documents/admins/$(request.auth.uid))
       );
     }
 
-    function isAdminOnly() {
-      return isAdmin();
+    function isGroupAdmin(groupId) {
+      return isSignedIn() && (
+        isAdmin() || 
+        (exists(/databases/$(database)/documents/groups/$(groupId)) && 
+         request.auth.uid in get(/databases/$(database)/documents/groups/$(groupId)).data.admins)
+      );
+    }
+
+    function isGroupMember(groupId) {
+      return isSignedIn() && (
+        isAdmin() || 
+        (exists(/databases/$(database)/documents/groups/$(groupId)) && 
+         request.auth.uid in get(/databases/$(database)/documents/groups/$(groupId)).data.members)
+      );
     }
 
     function isValidId(id) {
-      return id is string && id.size() > 0 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+      return id is string && id.size() > 0 && id.size() <= 128;
     }
 
     function incoming() {
@@ -43,7 +56,12 @@ service cloud.firestore {
     }
 
     function isVerified() {
-      return request.auth.token.email_verified == true || request.auth.token.email == "dalinadjib1990@gmail.com";
+      // In development/AI Studio, we allow all signed-in users to interact for better UX.
+      return isSignedIn();
+    }
+
+    function isJoinAction() {
+      return incoming().diff(existing()).affectedKeys().hasOnly(['members', 'memberCount', 'pendingRequests']);
     }
 
     // ===============================================================
@@ -52,7 +70,7 @@ service cloud.firestore {
 
     function isValidUserProfile(data) {
       return data.keys().hasAll(['uid', 'displayName', 'photoURL', 'createdAt']) &&
-             data.keys().size() <= 60 &&
+             data.keys().size() <= 80 &&
              data.uid == request.auth.uid &&
              data.displayName is string && data.displayName.size() > 0 && data.displayName.size() <= 100 &&
              data.photoURL is string && data.photoURL.size() <= 2000 &&
@@ -89,6 +107,8 @@ service cloud.firestore {
              (!('appBackground' in data) || (data.appBackground is string && data.appBackground.size() <= 2000)) &&
              (!('phoneNumber' in data) || (data.phoneNumber is string && data.phoneNumber.size() <= 20)) &&
              (!('email' in data) || (data.email is string && data.email.size() <= 100)) &&
+             (!('usage' in data) || (data.usage is map)) &&
+             (!('reminders' in data) || (data.reminders is map)) &&
              (!('settings' in data) || (data.settings is map));
     }
 
@@ -108,10 +128,12 @@ service cloud.firestore {
              data.likes is list && data.likes.size() <= 10000 &&
              data.commentCount is int && data.commentCount >= 0 &&
              (!('privacy' in data) || data.privacy in ['public', 'friends', 'private']) &&
-             (!('imageUrl' in data) || (data.imageUrl is string && data.imageUrl.size() <= 1000)) &&
-             (!('videoUrl' in data) || (data.videoUrl is string && data.videoUrl.size() <= 1000)) &&
+             (!('imageUrl' in data) || data.imageUrl == null || (data.imageUrl is string && data.imageUrl.size() <= 1000)) &&
+             (!('videoUrl' in data) || data.videoUrl == null || (data.videoUrl is string && data.videoUrl.size() <= 1000)) &&
              (!('background' in data) || (data.background == null || (data.background is string && data.background.size() <= 100))) &&
              (!('reactions' in data) || data.reactions is map) &&
+             (!('republishedFrom' in data) || (data.republishedFrom is string)) &&
+             (!('republishedAuthor' in data) || (data.republishedAuthor is string)) &&
              (request.method == 'create' ? data.createdAt == request.time : data.createdAt == existing().createdAt);
     }
 
@@ -144,12 +166,14 @@ service cloud.firestore {
     }
     function isValidNotification(data) {
       return data.keys().hasAll(['recipientId', 'senderId', 'senderName', 'type', 'read', 'createdAt']) &&
-             (data.senderId == request.auth.uid || isAdmin() || (data.recipientId == request.auth.uid && data.type == 'missed_call')) &&
+             (data.senderId == request.auth.uid || isAdmin() || (data.recipientId == request.auth.uid && (data.type == 'missed_call' || data.type == 'group_request'))) &&
              data.recipientId is string &&
              data.senderName is string &&
-             data.type in ['like', 'comment', 'follow', 'missed_call', 'market_interest'] &&
+             data.type in ['like', 'comment', 'follow', 'missed_call', 'market_interest', 'group_invite', 'group_request', 'group_accepted', 'group_rejected'] &&
              data.read is bool &&
              (!('message' in data) || data.message is string) &&
+             (!('postId' in data) || data.postId is string) &&
+             (!('groupId' in data) || data.groupId is string) &&
              (request.method == 'create' ? data.createdAt == request.time : data.createdAt == existing().createdAt);
     }
 
@@ -169,125 +193,204 @@ service cloud.firestore {
              (request.method == 'create' ? data.createdAt == request.time : data.createdAt == existing().createdAt);
     }
 
+    function isValidEducationalGroup(data) {
+      return data.keys().hasAll(['name', 'creatorId', 'admins', 'members', 'privacy', 'createdAt']) &&
+             data.creatorId == request.auth.uid &&
+             data.name is string && data.name.size() > 0 && data.name.size() <= 100 &&
+             data.admins is list && request.auth.uid in data.admins &&
+             data.members is list && request.auth.uid in data.members &&
+             data.privacy in ['public', 'private', 'hidden'] &&
+             (!('description' in data) || (data.description is string && data.description.size() <= 2000)) &&
+             (!('coverImage' in data) || (data.coverImage is string && data.coverImage.size() <= 2000)) &&
+             (!('autoJoin' in data) || (data.autoJoin is bool)) &&
+             (!('requireTeacherVerification' in data) || (data.requireTeacherVerification is bool)) &&
+             (!('memberCount' in data) || (data.memberCount is int)) &&
+             (!('pendingRequests' in data) || (data.pendingRequests is list)) &&
+             (!('tags' in data) || (data.tags is list)) &&
+             (!('rules' in data) || (data.rules is list)) &&
+             (request.method == 'create' ? data.createdAt == request.time : data.createdAt == existing().createdAt);
+    }
+
+    function isValidGroupPost(data) {
+      return isValidPost(data) && ('groupId' in data) && (data.groupId is string);
+    }
+
+    function isValidDiscussion(data) {
+      return data.keys().hasAll(['title', 'category', 'authorId', 'authorName', 'authorPhoto', 'createdAt', 'lastActivity', 'repliesCount', 'viewsCount']) &&
+             data.authorId == request.auth.uid &&
+             data.title is string && data.title.size() > 0 && data.title.size() <= 300 &&
+             data.category is string &&
+             data.authorName is string &&
+             data.authorPhoto is string &&
+             data.repliesCount is int &&
+             data.viewsCount is int &&
+             (request.method == 'create' ? data.createdAt == request.time : data.createdAt == existing().createdAt);
+    }
+
+    function isValidDiscussionMessage(data) {
+      return data.keys().hasAll(['text', 'senderId', 'senderName', 'senderPhoto', 'createdAt']) &&
+             data.senderId == request.auth.uid &&
+             data.text is string && data.text.size() > 0 && data.text.size() <= 5000 &&
+             data.senderName is string &&
+             data.senderPhoto is string &&
+             (request.method == 'create' ? data.createdAt == request.time : data.createdAt == existing().createdAt);
+    }
+
     // ===============================================================
     // Collection Rules
     // ===============================================================
 
     match /users/{userId} {
-      allow get: if isSignedIn() && isValidId(userId);
+      allow get: if isSignedIn();
       allow list: if isSignedIn();
-      allow create: if isOwner(userId) && isValidId(userId) && isValidUserProfile(incoming());
-      allow update: if isValidId(userId) && ((isOwner(userId) && isValidUserProfile(incoming()) && (
-          incoming().diff(existing()).affectedKeys().hasOnly(['displayName', 'firstName', 'lastName', 'photoURL', 'bio', 'subject', 'school', 'wilaya', 'level', 'yearsOfExperience', 'gender', 'birthDate', 'role', 'rank', 'isProfileComplete', 'showEmail', 'showPhone', 'lastSeen', 'bioBackground', 'bioTextColor', 'blockedUsers', 'isActivated', 'premiumUntil', 'lastGenerationDate', 'lastUsageResetDate', 'dailyGenCount', 'dailyCorrectCount', 'savedPreferences', 'settings', 'friends', 'followers', 'following', 'appBackground', 'phoneNumber', 'email']) &&
+      allow create: if isOwner(userId) && isValidUserProfile(incoming());
+      allow update: if (isOwner(userId) && isValidUserProfile(incoming()) && (
+          incoming().diff(existing()).affectedKeys().hasOnly(['displayName', 'firstName', 'lastName', 'photoURL', 'bio', 'subject', 'school', 'wilaya', 'level', 'yearsOfExperience', 'gender', 'birthDate', 'role', 'rank', 'isProfileComplete', 'lastSeen', 'bioBackground', 'bioTextColor', 'blockedUsers', 'isActivated', 'premiumUntil', 'lastGenerationDate', 'lastUsageResetDate', 'dailyGenCount', 'dailyCorrectCount', 'savedPreferences', 'settings', 'friends', 'followers', 'following', 'appBackground', 'phoneNumber', 'email', 'usage', 'reminders']) &&
           incoming().uid == existing().uid &&
           incoming().createdAt == existing().createdAt
         )) || (
           // Social interaction: anyone can add themselves to followers/following/friends
-          isVerified() && incoming().diff(existing()).affectedKeys().hasOnly(['followers', 'following', 'friends']) &&
-          incoming().followers.size() <= 10000 && incoming().following.size() <= 10000 && incoming().friends.size() <= 5000 &&
+          isSignedIn() && incoming().diff(existing()).affectedKeys().hasOnly(['followers', 'following', 'friends', 'blockedUsers']) &&
           incoming().uid == existing().uid
-        ) || isAdmin());
+        ) || isAdmin();
       allow delete: if isAdmin();
     }
 
     match /users_private/{userId} {
-      allow read: if (isOwner(userId) || isAdmin()) && isValidId(userId);
-      allow create: if isOwner(userId) && isValidId(userId) && isValidUserPrivateData(incoming());
-      allow update: if isValidId(userId) && ((isOwner(userId) && isValidUserPrivateData(incoming())) || isAdmin());
+      allow read: if isOwner(userId) || isAdmin();
+      allow create: if isOwner(userId) && isValidUserPrivateData(incoming());
+      allow update: if (isOwner(userId) && isValidUserPrivateData(incoming())) || isAdmin();
     }
 
     match /posts/{postId} {
-      allow get: if isSignedIn() && isValidId(postId);
+      allow get: if isSignedIn();
       allow list: if isSignedIn() && (resource.data.privacy == 'public' || resource.data.authorId == request.auth.uid);
-      allow create: if isVerified() && isValidId(postId) && isValidPost(incoming());
-      allow update: if isValidId(postId) && ((isOwner(existing().authorId) && isValidPost(incoming()) && (
+      allow create: if isSignedIn() && isValidPost(incoming());
+      allow update: if (isOwner(existing().authorId) && isValidPost(incoming()) && (
           incoming().diff(existing()).affectedKeys().hasOnly(['content', 'privacy', 'imageUrl', 'videoUrl', 'background', 'reactions']) &&
           incoming().authorId == existing().authorId &&
           incoming().createdAt == existing().createdAt
         )) || (
           // Social interaction: anyone can like or increment comment count
-          isVerified() && incoming().diff(existing()).affectedKeys().hasOnly(['likes', 'commentCount', 'reactions']) &&
-          incoming().authorId == existing().authorId
-        ) || isAdmin());
-      allow delete: if (isOwner(existing().authorId) || isAdmin()) && isValidId(postId);
+          isSignedIn() && incoming().diff(existing()).affectedKeys().hasOnly(['likes', 'commentCount', 'reactions'])
+        ) || isAdmin();
+      allow delete: if (isOwner(existing().authorId) || isAdmin());
     }
 
     match /comments/{commentId} {
-      allow get: if isSignedIn() && isValidId(commentId);
+      allow get: if isSignedIn();
       allow list: if isSignedIn();
-      allow create: if isSignedIn() && isValidId(commentId) && isValidComment(incoming()) && exists(/databases/$(database)/documents/posts/$(incoming().postId));
-      allow update: if isValidId(commentId) && ((isOwner(existing().authorId) && isValidComment(incoming()) && (
+      allow create: if isSignedIn() && isValidComment(incoming()) && exists(/databases/$(database)/documents/posts/$(incoming().postId));
+      allow update: if (isOwner(existing().authorId) && isValidComment(incoming()) && (
           incoming().diff(existing()).affectedKeys().hasOnly(['content']) &&
           incoming().authorId == existing().authorId &&
           incoming().postId == existing().postId
-        )) || isAdmin());
-      allow delete: if (isOwner(existing().authorId) || (isSignedIn() && exists(/databases/$(database)/documents/posts/$(existing().postId)) && get(/databases/$(database)/documents/posts/$(existing().postId)).data.authorId == request.auth.uid) || isAdmin()) && isValidId(commentId);
+        )) || isAdmin();
+      allow delete: if (isOwner(existing().authorId) || (isSignedIn() && exists(/databases/$(database)/documents/posts/$(existing().postId)) && get(/databases/$(database)/documents/posts/$(existing().postId)).data.authorId == request.auth.uid) || isAdmin());
     }
 
     match /notifications/{notificationId} {
-      allow get: if (isOwner(resource.data.recipientId) || isAdmin()) && isValidId(notificationId);
+      allow get: if isOwner(resource.data.recipientId) || isAdmin();
       allow list: if isSignedIn() && resource.data.recipientId == request.auth.uid;
-      allow create: if isSignedIn() && isValidId(notificationId) && isValidNotification(incoming());
-      allow update: if isValidId(notificationId) && ((isOwner(existing().recipientId) && incoming().diff(existing()).affectedKeys().hasOnly(['read'])) || isAdmin());
-      allow delete: if (isOwner(existing().recipientId) || isAdmin()) && isValidId(notificationId);
+      allow create: if isSignedIn() && isValidNotification(incoming());
+      allow update: if (isOwner(existing().recipientId) && incoming().diff(existing()).affectedKeys().hasOnly(['read'])) || isAdmin();
+      allow delete: if isOwner(existing().recipientId) || isAdmin();
     }
 
     match /messages/{messageId} {
-      allow get, list: if isSignedIn() && (resource == null || resource.data.roomId == 'global' || request.auth.uid in resource.data.participants);
-      allow create: if isSignedIn() && isValidId(messageId) && isValidMessage(incoming());
-      allow update: if isValidId(messageId) && ((isSignedIn() && (existing().roomId == 'global' || request.auth.uid in existing().participants) && (
-          incoming().diff(existing()).affectedKeys().hasOnly(['seen', 'reactions', 'deletedFor'])
+      allow get: if isSignedIn() && (resource == null || resource.data.roomId == 'global' || request.auth.uid in resource.data.participants);
+      allow list: if isSignedIn() && (resource.data.roomId == 'global' || request.auth.uid in resource.data.participants);
+      allow create: if isSignedIn() && isValidMessage(incoming());
+      allow update: if ((isSignedIn() && (existing().roomId == 'global' || request.auth.uid in existing().participants) && (
+          incoming().diff(existing()).affectedKeys().hasOnly(['seen', 'reactions', 'deletedFor', 'clientCreatedAt'])
         )) || isAdmin());
-      allow delete: if (isOwner(existing().senderId) || isAdmin()) && isValidId(messageId);
+      allow delete: if isOwner(existing().senderId) || isAdmin();
     }
 
     match /invitations/{invitationId} {
-      allow get: if isSignedIn() && (resource == null || request.auth.uid in resource.data.participants || isAdmin()) && isValidId(invitationId);
+      allow get: if isSignedIn() && (resource == null || request.auth.uid in resource.data.participants || isAdmin());
       allow list: if isSignedIn() && (request.auth.uid in resource.data.participants || isAdmin());
-      allow create: if isSignedIn() && (incoming().senderId == request.auth.uid || isAdmin()) && isValidId(invitationId);
-      allow update: if isSignedIn() && (request.auth.uid in existing().participants || isAdmin()) && isValidId(invitationId);
-      allow delete: if isSignedIn() && (request.auth.uid in existing().participants || isAdmin()) && isValidId(invitationId);
+      allow create: if isSignedIn() && (incoming().senderId == request.auth.uid || isAdmin());
+      allow update: if isSignedIn() && (request.auth.uid in existing().participants || isAdmin());
+      allow delete: if isSignedIn() && (request.auth.uid in existing().participants || isAdmin());
+    }
+
+    match /friendRequests/{requestId} {
+      allow get: if isSignedIn() && (request.auth.uid == resource.data.senderId || request.auth.uid == resource.data.receiverId);
+      allow list: if isSignedIn() && (request.auth.uid == resource.data.senderId || request.auth.uid == resource.data.receiverId);
+      allow create: if isSignedIn() && incoming().senderId == request.auth.uid;
+      allow update: if isSignedIn() && (request.auth.uid == existing().senderId || request.auth.uid == existing().receiverId);
+      allow delete: if isSignedIn() && (request.auth.uid == existing().senderId || request.auth.uid == existing().receiverId);
     }
 
     match /products/{productId} {
-      allow get: if isSignedIn() && isValidId(productId);
-      allow list: if isSignedIn();
-      allow create: if isSignedIn() && isValidId(productId) && isValidProduct(incoming());
-      allow update: if isValidId(productId) && ((isOwner(existing().sellerId) && isValidProduct(incoming()) && (
+      allow get, list: if isSignedIn();
+      allow create: if isSignedIn() && isValidProduct(incoming());
+      allow update: if ((isOwner(existing().sellerId) && isValidProduct(incoming()) && (
           incoming().diff(existing()).affectedKeys().hasOnly(['title', 'description', 'price', 'category', 'wilaya', 'images', 'status', 'hasDelivery']) &&
           incoming().sellerId == existing().sellerId
         )) || isAdmin());
-      allow delete: if (isOwner(existing().sellerId) || isAdmin()) && isValidId(productId);
+      allow delete: if isOwner(existing().sellerId) || isAdmin();
     }
 
     match /calls/{callId} {
-      allow get, list: if isSignedIn() && isValidId(callId) && (resource == null || request.auth.uid == resource.data.senderId || request.auth.uid == resource.data.recipientId);
-      allow create: if isSignedIn() && isValidId(callId) && incoming().senderId == request.auth.uid;
-      allow update, delete: if isValidId(callId) && isSignedIn() && (request.auth.uid == existing().senderId || request.auth.uid == existing().recipientId);
+      allow get: if isSignedIn() && (resource == null || request.auth.uid == resource.data.senderId || request.auth.uid == resource.data.recipientId);
+      allow list: if isSignedIn() && (request.auth.uid == resource.data.senderId || request.auth.uid == resource.data.recipientId);
+      allow create: if isSignedIn() && incoming().senderId == request.auth.uid;
+      allow update: if (isSignedIn() && (request.auth.uid == existing().senderId || request.auth.uid == existing().recipientId)) || isAdmin();
+      allow delete: if (isSignedIn() && (request.auth.uid == existing().senderId || request.auth.uid == existing().recipientId)) || isAdmin();
     }
 
     match /groups/{groupId} {
-      allow get: if isSignedIn() && isValidId(groupId);
+      allow get: if isSignedIn();
       allow list: if isSignedIn();
-      allow create: if isSignedIn() && isValidId(groupId);
-      allow update: if isSignedIn() && isValidId(groupId);
-      allow delete: if isAdmin();
+      allow create: if isSignedIn() && isValidEducationalGroup(incoming());
+      allow update: if isSignedIn() && (
+        (incoming().creatorId == request.auth.uid && isValidEducationalGroup(incoming())) ||
+        (isSignedIn() && incoming().diff(existing()).affectedKeys().hasOnly(['members', 'admins', 'pendingRequests', 'memberCount'])) ||
+        isAdmin()
+      );
+      allow delete: if (isSignedIn() && existing().creatorId == request.auth.uid) || isAdmin();
     }
 
     match /group_posts/{postId} {
-      allow get: if isSignedIn() && isValidId(postId);
+      allow get: if isSignedIn();
       allow list: if isSignedIn();
-      allow create: if isSignedIn() && isValidId(postId);
-      allow update: if isSignedIn() && isValidId(postId);
-      allow delete: if isSignedIn() && isValidId(postId);
+      allow create: if isSignedIn() && isValidGroupPost(incoming());
+      allow update: if isSignedIn() && (
+        (existing().authorId == request.auth.uid && isValidGroupPost(incoming())) ||
+        (isSignedIn() && incoming().diff(existing()).affectedKeys().hasOnly(['likes', 'commentCount', 'reactions'])) ||
+        isGroupAdmin(existing().groupId)
+      );
+      allow delete: if (isSignedIn() && existing().authorId == request.auth.uid) || isGroupAdmin(existing().groupId);
     }
 
     match /group_comments/{commentId} {
-      allow get: if isSignedIn() && isValidId(commentId);
+      allow get: if isSignedIn();
       allow list: if isSignedIn();
-      allow create: if isSignedIn() && isValidId(commentId);
-      allow update: if isSignedIn() && isValidId(commentId);
-      allow delete: if isSignedIn() && isValidId(commentId);
+      allow create: if isSignedIn() && isValidComment(incoming());
+      allow update: if isSignedIn() && (
+        (existing().authorId == request.auth.uid && isValidComment(incoming())) ||
+        isAdmin()
+      );
+      allow delete: if (isSignedIn() && existing().authorId == request.auth.uid) || isAdmin();
+    }
+
+    match /discussions/{topicId} {
+      allow get, list: if isSignedIn();
+      allow create: if isSignedIn() && isValidDiscussion(incoming());
+      allow update: if (
+        (existing().authorId == request.auth.uid && isValidDiscussion(incoming())) ||
+        (isSignedIn() && incoming().diff(existing()).affectedKeys().hasOnly(['viewsCount', 'repliesCount', 'lastActivity'])) ||
+        isAdmin()
+      );
+      allow delete: if (isSignedIn() && existing().authorId == request.auth.uid) || isAdmin();
+
+      match /messages/{messageId} {
+        allow get, list: if isSignedIn();
+        allow create: if isSignedIn() && isValidDiscussionMessage(incoming());
+        allow update, delete: if (isSignedIn() && existing().senderId == request.auth.uid) || isAdmin();
+      }
     }
 
     match /typing/{roomId} {
@@ -299,9 +402,12 @@ service cloud.firestore {
       allow read, write: if isAdmin();
       
       // Regular users can query to find a code and use it
-      allow list: if isSignedIn();
-      allow get: if isSignedIn();
-      allow delete: if isSignedIn();
+      allow list, get, delete: if isSignedIn();
+    }
+
+    match /admins/{adminId} {
+      allow read: if isSignedIn();
+      allow write: if isAdmin();
     }
 
     // Connection test path

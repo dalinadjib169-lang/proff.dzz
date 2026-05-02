@@ -228,48 +228,55 @@ export const PrayerWaterBar: React.FC = () => {
     if (hour >= 5 && hour < 11) {
       return [
         { text: "☀️ أذكار الصباح: ", type: 'title' },
-        { text: "سورة الإخلاص والمعوذتين (3 مرات)", type: 'surah' },
-        { text: "آية الكرسي: اللَّهُ لَا إِلَهَ إِلَّا هُوَ الْحَيُّ الْقَيُّومُ", type: 'surah' },
-        { text: "أصبحنا وأصبح الملك لله والحمد لله", type: 'zekr' },
-        { text: "اللهم بك أصبحنا وبك أمسينا وبك نحيا", type: 'dua' },
-        { text: "يا حي يا قيوم برحمتك أستغيث", type: 'dua' },
-        { text: "رضيت بالله رباً وبالإسلام ديناً وبمحمد ﷺ نبياً", type: 'zekr' },
-        { text: "سبحان الله وبحمده عدد خلقه ورضا نفسه", type: 'zekr' },
-        { text: "اللهم إني أسألك علماً نافعاً ورزقاً طيباً", type: 'dua' }
+        { text: "أصبحنا وأصبح الملك لله، والحمد لله، لا إله إلا الله وحده لا شريك له له الملك وله الحمد وهو على كل شيء قدير", type: 'zekr' },
+        { text: "اللهم بك أصبحنا، وبك أمسينا، وبك نحيا، وبك نموت، وإليك النشور", type: 'dua' },
+        { text: "اللهم أنت ربي لا إله إلا أنت، خلقتني وأنا عبدك، وأنا على عهدك ووعدك ما استطعت، أعوذ بك من شر ما صنعت (سيد الاستغفار)", type: 'zekr' },
+        { text: "اللهم إني أسألك العافية في الدنيا والآخرة، اللهم إني أسألك العفو والعافية في ديني ودنياي وأهلي ومالي", type: 'dua' },
+        { text: "سورة الإخلاص: قُلْ هُوَ اللَّهُ أَحَدٌ | سورة الفلق: قُلْ أَعُوذُ بِرَبِّ الْفَلَقِ | سورة الناس: قُلْ أَعُوذُ بِرَبِّ النَّاسِ (3 مرات لكل سورة)", type: 'surah' },
+        { text: "يا حي يا قيوم برحمتك أستغيث أصلح لي شأني كله ولا تكلني إلى نفسي طرفة عين", type: 'dua' },
+        { text: "رضيت بالله رباً، وبالإسلام ديناً، وبمحمد ﷺ نبياً (3 مرات)", type: 'zekr' },
+        { text: "سبحان الله وبحمده: عدد خلقه، ورضا نفسه، وزنة عرشه، ومداد كلماته (3 مرات)", type: 'zekr' },
+        { text: "اللهم إني أسألك علماً نافعاً، ورزقاً طيباً، وعملاً متقبلاً", type: 'dua' },
+        { text: "بسم الله الذي لا يضر مع اسمه شيء في الأرض ولا في السماء وهو السميع العليم (3 مرات)", type: 'zekr' }
       ];
     } else if (hour >= 16 && hour < 20) {
       return [
         { text: "🌙 أذكار المساء: ", type: 'title' },
-        { text: "آية الكرسي", type: 'surah' },
-        { text: "أمسين وأمسى الملك لله والحمد لله", type: 'zekr' },
-        { text: "اللهم بك أمسينا وبك أصبحنا", type: 'dua' },
-        { text: "أعوذ بكلمات الله التامات من شر ما خلق", type: 'dua' },
+        { text: "سورة الإخلاص والمعوذتين (3 مرات لكل واحدة)", type: 'surah' },
+        { text: "آية الكرسي: اللَّهُ لَا إِلَهَ إِلَّا هُوَ الْحَيُّ الْقَيُّومُ لَا تَأْخُذُهُ سِنَةٌ وَلَا نَوْمٌ", type: 'surah' },
+        { text: "أمسينا وأمسى الملك لله، والحمد لله، لا إله إلا الله وحده لا شريك له له الملك وله الحمد", type: 'zekr' },
+        { text: "اللهم بك أمسينا، وبك أصبحنا، وبك نحيا، وبك نموت، وإليك المصير", type: 'dua' },
+        { text: "أعوذ بكلمات الله التامات من شر ما خلق (3 مرات)", type: 'dua' },
         { text: "اللهم إني أسألك العفو والعافية في الدنيا والآخرة", type: 'dua' },
-        { text: "يا حي يا قيوم أصلح لي شأني كله", type: 'dua' },
-        { text: "اللهم أنت ربي لا إله إلا أنت خلقتني", type: 'zekr' },
-        { text: "اللهم قني شر نفسي واعزم لي على أرشد أمري", type: 'dua' }
+        { text: "يا حي يا قيوم أصلح لي شأني كله ولا تكلني إلى نفسي طرفة عين", type: 'dua' },
+        { text: "اللهم أنت ربي لا إله إلا أنت، خلقتني وأنا عبدك، وأنا على عهدك ووعدك ما استطعت (سيد الاستغفار)", type: 'zekr' },
+        { text: "بسم الله الذي لا يضر مع اسمه شيء في الأرض ولا في السماء وهو السميع العليم", type: 'zekr' },
+        { text: "اللهم صل وسلم وبارك على نبينا محمد (10 مرات)", type: 'dua' }
       ];
     } else if (hour >= 21 || hour < 5) {
       return [
         { text: "💤 أذكار النوم: ", type: 'title' },
-        { text: "سورة الملك: تَبَارَكَ الَّذِي بِيَدِهِ الْمُلْكُ", type: 'surah' },
-        { text: "آية الكرسي", type: 'surah' },
-        { text: "سورة الإخلاص والمعوذتين", type: 'surah' },
+        { text: "سورة الملك: تَبَارَكَ الَّذِي بِيَدِهِ الْمُلْكُ وَهُوَ عَلَى كُلِّ شَيْءٍ قَدِيرٌ (المنجية من عذاب القبر)", type: 'surah' },
+        { text: "آية الكرسي: اللَّهُ لَا إِلَهَ إِلَّا هُوَ الْحَيُّ الْقَيُّومُ", type: 'surah' },
+        { text: "خواتيم سورة البقرة: آمَنَ الرَّسُولُ بِمَا أُنزِلَ إِلَيْهِ مِن رَبِّهِ وَالْمُؤْمِنُونَ", type: 'surah' },
         { text: "باسمك اللهم أموت وأحيا", type: 'zekr' },
-        { text: "اللهم قني عذابك يوم تبعث عبادك", type: 'dua' },
-        { text: "الحمد لله الذي أطعمنا وسقانا وكفانا", type: 'zekr' },
-        { text: "سبحان الله (33) | الحمد لله (33) | الله أكبر (34)", type: 'zekr' }
+        { text: "اللهم قني عذابك يوم تبعث عبادك (3 مرات)", type: 'dua' },
+        { text: "الحمد لله الذي أطعمنا وسقانا وكفانا وآوانا", type: 'zekr' },
+        { text: "سورة الإخلاص والمعوذتين (جمع الكفين والنفث فيهما والمسح على ما استطاع من الجسد)", type: 'surah' },
+        { text: "سبحان الله (33) | الحمد لله (33) | الله أكبر (34)", type: 'zekr' },
+        { text: "اللهم أسلمت نفسي إليك، وفوضت أمري إليك، وألجأت ظهري إليك", type: 'dua' }
       ];
     }
     return [
-      { text: "✨ أذكار اليوم: ", type: 'title' },
-      { text: "سورة الفاتحة", type: 'surah' },
-      { text: "سبحان الله وبحمده سبحان الله العظيم", type: 'zekr' },
+      { text: "✨ أذكار نبوية منوعة: ", type: 'title' },
+      { text: "سورة الفاتحة: الْحَمْدُ لِلَّهِ رَبِّ الْعَالَمِينَ (أعظم سورة في القرآن)", type: 'surah' },
+      { text: "سبحان الله وبحمده، سبحان الله العظيم (خفيفتان على اللسان ثقيلتان في الميزان)", type: 'zekr' },
       { text: "الحمد لله حمداً كثيراً طيباً مباركاً فيه", type: 'zekr' },
-      { text: "لا إله إلا الله وحده لا شريك له", type: 'zekr' },
-      { text: "اللهم صل وسلم على نبينا محمد", type: 'dua' },
-      { text: "استغفر الله الذي لا إله إلا هو الحي القيوم", type: 'dua' },
-      { text: "لاحول ولا قوة إلا بالله العلي العظيم", type: 'zekr' }
+      { text: "لا إله إلا الله وحده لا شريك له، له الملك وله الحمد وهو على كل شيء قدير (100 مرة)", type: 'zekr' },
+      { text: "اللهم صل وسلم وبارك على نبينا محمد وعلى آله وصحبه أجمعين", type: 'dua' },
+      { text: "استغفر الله الذي لا إله إلا هو الحي القيوم وأتوب إليه (100 مرة)", type: 'dua' },
+      { text: "لاحول ولا قوة إلا بالله العلي العظيم (كنز من كنوز الجنة)", type: 'zekr' },
+      { text: "سبحان الله، والحمد لله، ولا إله إلا الله، والله أكبر (أحب الكلام إلى الله)", type: 'zekr' }
     ];
   };
 
@@ -419,29 +426,34 @@ export const PrayerWaterBar: React.FC = () => {
       </motion.div>
 
       {/* Azkar Marquee */}
-      <div className="w-full bg-slate-900/10 backdrop-blur-3xl border border-white/5 rounded-full h-8 flex items-center overflow-hidden">
+      <div className="w-full bg-slate-900/10 backdrop-blur-3xl border border-white/5 rounded-full h-8 flex items-center overflow-hidden relative">
+        <div className="absolute inset-y-0 left-0 w-8 bg-gradient-to-r from-slate-900/40 to-transparent z-10 pointer-events-none" />
+        <div className="absolute inset-y-0 right-0 w-8 bg-gradient-to-l from-slate-900/40 to-transparent z-10 pointer-events-none" />
+        
         <motion.div 
-          animate={{ x: ["100%", "-100%"] }}
+          animate={{ x: ["-100%", "100%"] }}
           transition={{ 
             repeat: Infinity, 
-            duration: 60, 
+            duration: 1200, 
             ease: "linear"
           }}
           className="whitespace-nowrap flex py-0.5"
         >
-          <div className="flex gap-20 text-[13px] font-black px-4 font-amiri tracking-wide items-center" dir="rtl">
+          <div className="flex gap-40 text-[16px] font-black px-4 font-amiri tracking-wider items-center" dir="rtl">
             {getAzkar().map((item, i) => (
               <span 
                 key={i} 
                 className={cn(
-                  "transition-all flex-shrink-0",
-                  item.type === 'surah' ? 'text-green-500 drop-shadow-[0_0_8px_rgba(34,197,94,0.4)]' : 
-                  item.type === 'dua' ? 'text-amber-400 drop-shadow-[0_0_8px_rgba(251,191,36,0.4)]' : 
-                  item.type === 'zekr' ? 'text-red-500 drop-shadow-[0_0_8px_rgba(239,68,68,0.4)]' : 
-                  'text-slate-300'
+                  "transition-all flex-shrink-0 flex items-center gap-4",
+                  item.type === 'surah' ? 'text-green-500 font-bold border-b-2 border-green-500/20 pb-0.5' : 
+                  item.type === 'dua' ? 'text-amber-400' : 
+                  item.type === 'zekr' ? 'text-red-500' : 
+                  'text-white'
                 )}
               >
+                <span className="opacity-50 text-[10px]">{i + 1}. </span>
                 {item.text}
+                <div className="w-1.5 h-1.5 rounded-full bg-slate-700 mx-2" />
               </span>
             ))}
             {/* Duplicate for seamless loop */}
@@ -449,14 +461,16 @@ export const PrayerWaterBar: React.FC = () => {
               <span 
                 key={`loop-${i}`} 
                 className={cn(
-                  "transition-all flex-shrink-0",
-                  item.type === 'surah' ? 'text-green-500 drop-shadow-[0_0_8px_rgba(34,197,94,0.4)]' : 
-                  item.type === 'dua' ? 'text-amber-400 drop-shadow-[0_0_8px_rgba(251,191,36,0.4)]' : 
-                  item.type === 'zekr' ? 'text-red-500 drop-shadow-[0_0_8px_rgba(239,68,68,0.4)]' : 
-                  'text-slate-300'
+                  "transition-all flex-shrink-0 flex items-center gap-4",
+                  item.type === 'surah' ? 'text-green-500 font-bold border-b-2 border-green-500/20 pb-0.5' : 
+                  item.type === 'dua' ? 'text-amber-400' : 
+                  item.type === 'zekr' ? 'text-red-500' : 
+                  'text-white'
                 )}
               >
+                <span className="opacity-50 text-[10px]">{i + 1}. </span>
                 {item.text}
+                <div className="w-1.5 h-1.5 rounded-full bg-slate-700 mx-2" />
               </span>
             ))}
           </div>

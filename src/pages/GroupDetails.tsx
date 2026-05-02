@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { db } from '../firebase';
-import { 
-  doc, onSnapshot, collection, query, where, orderBy, 
+import { doc, onSnapshot, collection, query, where, orderBy, 
   addDoc, deleteDoc, updateDoc, arrayUnion, arrayRemove, 
   serverTimestamp, getDoc, getDocs 
 } from 'firebase/firestore';
+import { handleFirestoreError, OperationType } from '../lib/firestore-errors';
 import { EducationalGroup, GroupPost, UserProfile } from '../types';
 import { useAuth } from '../hooks/useAuth';
 import { motion, AnimatePresence } from 'motion/react';

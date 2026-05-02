@@ -121,6 +121,8 @@ export interface Post {
   commentCount: number;
   privacy: 'public' | 'friends' | 'private';
   background?: string | null;
+  republishedFrom?: string;
+  republishedAuthor?: string;
   createdAt: Timestamp;
 }
 

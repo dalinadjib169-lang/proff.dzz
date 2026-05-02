@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { db } from '../firebase';
+import { handleFirestoreError, OperationType } from '../lib/firestore-errors';
 import { collection, query, orderBy, onSnapshot, addDoc, serverTimestamp, where, doc, updateDoc, arrayUnion } from 'firebase/firestore';
 import { EducationalGroup } from '../types';
 import { useAuth } from '../hooks/useAuth';

@@ -183,7 +183,7 @@ export default function Profile() {
 
     fetchProfile();
 
-    const isOwnProfile = profile?.uid === uid;
+    const isOwnProfile = uid === loggedInProfile?.uid;
     
     // If it's the user's own profile, show all their posts. 
     // Otherwise, show only public posts for this author.
@@ -221,7 +221,7 @@ export default function Profile() {
     });
 
     return unsubscribe;
-  }, [uid]);
+  }, [uid, loggedInProfile?.uid]);
 
   const handleUpdateProfile = async (e: React.FormEvent) => {
     e.preventDefault();
