@@ -62,13 +62,20 @@ export default function Settings() {
 
   // Live preview logic
   useEffect(() => {
-    const { theme, fontSize, fontType, language, themeColor } = settings;
+    const { theme, fontSize, fontType, language, themeColor, textColor } = settings;
     
     // Theme
     if (theme === 'dark') {
       document.documentElement.classList.add('dark');
     } else {
       document.documentElement.classList.remove('dark');
+    }
+
+    // Text Color
+    if (textColor) {
+      document.documentElement.style.setProperty('--text-color-current', textColor);
+    } else {
+      document.documentElement.style.setProperty('--text-color-current', theme === 'dark' ? '#f1f5f9' : '#0f172a');
     }
 
     // Theme Color
@@ -283,6 +290,38 @@ export default function Settings() {
                 >
                   <div className={`w-6 h-6 bg-white rounded-full shadow-md transform transition-all duration-300 ${settings.theme === 'dark' ? 'translate-x-6' : 'translate-x-0'}`} />
                 </button>
+              </div>
+            </div>
+
+            <div className="space-y-4">
+              <label className="block text-sm font-black text-slate-400 uppercase">لون الكتابة (النص)</label>
+              <div className="grid grid-cols-6 gap-3">
+                {[
+                  { id: 'white', color: '#ffffff' },
+                  { id: 'slate', color: '#f1f5f9' },
+                  { id: 'gray', color: '#94a3b8' },
+                  { id: 'amber', color: '#fbbf24' },
+                  { id: 'emerald', color: '#34d399' },
+                  { id: 'custom', color: 'linear-gradient(to bottom right, #f1f5f9, #94a3b8)' }
+                ].map(item => (
+                  <button
+                    key={item.id}
+                    onClick={() => setSettings({ ...settings, textColor: item.id === 'custom' ? settings.textColor : item.color })}
+                    className={`aspect-square rounded-2xl border-4 transition-all relative flex items-center justify-center ${settings.textColor === item.color ? 'border-primary ring-2 ring-primary/20 scale-110' : 'border-transparent opacity-70 hover:opacity-100'}`}
+                    style={{ background: item.color }}
+                  >
+                    {settings.textColor === item.color && <Check className="w-5 h-5 text-slate-900" />}
+                  </button>
+                ))}
+              </div>
+              <div className="flex items-center gap-3 mt-2">
+                 <input 
+                   type="color" 
+                   value={settings.textColor?.startsWith('#') ? settings.textColor : '#ffffff'} 
+                   onChange={(e) => setSettings({ ...settings, textColor: e.target.value })}
+                   className="w-10 h-10 rounded-lg overflow-hidden border-2 border-slate-200 dark:border-slate-800 bg-transparent cursor-pointer"
+                 />
+                 <span className="text-xs font-bold text-slate-500">اختر لونك الخاص</span>
               </div>
             </div>
           </div>

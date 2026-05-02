@@ -3,7 +3,7 @@ import { db } from '../firebase';
 import { doc, updateDoc, arrayUnion, arrayRemove, collection, addDoc, serverTimestamp, query, where, orderBy, onSnapshot, deleteDoc, increment, Timestamp, limit } from 'firebase/firestore';
 import { useAuth } from '../hooks/useAuth';
 import { Post, Comment as CommentType, GroupPost } from '../types';
-import { ThumbsUp, MessageCircle, Share2, MoreHorizontal, GraduationCap, Send, Trash2, Globe, Users, Lock as LockIcon, X, Smile, Edit2, Reply, Image as ImageIcon, Camera, EyeOff, Loader2, Flag, ShieldAlert } from 'lucide-react';
+import { ThumbsUp, MessageCircle, Share2, MoreHorizontal, GraduationCap, Send, Trash2, Globe, Users, Lock as LockIcon, X, Smile, Edit2, Reply, Image as ImageIcon, Camera, EyeOff, Loader2, Flag, ShieldAlert, Facebook } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { Link } from 'react-router-dom';
 import React from 'react';
@@ -59,12 +59,11 @@ function Dropdown({ children, trigger, align = 'right' }: { children: React.Reac
 import CommentItem from './CommentItem';
 
 const REACTIONS = [
-  { type: 'like', emoji: '👍', label: 'Like', color: 'text-blue-400' },
-  { type: 'love', emoji: '❤️', label: 'Love', color: 'text-red-500' },
-  { type: 'haha', emoji: '😄', label: 'Haha', color: 'text-yellow-400' },
-  { type: 'wow', emoji: '😮', label: 'Wow', color: 'text-yellow-400' },
-  { type: 'sad', emoji: '😢', label: 'Sad', color: 'text-yellow-400' },
-  { type: 'angry', emoji: '😡', label: 'Angry', color: 'text-orange-500' },
+  { type: 'like', emoji: '👍', label: 'جام', color: 'text-blue-400' },
+  { type: 'love', emoji: '❤️', label: 'حب', color: 'text-red-500' },
+  { type: 'haha', emoji: '😂', label: 'ضاحك', color: 'text-yellow-400' },
+  { type: 'confused', emoji: '🤔', label: 'حائر', color: 'text-yellow-400' },
+  { type: 'angry', emoji: '😡', label: 'غاضب', color: 'text-orange-500' },
 ];
 
 import ImageLightbox from './ImageLightbox';
@@ -297,30 +296,46 @@ export default function PostCard({ post, isGroupPost, groupId, onDelete }: { pos
     }
   };
 
-  const handleShare = async () => {
+  const [isShareMenuOpen, setIsShareMenuOpen] = useState(false);
+
+  const handleCopyLink = async () => {
+    const url = window.location.origin + '/post/' + post.id;
+    await navigator.clipboard.writeText(url);
+    alert('تم نسخ رابط المنشور بنجاح!');
+    setIsShareMenuOpen(false);
+  };
+
+  const handleShareSystem = async () => {
     const shareData = {
       title: `منشور من ${post.authorName} على Teac DZ`,
       text: post.content,
       url: window.location.origin + '/post/' + post.id
     };
-
     try {
       if (navigator.share) {
         await navigator.share(shareData);
       } else {
-        await navigator.clipboard.writeText(shareData.url);
-        alert('تم نسخ رابط المنشور بنجاح!');
+        handleCopyLink();
       }
     } catch (err) {
       console.error('Share failed:', err);
     }
+    setIsShareMenuOpen(false);
+  };
+
+  const handleShareToChat = async () => {
+    // Logic to share to chat - dispatch event
+    const postUrl = window.location.origin + '/post/' + post.id;
+    window.dispatchEvent(new CustomEvent('share-post', { detail: { post, url: postUrl } }));
+    setIsShareMenuOpen(false);
+    alert('تم تحضير المنشور للمشاركة في المحادثة');
   };
 
   const topLevelComments = comments.filter(c => !c.parentId);
   const getReplies = (parentId: string) => comments.filter(c => c.parentId === parentId);
 
   return (
-    <div className="bg-slate-900 border border-slate-800 rounded-3xl overflow-hidden shadow-xl mb-4 sm:mb-6">
+    <div className="bg-slate-950/20 backdrop-blur-3xl border border-white/5 rounded-3xl shadow-xl mb-4 sm:mb-6 relative">
       {/* Header */}
       <div className="px-4 py-3 flex items-center justify-between border-b border-white/5">
         <Link to={`/profile/${post.authorId}`} className="flex items-center gap-3">
@@ -431,22 +446,27 @@ export default function PostCard({ post, isGroupPost, groupId, onDelete }: { pos
       {/* Actions */}
       <div className="px-4 py-2 border-t border-white/5 flex items-center justify-between relative">
         <div className="flex items-center gap-3">
-          <div className="relative flex items-center">
+          <div className="relative flex items-center gap-1 group/reaction">
+            {/* Direct Selection Bar (Visible on Hover/Click) */}
             <AnimatePresence>
               {showReactions && (
                 <motion.div
-                  initial={{ opacity: 0, y: 10, scale: 0.5 }}
-                  animate={{ opacity: 1, y: -50, scale: 1 }}
-                  exit={{ opacity: 0, y: 10, scale: 0.5 }}
-                  className="absolute bottom-full left-0 mb-2 bg-slate-900 border border-slate-700 rounded-full flex items-center gap-2 p-1.5 shadow-2xl z-50 pointer-events-auto"
+                  initial={{ opacity: 0, y: 10, scale: 0.5, x: '-50%' }}
+                  animate={{ opacity: 1, y: -55, scale: 1, x: '-50%' }}
+                  exit={{ opacity: 0, y: 10, scale: 0.5, x: '-50%' }}
+                  className="absolute bottom-full left-1/2 mb-3 bg-slate-900 shadow-2xl border border-white/10 rounded-full flex items-center gap-1 p-1.5 z-[100] ring-1 ring-white/10 min-w-max"
+                  onMouseEnter={() => {
+                    if (reactionTimeoutRef.current) clearTimeout(reactionTimeoutRef.current);
+                  }}
+                  onMouseLeave={() => setShowReactions(false)}
                 >
                   {REACTIONS.map((re) => (
                     <motion.button
                       key={re.type}
-                      whileHover={{ scale: 1.3 }}
+                      whileHover={{ scale: 1.4, y: -8 }}
                       whileTap={{ scale: 0.9 }}
                       onClick={() => handleReaction(re.type)}
-                      className="text-2xl hover:drop-shadow-[0_0_8px_rgba(255,255,255,0.5)] transition-all"
+                      className="text-2xl hover:drop-shadow-[0_0_12px_rgba(255,255,255,0.4)] transition-all px-2 py-1"
                       title={re.label}
                     >
                       {re.emoji}
@@ -457,26 +477,23 @@ export default function PostCard({ post, isGroupPost, groupId, onDelete }: { pos
             </AnimatePresence>
 
             <button 
-              onClick={() => handleReaction(currentReaction ? currentReaction : 'like')} 
-              onMouseDown={startReactionTimer}
-              onMouseUp={clearReactionTimer}
-              onMouseLeave={clearReactionTimer}
-              onTouchStart={startReactionTimer}
-              onTouchEnd={clearReactionTimer}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-black transition-all ${currentReaction ? 'bg-white/5 ' + reactionData?.color : 'text-slate-400 hover:bg-slate-800'}`}
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                setShowReactions(!showReactions);
+              }} 
+              onMouseEnter={() => setShowReactions(true)}
+              onMouseLeave={() => {
+                reactionTimeoutRef.current = setTimeout(() => setShowReactions(false), 2000);
+              }}
+              className={`flex items-center gap-1.5 px-4 py-2 rounded-2xl text-xs font-black transition-all z-10 ${currentReaction ? 'bg-primary/10 ' + reactionData?.color : 'text-slate-400 bg-slate-900/40 hover:bg-slate-800 border border-white/5'}`}
             >
               {currentReaction ? (
                 <span className="text-lg">{reactionData?.emoji}</span>
               ) : (
                 <ThumbsUp className={`w-4.5 h-4.5 ${isLiked ? 'fill-current text-blue-500' : ''}`} />
               )}
-              <span>{likes.length > 0 ? likes.length : 'إعجاب'}</span>
-            </button>
-            <button
-               onClick={() => setShowReactions(!showReactions)}
-               className="p-1 px-2 text-slate-500 hover:text-primary transition-all"
-            >
-               <Smile className="w-4 h-4 opacity-50" />
+              <span>{likes.length > 0 ? (likes.length === 1 && currentReaction ? reactionData?.label : likes.length) : 'تفاعل'}</span>
             </button>
           </div>
           
@@ -488,12 +505,29 @@ export default function PostCard({ post, isGroupPost, groupId, onDelete }: { pos
             <span>{commentCount > 0 ? commentCount : 'تعليق'}</span>
           </button>
         </div>
-        <button 
-          onClick={handleShare}
-          className="p-2 text-slate-500 hover:text-slate-300 transition-colors"
-        >
-          <Share2 className="w-4 h-4" />
-        </button>
+        <Dropdown align="left" trigger={
+          <button className="p-2 text-slate-500 hover:text-primary transition-all">
+            <Share2 className="w-4.5 h-4.5" />
+          </button>
+        }>
+          <button onClick={handleCopyLink} className="w-full text-right px-4 py-2.5 text-xs font-bold text-slate-300 hover:bg-slate-800 flex items-center justify-end gap-2">
+            نسخ الرابط <Send className="w-3.5 h-3.5 rotate-180" />
+          </button>
+          <button onClick={handleShareToChat} className="w-full text-right px-4 py-2.5 text-xs font-bold text-slate-300 hover:bg-slate-800 flex items-center justify-end gap-2">
+            مشاركة في محادثة <MessageCircle className="w-3.5 h-3.5" />
+          </button>
+          <button onClick={handleShareSystem} className="w-full text-right px-4 py-2.5 text-xs font-bold text-slate-300 hover:bg-slate-800 flex items-center justify-end gap-2 border-t border-slate-800">
+            مشاركة عبر تطبيقات أخرى <Share2 className="w-3.5 h-3.5" />
+          </button>
+          <a
+            href={`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(window.location.origin + '/post/' + post.id)}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="w-full text-right px-4 py-2.5 text-xs font-bold text-blue-500 hover:bg-slate-800 flex items-center justify-end gap-2 border-t border-slate-800"
+          >
+            مشاركة في فايسبوك <Facebook className="w-3.5 h-3.5" />
+          </a>
+        </Dropdown>
       </div>
 
       {/* Comments */}

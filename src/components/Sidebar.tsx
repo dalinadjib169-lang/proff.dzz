@@ -28,6 +28,9 @@ function Sidebar() {
       if (!snapshot.empty) {
         setDeveloper({ uid: snapshot.docs[0].id, ...snapshot.docs[0].data() } as UserProfile);
       }
+    }, (error) => {
+      // Non-critical: just log if dev profile fetch fails
+      console.warn("Dev profile fetch denied or failed:", error);
     });
 
     const q = query(
@@ -93,7 +96,7 @@ function Sidebar() {
     <div className="sticky top-24 space-y-8">
       <Link 
         to={profile?.uid ? `/profile/${profile.uid}` : '/profile/loading'}
-        className="bg-slate-900 rounded-3xl p-6 shadow-xl border border-slate-800 overflow-hidden relative block hover:border-primary/50 transition-all group"
+        className="bg-slate-900/10 backdrop-blur-3xl rounded-3xl p-6 shadow-2xl border border-white/5 overflow-hidden relative block hover:border-primary/50 transition-all group"
       >
         <div className="absolute top-0 left-0 w-full h-20 bg-primary/10"></div>
         <div className="relative z-10 flex flex-col items-center">
@@ -264,7 +267,7 @@ function Sidebar() {
 
       </nav>
 
-      <div className="bg-slate-900 rounded-3xl p-6 shadow-xl border border-slate-800">
+      <div className="bg-slate-900/20 backdrop-blur-3xl rounded-3xl p-6 shadow-2xl border border-slate-800/30">
         <div className="flex items-center gap-3 mb-6">
           <div className="bg-primary/10 p-2 rounded-xl">
             <TrendingUp className="w-5 h-5 text-primary" />
@@ -326,10 +329,10 @@ function Sidebar() {
         </button>
       </div>
 
-      <div className="bg-primary rounded-3xl p-6 text-white overflow-hidden relative group border border-primary-dark/50">
-        <div className="absolute -right-4 -bottom-4 w-24 h-24 bg-primary-dark rounded-full opacity-50 group-hover:scale-150 transition-transform duration-700"></div>
+      <div className="bg-primary/20 backdrop-blur-2xl rounded-3xl p-6 text-white overflow-hidden relative group border border-primary/20 shadow-2xl">
+        <div className="absolute -right-4 -bottom-4 w-24 h-24 bg-primary rounded-full opacity-30 group-hover:scale-150 transition-transform duration-700"></div>
         <h4 className="font-black text-lg mb-2 relative z-10">Premium Teac</h4>
-        <p className="text-primary-accent text-xs font-medium mb-4 relative z-10">Get access to exclusive teaching materials and AI tools.</p>
+        <p className="text-white/80 text-xs font-medium mb-4 relative z-10">Get access to exclusive teaching materials and AI tools.</p>
         <Link 
           to="/premium-tools"
           className="w-full py-2.5 bg-white text-primary font-black rounded-xl text-sm hover:bg-slate-50 transition-colors relative z-10 block text-center"

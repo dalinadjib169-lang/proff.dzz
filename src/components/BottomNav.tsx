@@ -12,14 +12,14 @@ function BottomNav() {
   const navItems = [
     { icon: Home, label: 'Home', path: '/', external: false },
     { icon: Wand2, label: 'Generator', path: 'https://pro-mat-1243.vercel.app/', external: true },
-    { icon: Users, label: 'Groups', path: '/groups', external: false },
+    { icon: ShoppingBag, label: 'Market', path: '/market', external: false },
     { icon: Zap, label: 'Corrector', path: 'https://mosa7i7-ai.vercel.app/', external: true },
     { icon: Menu, label: 'Menu', path: '#', external: false, onClick: (e: any) => { e.preventDefault(); window.dispatchEvent(new CustomEvent('toggle-sidebar')); } },
   ];
 
   return (
     <div className="lg:hidden fixed bottom-0 left-0 right-0 z-[110] px-3 pb-4 pointer-events-none select-none">
-      <div className="bg-slate-900/90 backdrop-blur-xl border border-white/10 rounded-2xl flex items-center justify-around shadow-2xl shadow-black/80 max-w-sm mx-auto pointer-events-auto overflow-hidden">
+      <div className="bg-slate-900/40 backdrop-blur-xl border border-white/10 rounded-2xl flex items-center justify-around shadow-2xl shadow-black/80 max-w-sm mx-auto pointer-events-auto overflow-hidden">
         {navItems.map((item) => (
           item.external ? (
             <a

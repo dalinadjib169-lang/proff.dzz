@@ -74,6 +74,14 @@ export default function App() {
       const sizeMap = { small: '14px', medium: '16px', large: '18px' };
       document.documentElement.style.setProperty('--font-size-current', sizeMap[fontSize as keyof typeof sizeMap] || '16px');
 
+      // Text Color
+      const textColor = profile.settings?.textColor;
+      if (textColor) {
+        document.documentElement.style.setProperty('--text-color-current', textColor);
+      } else {
+        document.documentElement.style.setProperty('--text-color-current', theme === 'dark' ? '#f1f5f9' : '#0f172a');
+      }
+
       // Font Type
       const fontMap = { 
         sans: '"Inter", ui-sans-serif, system-ui, sans-serif', 
@@ -135,7 +143,7 @@ export default function App() {
               <img 
                 src={profile.appBackground}
                 alt=""
-                className="fixed inset-0 w-full h-full object-cover opacity-10 pointer-events-none z-0"
+                className="fixed inset-0 w-full h-full object-cover opacity-25 pointer-events-none z-0 transition-opacity duration-1000"
                 loading="lazy"
               />
             )}
@@ -216,40 +224,62 @@ export default function App() {
                   </div>
                 )} */}
 
-                {/* Mobile Sidebar Overlay */}
-                <AnimatePresence>
-                  {user && isSidebarOpen && (
-                    <motion.div
-                      key="sidebar-overlay"
-                      initial={{ opacity: 0 }}
-                      animate={{ opacity: 1 }}
-                      exit={{ opacity: 0 }}
-                      onClick={() => setIsSidebarOpen(false)}
-                      className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-[70] lg:hidden"
-                    />
-                  )}
-                  {user && isSidebarOpen && (
-                    <motion.div
-                      key="sidebar-panel"
-                      initial={{ x: '-100%' }}
-                      animate={{ x: 0 }}
-                      exit={{ x: '-100%' }}
-                      transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-                      className="fixed left-0 top-0 bottom-0 w-[280px] bg-slate-950 z-[80] lg:hidden overflow-y-auto p-6 border-r border-slate-800"
-                    >
-                      <div className="flex items-center justify-between mb-8">
-                        <div className="flex items-center gap-2">
-                          <GraduationCap className="w-8 h-8 text-purple-500" />
-                          <span className="text-xl font-black text-white">Teac DZ</span>
-                        </div>
-                        <button onClick={() => setIsSidebarOpen(false)} className="p-2 hover:bg-slate-900 rounded-xl text-slate-400">
-                          <ChevronLeft className="w-6 h-6" />
-                        </button>
-                      </div>
-                      <Sidebar />
-                    </motion.div>
-                  )}
-                </AnimatePresence>
+        {/* Side Toggle Handle */}
+        {user && (
+          <div className="lg:hidden fixed left-0 top-1/2 -translate-y-1/2 z-[60]">
+            <motion.button
+              whileHover={{ scale: 1.1, x: 2 }}
+              whileTap={{ scale: 0.9 }}
+              onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+              className="bg-primary/20 backdrop-blur-md text-primary p-1.5 rounded-r-xl shadow-lg border-y border-r border-primary/30 flex items-center justify-center cursor-pointer transition-colors"
+            >
+              <motion.div
+                animate={{ x: isSidebarOpen ? 0 : [0, 2, 0] }}
+                transition={{ repeat: isSidebarOpen ? 0 : Infinity, duration: 2 }}
+              >
+                {isSidebarOpen ? <ChevronLeft className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
+              </motion.div>
+            </motion.button>
+          </div>
+        )}
+
+        {/* Mobile Sidebar Overlay */}
+        <AnimatePresence>
+          {user && isSidebarOpen && (
+            <motion.div
+              key="sidebar-overlay"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setIsSidebarOpen(false)}
+              className="fixed inset-0 bg-slate-950/60 backdrop-blur-sm z-[70] lg:hidden"
+            />
+          )}
+          {user && isSidebarOpen && (
+            <motion.div
+              key="sidebar-panel"
+              initial={{ x: '-100%' }}
+              animate={{ x: 0 }}
+              exit={{ x: '-100%' }}
+              transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+              className="fixed left-0 top-0 bottom-0 w-[300px] bg-slate-950/40 backdrop-blur-3xl z-[80] lg:hidden overflow-y-auto p-6 border-r border-slate-800/30"
+            >
+              <div className="flex items-center justify-between mb-8">
+                <div className="flex items-center gap-2">
+                  <GraduationCap className="w-8 h-8 text-primary shadow-[0_0_15px_rgba(var(--primary-rgb),0.5)]" />
+                  <span className="text-xl font-black text-white">Teac DZ</span>
+                </div>
+                <button 
+                  onClick={() => setIsSidebarOpen(false)} 
+                  className="p-2.5 bg-slate-900 rounded-xl text-slate-400 hover:text-white transition-all shadow-lg shadow-black/20"
+                >
+                  <ChevronLeft className="w-6 h-6" />
+                </button>
+              </div>
+              <Sidebar />
+            </motion.div>
+          )}
+        </AnimatePresence>
 
                 <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-4 sm:py-8 pb-24 lg:pb-8">
                   <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 lg:gap-8">
@@ -282,7 +312,7 @@ export default function App() {
                       <div className="hidden xl:block xl:col-span-3">
                         <div className="sticky top-24 space-y-6">
                           <FriendSuggestions />
-                          <div className="bg-slate-900 rounded-3xl p-6 shadow-xl border border-slate-800">
+                          <div className="bg-slate-900/20 backdrop-blur-3xl rounded-3xl p-6 shadow-2xl border border-slate-800/30">
                             <h3 className="font-black text-slate-100 mb-4 flex items-center gap-2">
                               <div className="w-2 h-2 bg-primary rounded-full animate-pulse"></div>
                               Trending Topics

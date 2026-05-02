@@ -11,8 +11,8 @@
   --color-darker: #020617; /* Slate 950 */
 
   @keyframes marquee-slow {
-    0% { transform: translateX(100%); }
-    100% { transform: translateX(-100%); }
+    0% { transform: translateX(-100%); }
+    100% { transform: translateX(100%); }
   }
 }
 
@@ -25,8 +25,12 @@
     --primary-color: #7c3aed;
     --primary-dark: #6d28d9;
     --primary-accent: #d8b4fe;
+    --text-color-current: #f1f5f9;
     --font-size-current: 16px;
     --font-family-current: "Inter", ui-sans-serif, system-ui, sans-serif;
+    --card-bg: rgba(15, 23, 42, 0.2);
+    --card-blur: 16px;
+    --card-border: rgba(255, 255, 255, 0.05);
   }
 
   .theme-emerald {
@@ -72,13 +76,15 @@
     --primary-color: #ffffff;
     --primary-dark: #f1f5f9;
     --primary-accent: #e2e8f0;
-    --card-bg: rgba(255, 255, 255, 0.02);
+    --card-bg: rgba(255, 255, 255, 0.01);
     --card-blur: 0px;
-    --card-border: rgba(255, 255, 255, 0.1);
+    --card-border: rgba(255, 255, 255, 0.05);
+    --bg-main: transparent;
   }
 
   body {
-    @apply bg-slate-950 text-slate-100;
+    background-color: var(--bg-main, #020617);
+    color: var(--text-color-current);
     font-size: var(--font-size-current);
     font-family: var(--font-family-current);
   }

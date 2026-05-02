@@ -226,6 +226,46 @@
         "createdAt": { "type": "string", "format": "date-time" }
       },
       "required": ["senderId", "recipientId", "type", "status", "createdAt"]
+    },
+    "EducationalGroup": {
+      "title": "Educational Group",
+      "description": "A group for teachers to collaborate",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "description": { "type": "string" },
+        "coverImage": { "type": "string" },
+        "creatorId": { "type": "string" },
+        "admins": { "type": "array", "items": { "type": "string" } },
+        "members": { "type": "array", "items": { "type": "string" } },
+        "pendingRequests": { "type": "array", "items": { "type": "string" } },
+        "privacy": { "type": "string", "enum": ["public", "private"] },
+        "autoJoin": { "type": "boolean" },
+        "requireTeacherVerification": { "type": "boolean" },
+        "memberCount": { "type": "integer" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["name", "creatorId", "admins", "members", "privacy", "createdAt"]
+    },
+    "GroupPost": {
+      "title": "Group Post",
+      "description": "A post within an educational group",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "groupId": { "type": "string" },
+        "authorId": { "type": "string" },
+        "authorName": { "type": "string" },
+        "authorPhoto": { "type": "string" },
+        "content": { "type": "string" },
+        "imageUrl": { "type": "string" },
+        "likes": { "type": "array", "items": { "type": "string" } },
+        "reactions": { "type": "object" },
+        "commentCount": { "type": "integer" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["groupId", "authorId", "authorName", "authorPhoto", "content", "likes", "commentCount", "createdAt"]
     }
   },
   "firestore": {
@@ -272,6 +312,18 @@
     "/activation_codes/{codeId}": {
       "schema": "ActivationCode",
       "description": "Subscription activation codes"
+    },
+    "/groups/{groupId}": {
+      "schema": "EducationalGroup",
+      "description": "Educational groups"
+    },
+    "/group_posts/{postId}": {
+      "schema": "GroupPost",
+      "description": "Posts within groups"
+    },
+    "/group_comments/{commentId}": {
+      "schema": "Comment",
+      "description": "Comments on group posts"
     },
     "/_connection_test_/{docId}": {
       "schema": { "type": "object", "properties": { "test": { "type": "string" } } },

@@ -48,6 +48,9 @@ export default function GroupDetails() {
         navigate('/groups');
       }
       setLoading(false);
+    }, (error) => {
+      handleFirestoreError(error, OperationType.GET, `groups/${groupId}`);
+      setLoading(false);
     });
 
     // 2. Group Posts
@@ -58,6 +61,8 @@ export default function GroupDetails() {
     );
     const unsubscribePosts = onSnapshot(postsQuery, (snapshot) => {
       setPosts(snapshot.docs.map(d => ({ id: d.id, ...d.data() })) as GroupPost[]);
+    }, (error) => {
+      handleFirestoreError(error, OperationType.LIST, 'group_posts');
     });
 
     return () => {

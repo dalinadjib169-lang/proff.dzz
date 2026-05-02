@@ -233,8 +233,7 @@ service cloud.firestore {
     }
 
     match /messages/{messageId} {
-      allow get: if isSignedIn() && isValidId(messageId) && (resource.data.roomId == 'global' || request.auth.uid in resource.data.participants);
-      allow list: if isSignedIn() && (resource.data.roomId == 'global' || request.auth.uid in resource.data.participants);
+      allow get, list: if isSignedIn() && (resource == null || resource.data.roomId == 'global' || request.auth.uid in resource.data.participants);
       allow create: if isSignedIn() && isValidId(messageId) && isValidMessage(incoming());
       allow update: if isValidId(messageId) && ((isSignedIn() && (existing().roomId == 'global' || request.auth.uid in existing().participants) && (
           incoming().diff(existing()).affectedKeys().hasOnly(['seen', 'reactions', 'deletedFor'])
@@ -243,7 +242,7 @@ service cloud.firestore {
     }
 
     match /invitations/{invitationId} {
-      allow get: if isSignedIn() && (request.auth.uid in resource.data.participants || isAdmin()) && isValidId(invitationId);
+      allow get: if isSignedIn() && (resource == null || request.auth.uid in resource.data.participants || isAdmin()) && isValidId(invitationId);
       allow list: if isSignedIn() && (request.auth.uid in resource.data.participants || isAdmin());
       allow create: if isSignedIn() && (incoming().senderId == request.auth.uid || isAdmin()) && isValidId(invitationId);
       allow update: if isSignedIn() && (request.auth.uid in existing().participants || isAdmin()) && isValidId(invitationId);
@@ -262,11 +261,33 @@ service cloud.firestore {
     }
 
     match /calls/{callId} {
-      allow get: if isSignedIn() && isValidId(callId) && (request.auth.uid == resource.data.senderId || request.auth.uid == resource.data.recipientId);
-      allow list: if isSignedIn() && (request.auth.uid == resource.data.senderId || request.auth.uid == resource.data.recipientId);
+      allow get, list: if isSignedIn() && isValidId(callId) && (resource == null || request.auth.uid == resource.data.senderId || request.auth.uid == resource.data.recipientId);
       allow create: if isSignedIn() && isValidId(callId) && incoming().senderId == request.auth.uid;
-      allow update: if isValidId(callId) && isSignedIn() && (request.auth.uid == existing().senderId || request.auth.uid == existing().recipientId);
-      allow delete: if isValidId(callId) && isSignedIn() && (request.auth.uid == existing().senderId || request.auth.uid == existing().recipientId);
+      allow update, delete: if isValidId(callId) && isSignedIn() && (request.auth.uid == existing().senderId || request.auth.uid == existing().recipientId);
+    }
+
+    match /groups/{groupId} {
+      allow get: if isSignedIn() && isValidId(groupId);
+      allow list: if isSignedIn();
+      allow create: if isSignedIn() && isValidId(groupId);
+      allow update: if isSignedIn() && isValidId(groupId);
+      allow delete: if isAdmin();
+    }
+
+    match /group_posts/{postId} {
+      allow get: if isSignedIn() && isValidId(postId);
+      allow list: if isSignedIn();
+      allow create: if isSignedIn() && isValidId(postId);
+      allow update: if isSignedIn() && isValidId(postId);
+      allow delete: if isSignedIn() && isValidId(postId);
+    }
+
+    match /group_comments/{commentId} {
+      allow get: if isSignedIn() && isValidId(commentId);
+      allow list: if isSignedIn();
+      allow create: if isSignedIn() && isValidId(commentId);
+      allow update: if isSignedIn() && isValidId(commentId);
+      allow delete: if isSignedIn() && isValidId(commentId);
     }
 
     match /typing/{roomId} {
@@ -285,7 +306,8 @@ service cloud.firestore {
 
     // Connection test path
     match /_connection_test_/{docId} {
-      allow read, write: if isSignedIn();
+      allow read: if true;
+      allow write: if isSignedIn();
     }
   }
 }

@@ -116,7 +116,7 @@ export default function Home() {
     <div className="space-y-6">
       <PrayerWaterBar />
 
-      <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4 shadow-lg overflow-hidden relative">
+      <div className="bg-slate-900/20 backdrop-blur-3xl border border-slate-800/50 rounded-2xl p-4 shadow-lg overflow-hidden relative">
         {selectedBg && !selectedImage && (
           <div className="absolute inset-0 opacity-20 pointer-events-none" style={{ background: selectedBg }}></div>
         )}

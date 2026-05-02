@@ -8,6 +8,8 @@ import { useNavigate } from 'react-router-dom';
 export default function Login() {
   const [loading, setLoading] = useState(false);
   const [isRegister, setIsRegister] = useState(false);
+  const [authMethod, setAuthMethod] = useState<'email' | 'phone'>('email');
+  const [phone, setPhone] = useState('');
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
   const [email, setEmail] = useState('');
@@ -135,17 +137,28 @@ export default function Login() {
       // Set persistence based on "Remember Me"
       await setPersistence(auth, rememberMe ? browserLocalPersistence : browserSessionPersistence);
       
+      let finalEmail = email;
+      if (authMethod === 'phone') {
+        const cleanedPhone = phone.replace(/\s+/g, '');
+        if (!cleanedPhone.match(/^[0-9+]+$/)) {
+          throw new Error('يرجى إدخال رقم هاتف صحيح');
+        }
+        finalEmail = `${cleanedPhone}@teac.dz`;
+      }
+
       if (isRegister) {
         if (!firstName || !lastName) {
           throw new Error('يرجى إدخال الاسم واللقب');
         }
-        const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-        // We can add logic to update profile with firstName/lastName if needed, 
-        // but useAuth hook usually handles initial profile creation from auth user.
-        // We'll pass it via localStorage for useAuth to pick up or use it in the updateDoc call.
-        localStorage.setItem('pendingRegistrationData', JSON.stringify({ firstName, lastName }));
+        const userCredential = await createUserWithEmailAndPassword(auth, finalEmail, password);
+        // Save pending data for profile creation
+        localStorage.setItem('pendingRegistrationData', JSON.stringify({ 
+          firstName, 
+          lastName,
+          phone: authMethod === 'phone' ? phone : null
+        }));
       } else {
-        await signInWithEmailAndPassword(auth, email, password);
+        await signInWithEmailAndPassword(auth, finalEmail, password);
       }
     } catch (err: any) {
       console.error("Email Auth Error:", err);
@@ -167,7 +180,7 @@ export default function Login() {
       await signOut(auth);
       setEmail('');
       setPassword('');
-      setRememberMe(false);
+      setRememberMe(true);
       setError('Signed out. You can now log in with a different account.');
     } catch (err) {
       console.error("Sign out error:", err);
@@ -188,7 +201,7 @@ export default function Login() {
         <motion.div 
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="w-full bg-slate-900/90 backdrop-blur-2xl p-6 md:p-8 rounded-[3rem] shadow-2xl border border-slate-800/50 flex flex-col gap-y-6"
+          className="w-full bg-slate-900/40 backdrop-blur-3xl p-6 md:p-8 rounded-[3rem] shadow-2xl border border-slate-800/30 flex flex-col gap-y-6"
         >
           {/* Religious Header Section */}
           <div className="text-center border-b border-slate-800/50 pb-6">
@@ -237,7 +250,7 @@ export default function Login() {
           </div>
 
         {error && (
-          <div className="bg-red-500/10 text-red-500 p-4 rounded-2xl mb-6 text-sm font-medium border border-red-500/20 shadow-lg">
+          <div className="bg-red-500/10 text-red-500 p-4 rounded-2xl text-sm font-medium border border-red-500/20 shadow-lg">
             <div className="flex items-start gap-3">
               <AlertCircle className="w-5 h-5 shrink-0 mt-0.5" />
               <div>
@@ -249,7 +262,7 @@ export default function Login() {
         )}
 
         {success && (
-          <div className="bg-green-500/10 text-green-500 p-4 rounded-2xl mb-6 text-sm font-medium border border-green-500/20 shadow-lg">
+          <div className="bg-green-500/10 text-green-500 p-4 rounded-2xl text-sm font-medium border border-green-500/20 shadow-lg">
             <div className="flex items-start gap-3">
               <CheckCircle2 className="w-5 h-5 shrink-0 mt-0.5" />
               <div>
@@ -260,23 +273,22 @@ export default function Login() {
           </div>
         )}
 
-        {(networkStatus.google === false || networkStatus.firebase === false) && (
-          <div className="bg-amber-500/10 text-amber-500 p-4 rounded-2xl mb-6 text-[10px] font-bold border border-amber-500/20">
-            <p className="mb-2 uppercase tracking-widest text-center">Diagnostics / حالة الاتصال</p>
-            <div className="flex justify-between items-center px-2">
-              <span>Google Services:</span>
-              <span className={networkStatus.google ? 'text-green-500' : 'text-red-500'}>
-                {networkStatus.google ? 'Connected' : 'Blocked (مانع إعلانات؟)'}
-              </span>
-            </div>
-            <div className="flex justify-between items-center px-2 mt-1">
-              <span>Firebase Auth:</span>
-              <span className={networkStatus.firebase ? 'text-green-500' : 'text-red-500'}>
-                {networkStatus.firebase ? 'Connected' : 'Blocked (اتصال ضعيف؟)'}
-              </span>
-            </div>
-          </div>
-        )}
+        <div className="flex gap-2 p-1 bg-slate-950/30 backdrop-blur-md rounded-2xl border border-slate-800/50">
+          <button
+            type="button"
+            onClick={() => setAuthMethod('email')}
+            className={`flex-1 py-2.5 rounded-xl text-xs font-black transition-all ${authMethod === 'email' ? 'bg-primary text-white shadow-lg' : 'text-slate-500 hover:text-slate-300'}`}
+          >
+            Email / بريد إلكتروني
+          </button>
+          <button
+            type="button"
+            onClick={() => setAuthMethod('phone')}
+            className={`flex-1 py-2.5 rounded-xl text-xs font-black transition-all ${authMethod === 'phone' ? 'bg-primary text-white shadow-lg' : 'text-slate-500 hover:text-slate-300'}`}
+          >
+            Phone / رقم هاتف
+          </button>
+        </div>
 
         <form onSubmit={handleEmailAuth} className="space-y-4">
           {isRegister && (
@@ -286,7 +298,7 @@ export default function Login() {
                 <input
                   type="text"
                   placeholder="الاسم"
-                  className="w-full pl-12 pr-4 py-3.5 bg-slate-950 border border-slate-800 rounded-2xl focus:ring-2 focus:ring-purple-500 focus:border-purple-500 outline-none transition-all text-white placeholder:text-slate-600 text-sm font-bold"
+                  className="w-full pl-12 pr-4 py-3.5 bg-slate-950/30 border border-slate-800/50 rounded-2xl focus:ring-2 focus:ring-purple-500 focus:border-purple-500 outline-none transition-all text-white placeholder:text-slate-600 text-sm font-bold"
                   value={firstName}
                   onChange={(e) => setFirstName(e.target.value)}
                   required
@@ -297,7 +309,7 @@ export default function Login() {
                 <input
                   type="text"
                   placeholder="اللقب"
-                  className="w-full pl-12 pr-4 py-3.5 bg-slate-950 border border-slate-800 rounded-2xl focus:ring-2 focus:ring-purple-500 focus:border-purple-500 outline-none transition-all text-white placeholder:text-slate-600 text-sm font-bold"
+                  className="w-full pl-12 pr-4 py-3.5 bg-slate-950/30 border border-slate-800/50 rounded-2xl focus:ring-2 focus:ring-purple-500 focus:border-purple-500 outline-none transition-all text-white placeholder:text-slate-600 text-sm font-bold"
                   value={lastName}
                   onChange={(e) => setLastName(e.target.value)}
                   required
@@ -306,23 +318,38 @@ export default function Login() {
             </div>
           )}
 
-          <div className="relative">
-            <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-500" />
-            <input
-              type="email"
-              placeholder="البريد الإلكتروني"
-              className="w-full pl-12 pr-4 py-3.5 bg-slate-950 border border-slate-800 rounded-2xl focus:ring-2 focus:ring-purple-500 focus:border-purple-500 outline-none transition-all text-white placeholder:text-slate-600 text-sm font-bold"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
-            />
-          </div>
+          {authMethod === 'email' ? (
+            <div className="relative">
+              <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-500" />
+              <input
+                type="email"
+                placeholder="البريد الإلكتروني"
+                className="w-full pl-12 pr-4 py-3.5 bg-slate-950/30 border border-slate-800/50 rounded-2xl focus:ring-2 focus:ring-purple-500 focus:border-purple-500 outline-none transition-all text-white placeholder:text-slate-600 text-sm font-bold"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
+              />
+            </div>
+          ) : (
+            <div className="relative">
+              <RefreshCw className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-500" />
+              <input
+                type="tel"
+                placeholder="رقم الهاتف (مثل 0600000000)"
+                className="w-full pl-12 pr-4 py-3.5 bg-slate-950/30 border border-slate-800/50 rounded-2xl focus:ring-2 focus:ring-purple-500 focus:border-purple-500 outline-none transition-all text-white placeholder:text-slate-600 text-sm font-bold"
+                value={phone}
+                onChange={(e) => setPhone(e.target.value)}
+                required
+              />
+            </div>
+          )}
+          
           <div className="relative">
             <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-500" />
             <input
               type="password"
               placeholder="كلمة السر"
-              className="w-full pl-12 pr-4 py-3.5 bg-slate-950 border border-slate-800 rounded-2xl focus:ring-2 focus:ring-purple-500 focus:border-purple-500 outline-none transition-all text-white placeholder:text-slate-600 text-sm font-bold"
+              className="w-full pl-12 pr-4 py-3.5 bg-slate-950/30 border border-slate-800/50 rounded-2xl focus:ring-2 focus:ring-purple-500 focus:border-purple-500 outline-none transition-all text-white placeholder:text-slate-600 text-sm font-bold"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               required
@@ -331,7 +358,7 @@ export default function Login() {
 
           <div className="flex items-center justify-between px-2">
             <label className="flex items-center gap-2 cursor-pointer group">
-              <div className={`w-5 h-5 rounded-lg border-2 transition-all flex items-center justify-center ${rememberMe ? 'bg-purple-600 border-purple-600' : 'border-slate-700 bg-slate-950 group-hover:border-slate-600'}`}>
+              <div className={`w-5 h-5 rounded-lg border-2 transition-all flex items-center justify-center ${rememberMe ? 'bg-purple-600 border-purple-600' : 'border-slate-700 bg-slate-950/50 group-hover:border-slate-600'}`}>
                 {rememberMe && <div className="w-2 h-2 bg-white rounded-full" />}
               </div>
               <input 
@@ -387,15 +414,15 @@ export default function Login() {
         </form>
 
         <div className="my-6 flex items-center gap-4">
-          <div className="h-px flex-1 bg-slate-800"></div>
+          <div className="h-px flex-1 bg-slate-800/50"></div>
           <span className="text-slate-600 text-sm font-medium uppercase tracking-wider">or</span>
-          <div className="h-px flex-1 bg-slate-800"></div>
+          <div className="h-px flex-1 bg-slate-800/50"></div>
         </div>
 
         <button
           onClick={handleGoogleLogin}
           disabled={loading}
-          className={`w-full py-3 bg-slate-950 border border-slate-800 hover:bg-slate-900 text-white font-bold rounded-xl transition-all flex items-center justify-center gap-3 ${loading ? 'opacity-50 cursor-not-allowed' : 'active:scale-[0.98]'}`}
+          className={`w-full py-3 bg-slate-950/50 border border-slate-800/50 hover:bg-slate-900/50 text-white font-bold rounded-xl transition-all flex items-center justify-center gap-3 ${loading ? 'opacity-50 cursor-not-allowed' : 'active:scale-[0.98]'}`}
         >
           {loading ? (
             <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
@@ -417,7 +444,7 @@ export default function Login() {
 
         {/* Login Help */}
         <div className="mt-8 pt-6 border-t border-slate-800/50">
-          <div className="bg-slate-950/50 p-4 rounded-2xl border border-slate-800/50 mb-4">
+          <div className="bg-slate-950/30 p-4 rounded-2xl border border-slate-800/50 mb-4">
             <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 flex items-center gap-2">
               <AlertCircle className="w-3 h-3" />
               Troubleshooting / حل المشاكل

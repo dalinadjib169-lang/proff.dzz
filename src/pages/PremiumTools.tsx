@@ -660,10 +660,15 @@ export default function PremiumTools() {
 
       {!isAdmin && (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div className={`p-4 rounded-2xl flex items-center justify-between border ${getRemainingAttempts('gen') === 0 ? 'bg-red-500/10 border-red-500/20 text-red-400' : 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400'}`}>
+          <div className={`p-4 rounded-3xl flex items-center justify-between border ${getRemainingAttempts('gen') === 0 ? 'bg-red-500/10 border-red-500/20 text-red-400' : 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400'}`}>
             <div className="flex items-center gap-3">
-              <Zap className="w-5 h-5" />
-              <p className="text-xs font-black">توليد مذكرات: {getRemainingAttempts('gen')} متبقية</p>
+              <div className="bg-emerald-500/20 p-2 rounded-xl">
+                 <Sparkles className="w-5 h-5" />
+              </div>
+              <div className="text-right">
+                <p className="text-xs font-black">الذكاء الاصطناعي في خدمة الأستاذ وليس بديل له</p>
+                <p className="text-[10px] font-bold opacity-70">ولد مذكرتك تجربة مجانية ({getRemainingAttempts('gen')} متبقية)</p>
+              </div>
             </div>
           </div>
           <div className={`p-4 rounded-2xl flex items-center justify-between border ${getRemainingAttempts('correct') === 0 ? 'bg-red-500/10 border-red-500/20 text-red-400' : 'bg-blue-500/10 border-blue-500/20 text-blue-400'}`}>

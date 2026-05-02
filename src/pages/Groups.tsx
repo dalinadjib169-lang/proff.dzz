@@ -33,6 +33,9 @@ export default function Groups() {
       const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as EducationalGroup[];
       setGroups(data);
       setLoading(false);
+    }, (error) => {
+      handleFirestoreError(error, OperationType.LIST, 'groups');
+      setLoading(false);
     });
     return unsubscribe;
   }, []);

@@ -121,12 +121,14 @@ export function useAuth() {
             
             let firstName = '';
             let lastName = '';
+            let phoneNumber = '';
             const pendingData = localStorage.getItem('pendingRegistrationData');
             if (pendingData) {
               try {
                 const parsed = JSON.parse(pendingData);
                 firstName = parsed.firstName || '';
                 lastName = parsed.lastName || '';
+                phoneNumber = parsed.phone || '';
                 localStorage.removeItem('pendingRegistrationData');
               } catch (e) {
                 console.error("Error parsing pending registration data:", e);
@@ -176,7 +178,7 @@ export function useAuth() {
             
             const privateData = {
               email: u.email || '',
-              phoneNumber: '',
+              phoneNumber: phoneNumber || '',
               settings: {
                 language: 'ar',
                 theme: 'dark',

@@ -419,18 +419,37 @@ export const PrayerWaterBar: React.FC = () => {
       </motion.div>
 
       {/* Azkar Marquee */}
-      <motion.div 
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        className="w-full bg-slate-900/50 border border-white/5 rounded-full h-7 flex items-center overflow-hidden"
-      >
-        <div className="whitespace-nowrap flex animate-marquee-slow py-0.5">
-          <div className="flex gap-24 text-[13px] font-black px-4 font-amiri tracking-wide items-center">
-            {getAzkar().concat(getAzkar()).map((item, i) => (
+      <div className="w-full bg-slate-900/10 backdrop-blur-3xl border border-white/5 rounded-full h-8 flex items-center overflow-hidden">
+        <motion.div 
+          animate={{ x: ["100%", "-100%"] }}
+          transition={{ 
+            repeat: Infinity, 
+            duration: 60, 
+            ease: "linear"
+          }}
+          className="whitespace-nowrap flex py-0.5"
+        >
+          <div className="flex gap-20 text-[13px] font-black px-4 font-amiri tracking-wide items-center" dir="rtl">
+            {getAzkar().map((item, i) => (
               <span 
                 key={i} 
                 className={cn(
-                  "transition-all",
+                  "transition-all flex-shrink-0",
+                  item.type === 'surah' ? 'text-green-500 drop-shadow-[0_0_8px_rgba(34,197,94,0.4)]' : 
+                  item.type === 'dua' ? 'text-amber-400 drop-shadow-[0_0_8px_rgba(251,191,36,0.4)]' : 
+                  item.type === 'zekr' ? 'text-red-500 drop-shadow-[0_0_8px_rgba(239,68,68,0.4)]' : 
+                  'text-slate-300'
+                )}
+              >
+                {item.text}
+              </span>
+            ))}
+            {/* Duplicate for seamless loop */}
+            {getAzkar().map((item, i) => (
+              <span 
+                key={`loop-${i}`} 
+                className={cn(
+                  "transition-all flex-shrink-0",
                   item.type === 'surah' ? 'text-green-500 drop-shadow-[0_0_8px_rgba(34,197,94,0.4)]' : 
                   item.type === 'dua' ? 'text-amber-400 drop-shadow-[0_0_8px_rgba(251,191,36,0.4)]' : 
                   item.type === 'zekr' ? 'text-red-500 drop-shadow-[0_0_8px_rgba(239,68,68,0.4)]' : 
@@ -441,8 +460,8 @@ export const PrayerWaterBar: React.FC = () => {
               </span>
             ))}
           </div>
-        </div>
-      </motion.div>
+        </motion.div>
+      </div>
     </div>
   );
 };

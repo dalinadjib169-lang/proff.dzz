@@ -41,6 +41,7 @@ import {
   Play,
   Trash2,
   Edit2,
+  Reply,
   AlertCircle,
   Loader2,
   Users,
@@ -72,6 +73,11 @@ interface Message {
   createdAt: any;
   reactions?: { [uid: string]: string };
   deletedFor?: string[];
+  replyTo?: {
+    text: string;
+    senderName: string;
+    id: string;
+  } | null;
 }
 
 // Emoji & Profile Trigger Component
@@ -200,6 +206,18 @@ export default function ChatBubble() {
     return unsubscribe;
   }, [profile?.uid]);
 
+  useEffect(() => {
+    const handleShare = (e: any) => {
+      const post = e.detail;
+      const url = `${window.location.origin}/post/${post.id}`;
+      setNewMessage(prev => prev + (prev ? '\n' : '') + `شاركت منشوراً: ${url}`);
+      setIsOpen(true);
+      if (chatInputRef.current) chatInputRef.current.focus();
+    };
+    window.addEventListener('share-post', handleShare);
+    return () => window.removeEventListener('share-post', handleShare);
+  }, []);
+
   const [newMessage, setNewMessage] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
   const [isRecording, setIsRecording] = useState(false);
@@ -238,6 +256,7 @@ export default function ChatBubble() {
   const [isConnected, setIsConnected] = useState(true);
   const [lightboxSrc, setLightboxSrc] = useState<string | null>(null);
   const [selectedMessageId, setSelectedMessageId] = useState<string | null>(null);
+  const [replyMessage, setReplyMessage] = useState<any | null>(null);
   const pressTimer = useRef<any>(null);
 
   useEffect(() => {
@@ -711,6 +730,8 @@ export default function ChatBubble() {
           }
         }
       }
+    }, (error) => {
+      handleFirestoreError(error, OperationType.LIST, 'calls_status');
     });
 
     return unsubscribe;
@@ -885,6 +906,10 @@ export default function ChatBubble() {
     const participants = activeChat.uid === 'global' ? ['global'] : [profile.uid, activeChat.uid].sort();
     
     try {
+      const messageText = newMessage;
+      const isReply = !!replyMessage;
+      const currentReply = replyMessage;
+      
       if (file) {
         const messageData = {
           roomId,
@@ -894,16 +919,22 @@ export default function ChatBubble() {
           createdAt: serverTimestamp(),
           clientCreatedAt: Date.now(),
           seen: false,
+          replyTo: isReply ? {
+            text: currentReply.text || 'صورة',
+            senderName: currentReply.senderName,
+            id: currentReply.id
+          } : null
         };
         
         await startUpload(file, 'message', messageData);
         setEmojiState('happy');
+        setReplyMessage(null);
         return;
       }
 
       // OPTIMISTIC UI: Clear input immediately and let onSnapshot handle the local update
-      const messageText = newMessage;
       setNewMessage('');
+      setReplyMessage(null);
       
       // Focus input again on mobile to keep keyboard open (instantly)
       chatInputRef.current?.focus();
@@ -916,7 +947,12 @@ export default function ChatBubble() {
         createdAt: serverTimestamp(),
         clientCreatedAt: Date.now(),
         seen: false,
-        text: messageText
+        text: messageText,
+        replyTo: isReply ? {
+          text: currentReply.text || 'صورة',
+          senderName: currentReply.senderName,
+          id: currentReply.id
+        } : null
       };
 
       // Add to Firestore - onSnapshot with includeMetadataChanges will show it instantly
@@ -1273,10 +1309,10 @@ export default function ChatBubble() {
             drag={!isMobile}
             dragMomentum={false}
             dragElastic={0.1}
-            className={`fixed bg-slate-950 sm:bg-slate-900 overflow-hidden flex flex-col z-[200] ${
+            className={`fixed bg-slate-950/40 backdrop-blur-2xl overflow-hidden flex flex-col z-[200] ${
               isMobile 
                 ? 'inset-0 w-full rounded-none' 
-                : 'bottom-24 right-8 w-96 h-[600px] rounded-[2.5rem] border border-slate-800 shadow-[0_0_50px_rgba(0,0,0,0.5)] origin-bottom-right'
+                : 'bottom-24 right-8 w-96 h-[600px] rounded-[2.5rem] border border-slate-800/50 shadow-[0_0_50px_rgba(0,0,0,0.5)] origin-bottom-right'
             }`}
             style={{ height: isMobile ? vHeight : undefined }}
           >
@@ -1731,12 +1767,26 @@ export default function ChatBubble() {
                         onTouchEnd={() => clearTimeout(pressTimer.current)}
                       >
                         <div className="group relative">
-                          <div className={`max-w-[80%] p-3 rounded-2xl text-sm font-medium shadow-sm transition-all ${
-                            msg.senderId === profile.uid 
-                              ? 'bg-purple-600 text-white rounded-tr-none' 
-                              : 'bg-slate-900 text-slate-100 rounded-tl-none border border-slate-800'
-                          } ${selectedMessageId === msg.id ? 'ring-2 ring-amber-500 scale-95' : ''}`}>
-                            {msg.text && <p>{msg.text}</p>}
+                          <div 
+                            className={`max-w-[85%] p-3 rounded-2xl text-sm font-medium shadow-sm transition-all relative overflow-visible ${
+                              msg.senderId === profile.uid 
+                                ? 'bg-purple-600 text-white rounded-tr-none' 
+                                : 'bg-slate-900 text-slate-100 rounded-tl-none border border-slate-800'
+                            } ${selectedMessageId === msg.id ? 'ring-2 ring-amber-500 scale-95' : ''}`}
+                            onContextMenu={(e) => {
+                              e.preventDefault();
+                              setSelectedMessageId(msg.id);
+                            }}
+                          >
+                            {/* Reply Preview */}
+                            {msg.replyTo && (
+                              <div className={`mb-2 p-2 rounded-xl text-[10px] border-r-2 ${msg.senderId === profile.uid ? 'bg-black/20 border-white/30 text-white/80' : 'bg-slate-800 border-purple-500 text-slate-400'}`}>
+                                <p className="font-black opacity-70">{msg.replyTo.senderName}</p>
+                                <p className="truncate line-clamp-1">{msg.replyTo.text}</p>
+                              </div>
+                            )}
+
+                            {msg.text && <p className="whitespace-pre-wrap">{msg.text}</p>}
                             {msg.imageUrl && (
                               <img 
                                 src={msg.imageUrl} 
@@ -1752,89 +1802,151 @@ export default function ChatBubble() {
                             
                             {/* Reactions Display */}
                             {msg.reactions && Object.keys(msg.reactions).length > 0 && (
-                              <div className="absolute -bottom-2 right-0 flex -space-x-1">
-                                {Array.from(new Set(Object.values(msg.reactions))).map((emoji: any, i) => (
-                                  <div key={i} className="bg-slate-800 border border-slate-700 rounded-full px-1 text-[10px] shadow-lg">
+                              <div className="absolute -bottom-2 right-1 flex -space-x-1 group/reacted z-20">
+                                {Object.entries(msg.reactions as Record<string, string>).slice(0, 3).map(([uid, emoji], i) => (
+                                  <motion.div 
+                                    key={uid} 
+                                    initial={{ scale: 0 }}
+                                    animate={{ scale: 1 }}
+                                    className="bg-slate-800 border border-slate-700 rounded-full w-5 h-5 flex items-center justify-center text-[11px] shadow-lg ring-1 ring-black/20"
+                                  >
                                     {emoji}
-                                  </div>
+                                  </motion.div>
                                 ))}
+                                {Object.keys(msg.reactions).length > 3 && (
+                                  <div className="bg-slate-800 border border-slate-700 rounded-full w-5 h-5 flex items-center justify-center text-[8px] font-bold shadow-lg ring-1 ring-black/20 text-slate-400">
+                                    +{Object.keys(msg.reactions).length - 3}
+                                  </div>
+                                )}
                               </div>
                             )}
 
                             {/* Reaction Picker Trigger */}
-                            <div className={`absolute top-0 ${msg.senderId === profile.uid ? '-left-16' : '-right-16'} opacity-0 group-hover:opacity-100 transition-opacity z-10 flex gap-1`}>
+                            <div className={`absolute top-0 ${msg.senderId === profile.uid ? '-left-12' : '-right-12'} opacity-0 group-hover:opacity-100 transition-opacity z-10 flex flex-col gap-1`}>
                               <button 
                                 onClick={() => setShowEmojiPicker(showEmojiPicker === msg.id ? null : msg.id)}
                                 className="p-1.5 bg-slate-800 hover:bg-slate-700 rounded-full text-slate-400 hover:text-purple-400 transition-colors shadow-lg border border-slate-700"
                               >
                                 <Smile className="w-4 h-4" />
                               </button>
+                              <button 
+                                onClick={() => {
+                                  setReplyMessage(msg);
+                                  chatInputRef.current?.focus();
+                                }}
+                                className="p-1.5 bg-slate-800 hover:bg-slate-700 rounded-full text-slate-400 hover:text-blue-400 transition-colors shadow-lg border border-slate-700"
+                              >
+                                <Reply className="w-4 h-4 rotate-180" />
+                              </button>
+                            </div>
 
-                              {/* Selected Context Menu */}
-                              <AnimatePresence>
-                                {selectedMessageId === msg.id && (
+                            {/* Selected Context Menu Overlay */}
+                            <AnimatePresence>
+                              {selectedMessageId === msg.id && (
+                                <>
+                                  {/* Backdrop for mobile to ensure focus and prevent accidental clicks */}
+                                  <motion.div 
+                                    initial={{ opacity: 0 }}
+                                    animate={{ opacity: 1 }}
+                                    exit={{ opacity: 0 }}
+                                    onClick={() => setSelectedMessageId(null)}
+                                    className="fixed inset-0 bg-black/40 backdrop-blur-sm z-[99]"
+                                  />
                                   <motion.div
-                                    initial={{ opacity: 0, y: 10 }}
-                                    animate={{ opacity: 1, y: 0 }}
-                                    exit={{ opacity: 0, y: 10 }}
-                                    className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 bg-slate-800 border border-slate-700 rounded-xl overflow-hidden shadow-2xl min-w-[140px] z-50"
+                                    initial={{ opacity: 0, scale: 0.9, x: 20 }}
+                                    animate={{ opacity: 1, scale: 1, x: 0 }}
+                                    exit={{ opacity: 0, scale: 0.9, x: 20 }}
+                                    className="fixed top-1/2 right-4 -translate-y-1/2 w-[280px] shadow-2xl z-[100] flex flex-col bg-slate-950/95 backdrop-blur-3xl border border-white/10 rounded-[2.5rem] overflow-hidden ring-1 ring-white/10"
                                   >
-                                    <button 
-                                      onClick={() => {
-                                        handleDeleteMessage(msg.id, false);
-                                        setSelectedMessageId(null);
-                                      }}
-                                      className="w-full px-3 py-2 text-[10px] font-black text-slate-300 hover:bg-slate-700 text-right uppercase tracking-wider"
-                                    >
-                                      محو عندي فقط
-                                    </button>
-                                    {msg.senderId === profile.uid && (
+                                    {/* Horizontal Emoji Bar */}
+                                    <div className="p-4 border-b border-white/10 bg-white/5 flex flex-row flex-wrap gap-2 justify-center">
+                                      {['👍', '❤️', '😂', '🤔', '😡', '🔥', '👏', '🙏'].map(emoji => (
+                                        <button
+                                          key={emoji}
+                                          onClick={() => {
+                                            const msgRef = doc(db, 'messages', msg.id);
+                                            updateDoc(msgRef, { [`reactions.${profile.uid}`]: emoji });
+                                            setSelectedMessageId(null);
+                                          }}
+                                          className="text-2xl hover:scale-125 active:scale-90 transition-transform p-1.5"
+                                        >
+                                          {emoji}
+                                        </button>
+                                      ))}
+                                    </div>
+
+                                    {/* Action Buttons */}
+                                    <div className="flex flex-col gap-px bg-white/5">
                                       <button 
                                         onClick={() => {
-                                          handleDeleteMessage(msg.id, true);
+                                          setReplyMessage(msg);
+                                          setSelectedMessageId(null);
+                                          chatInputRef.current?.focus();
+                                        }}
+                                        className="w-full text-right px-6 py-4 text-sm font-black text-slate-100 hover:bg-white/10 transition-colors flex items-center justify-end gap-4"
+                                      >
+                                        <span>رد على الرسالة</span>
+                                        <Reply className="w-5 h-5 text-blue-400 rotate-180" />
+                                      </button>
+                                      <button 
+                                        onClick={() => {
+                                          handleDeleteMessage(msg.id, false);
                                           setSelectedMessageId(null);
                                         }}
-                                        className="w-full px-3 py-2 text-[10px] font-black text-red-400 hover:bg-red-500/10 text-right border-t border-slate-700 uppercase tracking-wider"
+                                        className="w-full text-right px-6 py-4 text-sm font-black text-slate-100 hover:bg-white/10 transition-colors flex items-center justify-end gap-4 border-t border-white/5"
                                       >
-                                        محو عند الجميع
+                                        <span>حذف من عندي</span>
+                                        <Trash2 className="w-5 h-5 text-slate-400" />
                                       </button>
-                                    )}
-                                    <button 
-                                      onClick={() => setSelectedMessageId(null)}
-                                      className="w-full px-3 py-2 text-[10px] font-black text-slate-500 hover:bg-slate-700 text-right border-t border-slate-700 uppercase tracking-wider"
+                                      {msg.senderId === profile.uid && (
+                                        <button 
+                                          onClick={() => {
+                                            handleDeleteMessage(msg.id, true);
+                                            setSelectedMessageId(null);
+                                          }}
+                                          className="w-full text-right px-6 py-4 text-sm font-black text-red-500 hover:bg-red-500/10 transition-colors flex items-center justify-end gap-4 border-t border-white/5"
+                                        >
+                                          <span>حذف للجميع</span>
+                                          <ShieldAlert className="w-5 h-5" />
+                                        </button>
+                                      )}
+                                      <button 
+                                        onClick={() => setSelectedMessageId(null)}
+                                        className="w-full text-center px-6 py-4 text-xs font-black text-slate-500 hover:text-white transition-colors border-t border-white/5"
+                                      >
+                                        إلغاء
+                                      </button>
+                                    </div>
+                                  </motion.div>
+                                </>
+                              )}
+                            </AnimatePresence>
+                            
+                            <AnimatePresence initial={false}>
+                              {showEmojiPicker === msg.id && (
+                                <motion.div 
+                                  key={`picker-${msg.id}`}
+                                  initial={{ opacity: 0, scale: 0.5, y: 10 }}
+                                  animate={{ opacity: 1, scale: 1, y: 0 }}
+                                  exit={{ opacity: 0, scale: 0.5, y: 10 }}
+                                  className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 bg-slate-800 border border-slate-700 rounded-full p-2 flex gap-1 shadow-2xl z-50 ring-2 ring-purple-500/20"
+                                >
+                                  {['❤️', '😂', '😮', '😢', '👍', '🔥', '👏', '🙏'].map(emoji => (
+                                    <button
+                                      key={emoji}
+                                      onClick={() => {
+                                        const msgRef = doc(db, 'messages', msg.id);
+                                        updateDoc(msgRef, { [`reactions.${profile.uid}`]: emoji });
+                                        setShowEmojiPicker(null);
+                                      }}
+                                      className="hover:scale-130 transition-transform p-0.5 text-lg"
                                     >
-                                      إلغاء
+                                      {emoji}
                                     </button>
-                                  </motion.div>
-                                )}
-                              </AnimatePresence>
-                              
-                              <AnimatePresence initial={false}>
-                                {showEmojiPicker === msg.id && (
-                                  <motion.div 
-                                    key={`picker-${msg.id}`}
-                                    initial={{ opacity: 0, scale: 0.5, y: 10 }}
-                                    animate={{ opacity: 1, scale: 1, y: 0 }}
-                                    exit={{ opacity: 0, scale: 0.5, y: 10 }}
-                                    className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 bg-slate-800 border border-slate-700 rounded-full p-1.5 flex gap-1 shadow-2xl z-50"
-                                  >
-                                    {['❤️', '😂', '😮', '😢', '👍', '🔥'].map(emoji => (
-                                      <button
-                                        key={emoji}
-                                        onClick={() => {
-                                          const msgRef = doc(db, 'messages', msg.id);
-                                          updateDoc(msgRef, { [`reactions.${profile.uid}`]: emoji });
-                                          setShowEmojiPicker(null);
-                                        }}
-                                        className="hover:scale-125 transition-transform p-1"
-                                      >
-                                        {emoji}
-                                      </button>
-                                    ))}
-                                  </motion.div>
-                                )}
-                              </AnimatePresence>
-                            </div>
+                                  ))}
+                                </motion.div>
+                              )}
+                            </AnimatePresence>
                           </div>
                         </div>
                         
@@ -1917,7 +2029,25 @@ export default function ChatBubble() {
                       </div>
                     )}
                   </div>
-                  <div className="p-4 bg-slate-900 border-t border-slate-800 flex flex-col gap-3">
+                  <div className="p-4 bg-slate-900/40 border-t border-slate-800 flex flex-col gap-3">
+                    {replyMessage && (
+                      <motion.div 
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        className="bg-slate-800/80 border border-primary/30 rounded-xl p-2 px-3 flex items-center justify-between gap-3 text-[10px]"
+                      >
+                        <div className="flex-1 min-w-0 border-r-2 border-primary pr-2">
+                          <p className="font-black text-primary uppercase text-[8px] mb-0.5 tracking-wider">Répondre à {replyMessage.senderName}</p>
+                          <p className="text-slate-300 truncate font-bold">{replyMessage.text || 'صورة/صوت'}</p>
+                        </div>
+                        <button 
+                          onClick={() => setReplyMessage(null)}
+                          className="p-1 hover:bg-slate-700 rounded-full text-slate-500 transition-colors"
+                        >
+                          <X className="w-3.5 h-3.5" />
+                        </button>
+                      </motion.div>
+                    )}
                     <div className="flex items-center gap-2">
                       <button 
                         type="button"
@@ -1995,7 +2125,7 @@ export default function ChatBubble() {
                               exit={{ opacity: 0, y: 10, scale: 0.9 }}
                               className="absolute bottom-full mb-4 left-4 bg-slate-900 border border-slate-800 rounded-2xl p-3 shadow-2xl z-50 flex flex-wrap gap-2 max-w-[200px]"
                             >
-                              {['❤️', '😂', '😮', '😢', '👍', '🔥', '👏', '🎉', '🙏', '✨', '📚', '🎓'].map(emoji => (
+                              {['❤️', '😂', '😮', '😢', '👍', '🔥', '👏', '🎉', '🙏', '✨', '📚', '🎓', '🤔', '😡', '😱', '🥳', '💪', '💡', '✅', '❌', '💯', '🚀'].map(emoji => (
                                 <button
                                   key={emoji}
                                   onClick={() => {

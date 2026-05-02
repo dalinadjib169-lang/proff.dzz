@@ -2,15 +2,16 @@ import React, { memo } from 'react';
 import { Link } from 'react-router-dom';
 import { auth } from '../firebase';
 import { useAuth } from '../hooks/useAuth';
-import { GraduationCap, Bell, Search, LogOut, User as UserIcon, MessageSquare, Mail } from 'lucide-react';
+import { GraduationCap, Bell, Search, LogOut, User as UserIcon, MessageSquare, Mail, ArrowLeft, ArrowRight } from 'lucide-react';
 import { useUnreadMessages } from '../hooks/useUnreadMessages';
+import { cn } from '../lib/utils';
 
 function Navbar() {
   const { profile } = useAuth();
   const unreadMessagesCount = useUnreadMessages();
 
   return (
-    <nav className="sticky top-0 z-50 bg-slate-950 border-b border-slate-900 shadow-xl">
+    <nav className="sticky top-0 z-50 bg-slate-950/10 backdrop-blur-3xl border-b border-white/5 shadow-2xl">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-16">
           <div className="flex items-center gap-8">
@@ -88,6 +89,24 @@ function Navbar() {
                 <p className="text-[10px] font-medium text-slate-500 uppercase tracking-wider mt-1">Teacher</p>
               </div>
             </Link>
+
+            <button
+              onClick={() => {
+                if (window.history.length > 1) {
+                  window.history.back();
+                } else {
+                  window.location.href = '/';
+                }
+              }}
+              className={cn(
+                "p-2.5 text-slate-400 hover:text-primary hover:bg-primary/10 bg-slate-900 rounded-xl transition-all border border-slate-800",
+                window.location.pathname === '/' && "hidden"
+              )}
+              title="Back / رجوع"
+            >
+              <ArrowRight className="w-5 h-5 hidden rtl:block" />
+              <ArrowLeft className="w-5 h-5 hidden ltr:block" />
+            </button>
 
             <button
               onClick={() => auth.signOut()}
