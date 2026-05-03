@@ -437,52 +437,55 @@ export const PrayerWaterBar: React.FC = () => {
       </motion.div>
 
       {/* Azkar Marquee */}
-      <div className="w-full bg-slate-900/10 backdrop-blur-3xl border border-white/5 rounded-full h-8 flex items-center overflow-hidden relative">
+      <div className="w-full bg-black/40 backdrop-blur-3xl border border-white/10 rounded-full h-10 flex items-center overflow-hidden relative">
         <div className="absolute inset-y-0 left-0 w-8 bg-gradient-to-r from-slate-900/40 to-transparent z-10 pointer-events-none" />
         <div className="absolute inset-y-0 right-0 w-8 bg-gradient-to-l from-slate-900/40 to-transparent z-10 pointer-events-none" />
         
         <motion.div 
-          initial={{ x: 0 }}
-          animate={{ x: [0, "-50%"] }}
+          initial={{ x: "-50%" }}
+          animate={{ x: 0 }}
           transition={{ 
             repeat: Infinity, 
-            duration: 120, // Slowly as requested
+            duration: 300, 
             ease: "linear"
           }}
-          className="whitespace-nowrap flex py-0.5"
+          className="whitespace-nowrap flex items-center h-full"
         >
-          <div className="flex gap-40 text-[18px] font-black px-4 font-amiri tracking-wider items-center" dir="rtl">
+          <div className="flex gap-40 text-[22px] font-black px-4 font-amiri tracking-wider items-center">
             {getAzkar().map((item, i) => (
               <span 
                 key={i} 
                 className={cn(
                   "transition-all flex-shrink-0 flex items-center gap-4",
-                  item.type === 'surah' ? 'text-green-500 font-bold border-b-2 border-green-500/20 pb-0.5' : 
-                  item.type === 'dua' ? 'text-amber-400' : 
-                  item.type === 'zekr' ? 'text-red-500' : 
-                  'text-white'
+                  item.type === 'surah' ? 'text-green-400 font-bold border-b-2 border-green-500/20 pb-0.5' : 
+                  item.type === 'dua' ? 'text-cyan-400' : 
+                  item.type === 'zekr' ? 'text-red-400 font-black' : 
+                  'text-white drop-shadow-[0_2px_2px_rgba(0,0,0,0.8)]'
                 )}
+                dir="rtl"
               >
-                <span className="opacity-50 text-[10px]">{i + 1}. </span>
+                <span className="opacity-40 text-[12px]">{i + 1}. </span>
                 {item.text}
-                <div className="w-1.5 h-1.5 rounded-full bg-slate-700 mx-2" />
+                <div className="w-2 h-2 rounded-full bg-slate-700/50 mx-2" />
               </span>
             ))}
-            {/* Duplicate for seamless loop */}
+          </div>
+          <div className="flex gap-40 text-[22px] font-black px-4 font-amiri tracking-wider items-center">
             {getAzkar().map((item, i) => (
               <span 
                 key={`loop-${i}`} 
                 className={cn(
                   "transition-all flex-shrink-0 flex items-center gap-4",
-                  item.type === 'surah' ? 'text-green-500 font-bold border-b-2 border-green-500/20 pb-0.5' : 
-                  item.type === 'dua' ? 'text-amber-400' : 
-                  item.type === 'zekr' ? 'text-red-500' : 
-                  'text-white'
+                  item.type === 'surah' ? 'text-green-400 font-bold border-b-2 border-green-500/20 pb-0.5' : 
+                  item.type === 'dua' ? 'text-cyan-400' : 
+                  item.type === 'zekr' ? 'text-red-400 font-black' : 
+                  'text-white drop-shadow-[0_2px_2px_rgba(0,0,0,0.8)]'
                 )}
+                dir="rtl"
               >
-                <span className="opacity-50 text-[10px]">{i + 1}. </span>
+                <span className="opacity-40 text-[12px]">{i + 1}. </span>
                 {item.text}
-                <div className="w-1.5 h-1.5 rounded-full bg-slate-700 mx-2" />
+                <div className="w-2 h-2 rounded-full bg-slate-700/50 mx-2" />
               </span>
             ))}
           </div>

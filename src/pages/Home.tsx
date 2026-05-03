@@ -111,9 +111,12 @@ export default function Home() {
     { type: 'image', value: 'url(https://images.unsplash.com/photo-1475924156734-496f6cac6ec1?auto=format&fit=crop&q=80&w=800)', label: 'Sama (Sky)' },
     { type: 'image', value: 'url(https://images.unsplash.com/photo-1514888286974-6c03e2ca1dba?auto=format&fit=crop&q=80&w=800)', label: 'قطط كيوت (Cats)' },
     { type: 'image', value: 'url(https://flagpedia.net/data/flags/w580/dz.png)', label: 'علم الجزائر (Algeria)' },
+    { type: 'image', value: 'url(https://images.unsplash.com/photo-1506318137071-a8e063b4b09d?auto=format&fit=crop&q=80&w=800)', label: 'الفضاء (Deep Space)' },
     { type: 'image', value: 'url(https://images.unsplash.com/photo-1614730321146-b6fa6a46bcb4?auto=format&fit=crop&q=80&w=800)', label: 'كواكب (Planets)' },
     { type: 'image', value: 'url(https://images.unsplash.com/photo-1509228468518-180dd4864904?auto=format&fit=crop&q=80&w=800)', label: 'رياضيات (Math)' },
     { type: 'image', value: 'url(https://images.unsplash.com/photo-1461896836934-ffe607ba8211?auto=format&fit=crop&q=80&w=800)', label: 'رياضة (Sports)' },
+    { type: 'image', value: 'url(https://images.unsplash.com/photo-1517649763962-0c623066013b?auto=format&fit=crop&q=80&w=800)', label: 'كرة قدم (Football)' },
+    { type: 'image', value: 'url(https://images.unsplash.com/photo-1557683316-973673baf926?auto=format&fit=crop&q=80&w=800)', label: 'ألوان (Colors)' },
     { type: 'image', value: 'url(https://images.unsplash.com/photo-1518020382113-a7e8fc38eac9?auto=format&fit=crop&q=80&w=800)', label: 'مضحك (Funny)' },
   ];
 

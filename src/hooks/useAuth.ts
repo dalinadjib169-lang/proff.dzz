@@ -93,21 +93,8 @@ export function useAuth() {
               updates.isProfileComplete = isComplete;
             }
             
-            // Update lastSeen if not updated recently (more than 5 minutes)
-            // Be careful with serverTimestamp() comparison
-            const now = new Date();
-            const lastSeen = publicData.lastSeen?.toDate();
-            // Only update if we have a real date and it's old enough
-            // and we are NOT currently in a pending write state (approximated)
-            if (lastSeen && (now.getTime() - lastSeen.getTime() > 300000)) {
-              updates.lastSeen = serverTimestamp();
-            } else if (!lastSeen) {
-              // If it's null, it might be a pending write, so we wait
-              // Only update if it's truly missing (new profile)
-              if (!publicData.createdAt) {
-                 updates.lastSeen = serverTimestamp();
-              }
-            }
+            // Update lastSeen immediately on identifying the user, then periodically
+            updates.lastSeen = serverTimestamp();
 
             if (Object.keys(updates).length > 0) {
               updateDoc(docRef, updates).catch(e => {
@@ -229,10 +216,20 @@ export function useAuth() {
         };
     });
 
+    // Update lastSeen periodically while active
+    const lastSeenInterval = setInterval(() => {
+      if (auth.currentUser) {
+        updateDoc(doc(db, 'users', auth.currentUser.uid), {
+          lastSeen: serverTimestamp()
+        }).catch(e => console.error("Error periodic lastSeen update:", e));
+      }
+    }, 180000); // Every 3 minutes
+
     return () => {
       unsubscribeAuth();
       if (unsubscribeProfile) unsubscribeProfile();
       if (loadingTimeout) clearTimeout(loadingTimeout);
+      clearInterval(lastSeenInterval);
     };
   }, []);
 

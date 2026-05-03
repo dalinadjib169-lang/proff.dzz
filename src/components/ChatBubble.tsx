@@ -1027,12 +1027,6 @@ export default function ChatBubble() {
   const handleStartCall = async (type: 'audio' | 'video') => {
     if (!profile || !activeChat) return;
 
-    // Pre-call check: Ensure user is online
-    if (activeChat.uid !== 'global' && !isOnline(activeChat.lastSeen)) {
-      alert("عذراً، الزميل غير متصل حالياً. لا يمكنك الاتصال به.");
-      return;
-    }
-    
     try {
       if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
         throw new Error("Media devices not supported or unsecure context");
@@ -1057,6 +1051,20 @@ export default function ChatBubble() {
       // Start dialtone for caller
       if (!ringtoneRef.current) {
         ringtoneRef.current = playSound('dialtone', true, 0.7);
+      }
+
+      // If peer is offline, play busy tone after a short delay
+      if (!isOnline(activeChat.lastSeen)) {
+        setTimeout(() => {
+          if (ringtoneRef.current) {
+            ringtoneRef.current.pause();
+            ringtoneRef.current = null;
+          }
+          playSound('busy', false, 1.0);
+          alert("الزميل غير متصل حالياً. سيتم إنهاء المحاولة.");
+          endCall();
+        }, 3000);
+        return;
       }
 
       const callDoc = await addDoc(collection(db, 'calls'), {
@@ -1297,7 +1305,7 @@ export default function ChatBubble() {
     if (!lastSeen) return false;
     try {
       const lastSeenDate = lastSeen.toDate ? lastSeen.toDate() : new Date(lastSeen);
-      return Date.now() - lastSeenDate.getTime() < 600000; // 10 minutes (more lenient)
+      return Date.now() - lastSeenDate.getTime() < 900000; // 15 minutes (more lenient)
     } catch (e) {
       return false;
     }
@@ -1406,17 +1414,15 @@ export default function ChatBubble() {
                     </button>
                     <button 
                       onClick={() => handleStartCall('audio')}
-                      disabled={!isOnline(activeChat.lastSeen)}
-                      className={`p-2 rounded-xl transition-all ${!isOnline(activeChat.lastSeen) ? 'text-white/20 cursor-not-allowed' : 'text-white/80 hover:text-white hover:bg-white/10'}`}
-                      title={isOnline(activeChat.lastSeen) ? "Audio Call / مكالمة صوتية" : "Colleague is offline / الزميل غير متصل حالياً"}
+                      className="p-2 rounded-xl transition-all text-white/80 hover:text-white hover:bg-white/10"
+                      title="Audio Call / مكالمة صوتية"
                     >
                       <Phone className="w-4 h-4" />
                     </button>
                     <button 
                       onClick={() => handleStartCall('video')}
-                      disabled={!isOnline(activeChat.lastSeen)}
-                      className={`p-2 rounded-xl transition-all ${!isOnline(activeChat.lastSeen) ? 'text-white/20 cursor-not-allowed' : 'text-white/80 hover:text-white hover:bg-white/10'}`}
-                      title={isOnline(activeChat.lastSeen) ? "Video Call / مكالمة فيديو" : "Colleague is offline / الزميل غير متصل حالياً"}
+                      className="p-2 rounded-xl transition-all text-white/80 hover:text-white hover:bg-white/10"
+                      title="Video Call / مكالمة فيديو"
                     >
                       <Video className="w-4 h-4" />
                     </button>
