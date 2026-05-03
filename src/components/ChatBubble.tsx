@@ -604,6 +604,7 @@ export default function ChatBubble() {
 
     const peer = new Peer(profile.uid, {
       debug: 0,
+      pingInterval: 5000, // Faster heartbeats to prevent signaling drop
       config: {
         iceServers: [
           { urls: 'stun:stun.l.google.com:19302' },
@@ -1137,32 +1138,48 @@ export default function ChatBubble() {
     }
 
     if (!isReady) {
-      console.warn('Peer signaling still not ready, call might fail but proceeding anyway...');
+      console.warn('Peer signaling still not ready, attempting call anyway but may fail...');
       if (currentPeer.disconnected) currentPeer.reconnect();
     }
 
-    const callOptions = { metadata: { type: callData.type, senderId: profile.uid, senderName: profile.displayName } };
-    const call = currentPeer.call(callData.recipientId, stream, callOptions);
-    
-    if (call) {
-      console.log('PeerJS call object created successfully');
-      call.on('stream', (remoteStream) => {
-        console.log('Caller received remote stream');
-        setRemoteStream(remoteStream);
-        if (callData.id) {
-          updateDoc(doc(db, 'calls', callData.id), { status: 'connected' }).catch(console.error);
-        }
-      });
-      call.on('error', (err) => {
-        console.error('PeerJS call instance error:', err);
-      });
-      call.on('close', () => {
-        console.log('PeerJS call instance closed');
-        endCall();
-      });
-      setActivePeerCall(call);
-      activePeerCallRef.current = call;
-    }
+    let p2pActive = false;
+
+    const performCall = () => {
+      if (p2pActive) return;
+      console.log('Performing PeerJS call attempt to:', callData.recipientId);
+      const callOptions = { metadata: { type: callData.type, senderId: profile.uid, senderName: profile.displayName } };
+      const call = currentPeer.call(callData.recipientId, stream, callOptions);
+      
+      if (call) {
+        call.on('stream', (remoteStream) => {
+          console.log('Caller received remote stream');
+          p2pActive = true;
+          setRemoteStream(remoteStream);
+          if (callData.id) {
+            updateDoc(doc(db, 'calls', callData.id), { status: 'connected' }).catch(console.error);
+          }
+        });
+        call.on('error', (err) => {
+          console.error('PeerJS call instance error:', err);
+        });
+        call.on('close', () => {
+          console.log('PeerJS call instance closed');
+          endCall();
+        });
+        setActivePeerCall(call);
+        activePeerCallRef.current = call;
+      }
+    };
+
+    performCall();
+
+    // Retry once after 5 seconds if no stream received yet
+    setTimeout(() => {
+      if (!p2pActive && isCalling && !activePeerCallRef.current?.open) {
+        console.log('Retrying PeerJS call (Phase 2)...');
+        performCall();
+      }
+    }, 5000);
   };
 
   const handleAcceptCall = async () => {
@@ -1180,11 +1197,6 @@ export default function ChatBubble() {
         throw new Error("Media devices not supported or unsecure context");
       }
 
-      // Update call status to 'accepted' FIRST to notify the caller
-      if (incomingCall?.id) {
-        await updateDoc(doc(db, 'calls', incomingCall.id), { status: 'accepted' });
-      }
-
       const constraints = {
         video: incomingCall.type === 'video' ? {
           facingMode: 'user',
@@ -1195,9 +1207,29 @@ export default function ChatBubble() {
       };
 
       console.log('Answering call with constraints:', constraints);
+      toast.loading("جاري تشغيل الكاميرا والميكروفون...", { id: 'media-prep' });
       const stream = await navigator.mediaDevices.getUserMedia(constraints);
+      toast.dismiss('media-prep');
       localStreamRef.current = stream;
       setLocalStream(stream);
+
+      // Ensure Peer is ready before accepting via Firestore
+      const currentPeer = initPeer();
+      if (!currentPeer || currentPeer.destroyed) {
+        throw new Error("Peer connection lost");
+      }
+
+      // Wait for signaling to be stable
+      for (let i = 0; i < 10; i++) {
+        if ((currentPeer as any)._ready && !currentPeer.disconnected) break;
+        console.log("Waiting for Peer to be ready before accepting...");
+        await new Promise(r => setTimeout(r, 500));
+      }
+
+      // Update call status to 'accepted' NOW that we are ready
+      if (incomingCall?.id) {
+        await updateDoc(doc(db, 'calls', incomingCall.id), { status: 'accepted' });
+      }
 
       // Wait if peer call hasn't arrived yet (race condition with Firestore)
       let currentPeerCall = activePeerCallRef.current;
@@ -1205,11 +1237,6 @@ export default function ChatBubble() {
         toast.loading("جاري تأسيس الاتصال المشفر...", { id: 'call-negotiating' });
         console.log("Peer call not found yet, checking PeerJS state and waiting...");
         
-        if (peerRef.current?.disconnected || peerRef.current?.destroyed) {
-          console.log("Receiver PeerJS is offline, attempting emergency restart/reconnect...");
-          initPeer();
-        }
-
         // Wait up to 30 seconds total, checking every 500ms
         for (let i = 0; i < 60; i++) { 
           await new Promise(r => setTimeout(r, 500));
@@ -1220,7 +1247,6 @@ export default function ChatBubble() {
           }
           if (i % 10 === 0) {
             console.log(`Still waiting for PeerJS call (attempt ${i/10 + 1}/6)...`);
-            console.log(`Peer state: ID=${peerRef.current?.id}, Disc=${peerRef.current?.disconnected}, Dest=${peerRef.current?.destroyed}`);
           }
         }
         toast.dismiss('call-negotiating');
@@ -1233,7 +1259,7 @@ export default function ChatBubble() {
           console.log('Received remote stream');
           setRemoteStream(remoteStream);
         });
-        currentPeerCall.on('error', (err) => {
+        currentPeerCall.on('error', (err: any) => {
           console.error("PeerJS Call object error:", err);
           toast.error("خطأ في الاتصال المباشر.");
           endCall();
@@ -1244,7 +1270,7 @@ export default function ChatBubble() {
         });
       } else {
         console.error("Peer call failed to arrive after timeout");
-        toast.error("فشل تأسيس الاتصال. يرجى المحاولة لاحقاً.");
+        toast.error("فشل تأسيس الاتصال. الطرف الآخر قد يكون أوفلاين.");
         throw new Error("Failed to establish peer connection");
       }
 
@@ -1254,10 +1280,12 @@ export default function ChatBubble() {
       playSound('message'); 
     } catch (err: any) {
       console.error("Accept call error:", err);
+      toast.dismiss('media-prep');
+      toast.dismiss('call-negotiating');
       if (err?.code || (err?.message && err.message.includes('permission-denied'))) {
         handleFirestoreError(err, OperationType.UPDATE, `calls/${incomingCall?.id}`);
       }
-      toast.error("تعذر الاتصال. يرجى التأكد من استقرار الإنترنت ومنح أذونات الكاميرا والميكروفون.");
+      toast.error("تعذر الاتصال. يرجى التأكد من استقرار الإنترنت ومنح أذونات الكاميرا.");
       handleRejectCall();
     }
   };
@@ -1799,11 +1827,11 @@ export default function ChatBubble() {
                             className="flex flex-col items-center gap-1 min-w-[60px] group"
                           >
                             <div className="relative">
-                              <div className="w-12 h-12 rounded-2xl bg-purple-500/10 border-2 border-dashed border-purple-500/30 flex items-center justify-center group-hover:bg-purple-500/20 transition-all">
-                                <Plus className="w-5 h-5 text-purple-400" />
+                              <div className="w-12 h-12 rounded-2xl bg-purple-500/10 border-2 border-dashed border-purple-500/30 flex items-center justify-center group-hover:bg-purple-500/20 group-hover:scale-105 group-hover:border-purple-500 transition-all shadow-lg shadow-purple-500/5">
+                                <Plus className="w-6 h-6 text-purple-400 group-hover:rotate-90 transition-transform duration-500" />
                               </div>
                             </div>
-                            <span className="text-[9px] font-bold text-slate-500 text-center">زميل جديد</span>
+                            <span className="text-[9px] font-black text-slate-500 text-center uppercase tracking-tighter group-hover:text-purple-400 transition-colors">زميل جديد</span>
                           </button>
 
                           {users.filter(u => isOnline(u.lastSeen)).length > 0 ? (
