@@ -236,6 +236,20 @@ service cloud.firestore {
              (request.method == 'create' ? data.createdAt == request.time : data.createdAt == existing().createdAt);
     }
 
+    function isValidCall(data) {
+      return data.keys().hasAll(['senderId', 'senderName', 'recipientId', 'type', 'status', 'createdAt']) &&
+             data.senderId is string &&
+             data.senderName is string &&
+             (!('senderPhoto' in data) || data.senderPhoto is string || data.senderPhoto == null) &&
+             data.recipientId is string &&
+             data.type in ['audio', 'video'] &&
+             data.status in ['ringing', 'connected', 'accepted', 'rejected', 'missed', 'ended'] &&
+             (request.method == 'create' ? 
+               (data.senderId == request.auth.uid && data.createdAt == request.time) : 
+               (data.senderId == existing().senderId && data.createdAt == existing().createdAt)
+             );
+    }
+
     // ===============================================================
     // Collection Rules
     // ===============================================================
@@ -334,11 +348,12 @@ service cloud.firestore {
     }
 
     match /calls/{callId} {
-      allow get: if isSignedIn() && (resource == null || request.auth.uid == resource.data.senderId || request.auth.uid == resource.data.recipientId);
-      allow list: if isSignedIn() && (request.auth.uid == resource.data.senderId || request.auth.uid == resource.data.recipientId);
-      allow create: if isSignedIn() && incoming().senderId == request.auth.uid;
-      allow update: if (isSignedIn() && (request.auth.uid == existing().senderId || request.auth.uid == existing().recipientId)) || isAdmin();
-      allow delete: if (isSignedIn() && (request.auth.uid == existing().senderId || request.auth.uid == existing().recipientId)) || isAdmin();
+      allow get: if isSignedIn() && isValidId(callId) && (resource == null || request.auth.uid == resource.data.senderId || request.auth.uid == resource.data.recipientId || isAdmin());
+      allow list: if isSignedIn() && (request.auth.uid == resource.data.senderId || request.auth.uid == resource.data.recipientId || isAdmin());
+      allow create: if isSignedIn() && isValidId(callId) && isValidCall(incoming());
+      allow update: if isSignedIn() && isValidId(callId) && isValidCall(incoming()) && 
+                    (request.auth.uid == existing().senderId || request.auth.uid == existing().recipientId || isAdmin());
+      allow delete: if isSignedIn() && isValidId(callId) && (request.auth.uid == existing().senderId || request.auth.uid == existing().recipientId || isAdmin());
     }
 
     match /groups/{groupId} {

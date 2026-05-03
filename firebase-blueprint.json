@@ -220,9 +220,11 @@
       "properties": {
         "id": { "type": "string" },
         "senderId": { "type": "string" },
+        "senderName": { "type": "string" },
+        "senderPhoto": { "type": "string" },
         "recipientId": { "type": "string" },
         "type": { "type": "string", "enum": ["audio", "video"] },
-        "status": { "type": "string", "enum": ["ringing", "accepted", "rejected", "missed", "ended"] },
+        "status": { "type": "string", "enum": ["ringing", "connected", "accepted", "rejected", "missed", "ended"] },
         "createdAt": { "type": "string", "format": "date-time" }
       },
       "required": ["senderId", "recipientId", "type", "status", "createdAt"]
