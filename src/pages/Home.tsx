@@ -111,6 +111,8 @@ export default function Home() {
     { type: 'image', value: 'url(https://images.unsplash.com/photo-1475924156734-496f6cac6ec1?auto=format&fit=crop&q=80&w=800)', label: 'Sama (Sky)' },
     { type: 'image', value: 'url(https://images.unsplash.com/photo-1514888286974-6c03e2ca1dba?auto=format&fit=crop&q=80&w=800)', label: 'قطط كيوت (Cats)' },
     { type: 'image', value: 'url(https://flagpedia.net/data/flags/w580/dz.png)', label: 'علم الجزائر (Algeria)' },
+    { type: 'image', value: 'url(https://images.unsplash.com/photo-1614730321146-b6fa6a46bcb4?auto=format&fit=crop&q=80&w=800)', label: 'كواكب (Planets)' },
+    { type: 'image', value: 'url(https://images.unsplash.com/photo-1509228468518-180dd4864904?auto=format&fit=crop&q=80&w=800)', label: 'رياضيات (Math)' },
     { type: 'image', value: 'url(https://images.unsplash.com/photo-1461896836934-ffe607ba8211?auto=format&fit=crop&q=80&w=800)', label: 'رياضة (Sports)' },
     { type: 'image', value: 'url(https://images.unsplash.com/photo-1518020382113-a7e8fc38eac9?auto=format&fit=crop&q=80&w=800)', label: 'مضحك (Funny)' },
   ];
@@ -120,20 +122,26 @@ export default function Home() {
       <PrayerWaterBar />
 
       <div className="bg-slate-900/20 backdrop-blur-3xl border border-slate-800/50 rounded-2xl p-4 shadow-lg overflow-hidden relative">
-        {selectedBg && !selectedImage && (
-          <div className="absolute inset-0 pointer-events-none" style={{ background: selectedBg, backgroundSize: 'cover', backgroundPosition: 'center' }}>
-             <div className="absolute inset-0 bg-black/40"></div>
-          </div>
-        )}
         <div className="flex gap-3 relative z-10">
           <img src={profile?.photoURL} className="w-12 h-12 rounded-xl object-cover ring-2 ring-primary/20" alt="" referrerPolicy="no-referrer" />
-          <div className="flex-1 space-y-3">
-            <div className={`relative rounded-3xl overflow-hidden transition-all shadow-2xl group/preview ${selectedBg && !selectedImage ? 'min-h-[220px] flex items-center justify-center p-8' : ''}`} style={{ background: !selectedImage ? selectedBg || 'transparent' : 'transparent', backgroundSize: 'cover', backgroundPosition: 'center' }}>
+          <div className="flex-1 space-y-3 font-amiri">
+            <div 
+              className={`relative rounded-3xl overflow-hidden transition-all shadow-xl group/preview ${selectedBg && !selectedImage ? 'min-h-[240px] flex items-center justify-center p-8' : ''}`} 
+              style={{ 
+                backgroundImage: !selectedImage ? (selectedBg?.includes('gradient') ? selectedBg : (selectedBg?.includes('url') ? selectedBg : 'none')) : 'none',
+                backgroundColor: !selectedImage && !selectedBg?.includes('gradient') && !selectedBg?.includes('url') ? (selectedBg || 'transparent') : 'transparent',
+                backgroundSize: 'cover',
+                backgroundPosition: 'center'
+              }}
+            >
+              {selectedBg && !selectedImage && (
+                <div className="absolute inset-0 bg-black/30 pointer-events-none" />
+              )}
               <textarea
                 value={content}
                 onChange={(e) => setContent(e.target.value)}
                 placeholder="بماذا تفكر يا زميلي..."
-                className={`w-full bg-slate-950/20 border border-slate-800/50 rounded-xl p-3 text-white placeholder:text-slate-400/70 outline-none focus:border-primary resize-none font-black transition-all ${selectedBg && !selectedImage ? 'text-center text-xl sm:text-2xl min-h-[220px] bg-transparent border-none placeholder:text-white/40 drop-shadow-2xl' : 'min-h-[80px]'}`}
+                className={`w-full bg-slate-950/20 border border-slate-800/50 rounded-xl p-3 text-white placeholder:text-slate-400/70 outline-none focus:border-primary resize-none font-black transition-all relative z-10 ${selectedBg && !selectedImage ? 'text-center text-2xl sm:text-3xl min-h-[240px] bg-transparent border-none placeholder:text-white/40 drop-shadow-2xl' : 'min-h-[80px]'}`}
               />
               {selectedBg && !selectedImage && (
                 <button 

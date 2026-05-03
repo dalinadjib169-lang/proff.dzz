@@ -678,7 +678,7 @@ export default function ChatBubble() {
         setIncomingCall(callData);
         // Only play ringtone if one isn't already playing and we aren't already in a call
         if (!ringtoneRef.current && !isCalling) {
-          ringtoneRef.current = playSound('ringtone', true);
+          ringtoneRef.current = playSound('ringtone', true, 1.0);
         }
         setEmojiState('happy');
       } else {
@@ -1054,9 +1054,9 @@ export default function ChatBubble() {
       setLocalStream(stream);
       setIsCalling(type);
 
-      // Start ringing for caller
+      // Start dialtone for caller
       if (!ringtoneRef.current) {
-        ringtoneRef.current = playSound('ringtone', true);
+        ringtoneRef.current = playSound('dialtone', true, 0.7);
       }
 
       const callDoc = await addDoc(collection(db, 'calls'), {
@@ -1090,9 +1090,13 @@ export default function ChatBubble() {
           }
         }, 45000);
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error("Call error:", err);
-      alert("تعذر بدء المكالمة. يرجى التأكد من منح أذونات الكاميرا والميكروفون.");
+      // More descriptive error based on error type
+      const errorMsg = err?.name === 'NotAllowedError' 
+        ? "تعذر الوصول إلى الكاميرا أو الميكروفون. يرجى تفعيل الأذونات من إعدادات المتصفح (أعلى يسار العنوان)."
+        : "تعذر بدء المكالمة. تأكد من أن جهازك يدعم الكاميرا والميكروفون ومن اتصالك بالإنترنت.";
+      alert(errorMsg);
       endCall();
     }
   };
@@ -1158,9 +1162,12 @@ export default function ChatBubble() {
       setIsCalling(incomingCall.type);
       setIncomingCall(null);
       playSound('message'); 
-    } catch (err) {
+    } catch (err: any) {
       console.error("Accept call error:", err);
-      alert("تعذر الوصول إلى الكاميرا أو الميكروفون. يرجى التأكد من منح الأذونات في المتصفح.");
+      const errorMsg = err?.name === 'NotAllowedError'
+        ? "تعذر الرد على المكالمة بسبب عدم وجود أذونات الكاميرا/الميكروفون. يرجى منح الأذونات في المتصفح."
+        : "حدث خطأ أثناء محاولة الرد على المكالمة. يرجى المحاولة مرة أخرى.";
+      alert(errorMsg);
       handleRejectCall();
     }
   };
@@ -1290,7 +1297,7 @@ export default function ChatBubble() {
     if (!lastSeen) return false;
     try {
       const lastSeenDate = lastSeen.toDate ? lastSeen.toDate() : new Date(lastSeen);
-      return Date.now() - lastSeenDate.getTime() < 300000; // 5 minutes
+      return Date.now() - lastSeenDate.getTime() < 600000; // 10 minutes (more lenient)
     } catch (e) {
       return false;
     }
@@ -1401,7 +1408,7 @@ export default function ChatBubble() {
                       onClick={() => handleStartCall('audio')}
                       disabled={!isOnline(activeChat.lastSeen)}
                       className={`p-2 rounded-xl transition-all ${!isOnline(activeChat.lastSeen) ? 'text-white/20 cursor-not-allowed' : 'text-white/80 hover:text-white hover:bg-white/10'}`}
-                      title={isOnline(activeChat.lastSeen) ? "Audio Call" : "Offline"}
+                      title={isOnline(activeChat.lastSeen) ? "Audio Call / مكالمة صوتية" : "Colleague is offline / الزميل غير متصل حالياً"}
                     >
                       <Phone className="w-4 h-4" />
                     </button>
@@ -1409,7 +1416,7 @@ export default function ChatBubble() {
                       onClick={() => handleStartCall('video')}
                       disabled={!isOnline(activeChat.lastSeen)}
                       className={`p-2 rounded-xl transition-all ${!isOnline(activeChat.lastSeen) ? 'text-white/20 cursor-not-allowed' : 'text-white/80 hover:text-white hover:bg-white/10'}`}
-                      title={isOnline(activeChat.lastSeen) ? "Video Call" : "Offline"}
+                      title={isOnline(activeChat.lastSeen) ? "Video Call / مكالمة فيديو" : "Colleague is offline / الزميل غير متصل حالياً"}
                     >
                       <Video className="w-4 h-4" />
                     </button>

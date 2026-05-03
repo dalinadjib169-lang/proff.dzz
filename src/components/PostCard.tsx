@@ -466,7 +466,15 @@ export default function PostCard({ post, isGroupPost, groupId, onDelete }: { pos
             </div>
           </div>
         ) : post.background ? (
-          <div className="p-8 rounded-2xl flex items-center justify-center text-center text-lg sm:text-xl font-black text-white min-h-[160px] shadow-inner" style={{ background: post.background, backgroundSize: 'cover', backgroundPosition: 'center' }}>
+          <div 
+            className="p-8 rounded-2xl flex items-center justify-center text-center text-lg sm:text-xl font-black text-white min-h-[160px] shadow-inner" 
+            style={{ 
+              backgroundImage: post.background?.includes('linear-gradient') || post.background?.includes('url') ? post.background : 'none',
+              backgroundColor: !post.background?.includes('linear-gradient') && !post.background?.includes('url') ? post.background : 'transparent',
+              backgroundSize: 'cover', 
+              backgroundPosition: 'center' 
+            }}
+          >
             <p className="leading-tight drop-shadow-md">{post.content}</p>
           </div>
         ) : (
