@@ -428,10 +428,10 @@ export const PrayerWaterBar: React.FC = () => {
         <div className="absolute inset-y-0 right-0 w-10 bg-gradient-to-l from-slate-800 to-transparent z-10 pointer-events-none" />
         
         <motion.div 
-          animate={{ x: ["-50%", "0%"] }} // Reversed direction (scrolls to the right)
+          animate={{ x: ["-50%", "0%"] }} // Items move from Left to Right
           transition={{ 
             repeat: Infinity, 
-            duration: 150, // Slower speed for better readability
+            duration: 140, // Balanced speed for readability
             ease: "linear"
           }}
           className="flex whitespace-nowrap items-center w-max"
