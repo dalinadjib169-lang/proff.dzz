@@ -423,55 +423,39 @@ export const PrayerWaterBar: React.FC = () => {
       </motion.div>
 
       {/* Azkar Marquee */}
-      <div className="w-full bg-slate-900 border border-white/5 rounded-full h-8 flex items-center overflow-hidden relative">
-        <div className="absolute inset-y-0 left-0 w-12 bg-gradient-to-r from-slate-900 to-transparent z-10 pointer-events-none" />
-        <div className="absolute inset-y-0 right-0 w-12 bg-gradient-to-l from-slate-900 to-transparent z-10 pointer-events-none" />
+      <div className="w-full bg-slate-900 border border-white/20 rounded-full h-10 flex items-center overflow-hidden relative" dir="ltr">
+        <div className="absolute inset-y-0 left-0 w-20 bg-gradient-to-r from-slate-900 via-slate-900/80 to-transparent z-10 pointer-events-none" />
+        <div className="absolute inset-y-0 right-0 w-20 bg-gradient-to-l from-slate-900 via-slate-900/80 to-transparent z-10 pointer-events-none" />
         
         <motion.div 
           animate={{ x: ["0%", "-50%"] }}
           transition={{ 
             repeat: Infinity, 
-            duration: 120, 
+            duration: 80, 
             ease: "linear"
           }}
-          className="whitespace-nowrap flex py-0.5 w-max"
+          className="flex whitespace-nowrap py-1 items-center"
         >
-          <div className="flex gap-40 text-[18px] font-black px-4 font-amiri tracking-wider items-center" dir="rtl">
-            {getAzkar().map((item, i) => (
-              <span 
-                key={i} 
-                className={cn(
-                  "transition-all flex-shrink-0 flex items-center gap-4",
-                  item.type === 'surah' ? 'text-green-400 font-bold border-b-2 border-green-500/20 pb-0.5' : 
-                  item.type === 'dua' ? 'text-amber-300' : 
-                  item.type === 'zekr' ? 'text-rose-400' : 
-                  'text-white'
-                )}
-              >
-                <span className="opacity-70 text-[12px] text-white/50">{i + 1}. </span>
-                {item.text}
-                <div className="w-2 h-2 rounded-full bg-white/20 mx-2" />
-              </span>
-            ))}
-          </div>
-          <div className="flex gap-40 text-[18px] font-black px-4 font-amiri tracking-wider items-center" dir="rtl">
-            {getAzkar().map((item, i) => (
-              <span 
-                key={`loop-${i}`} 
-                className={cn(
-                  "transition-all flex-shrink-0 flex items-center gap-4",
-                  item.type === 'surah' ? 'text-green-400 font-bold border-b-2 border-green-500/20 pb-0.5' : 
-                  item.type === 'dua' ? 'text-amber-300' : 
-                  item.type === 'zekr' ? 'text-rose-400' : 
-                  'text-white'
-                )}
-              >
-                <span className="opacity-70 text-[12px] text-white/50">{i + 1}. </span>
-                {item.text}
-                <div className="w-2 h-2 rounded-full bg-white/20 mx-2" />
-              </span>
-            ))}
-          </div>
+          {[1, 2].map((group) => (
+            <div key={group} className="flex gap-24 text-[19px] font-black px-12 font-amiri tracking-wider items-center" dir="rtl">
+              {getAzkar().map((item, i) => (
+                <span 
+                  key={`${group}-${i}`} 
+                  className={cn(
+                    "transition-all flex-shrink-0 flex items-center gap-4",
+                    item.type === 'surah' ? 'text-green-400' : 
+                    item.type === 'dua' ? 'text-amber-300' : 
+                    item.type === 'zekr' ? 'text-rose-400' : 
+                    'text-white'
+                  )}
+                >
+                  <span className="opacity-40 text-[11px] font-sans">{i + 1}</span>
+                  {item.text}
+                  <div className="w-2 h-2 rounded-full bg-white/20 mx-4" />
+                </span>
+              ))}
+            </div>
+          ))}
         </motion.div>
       </div>
     </div>
