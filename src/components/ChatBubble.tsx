@@ -1292,6 +1292,32 @@ export default function ChatBubble() {
     }
   };
 
+  const getAbbreviated = (text: string) => {
+    if (!text) return '';
+    const map: Record<string, string> = {
+      'الرياضيات': 'Math',
+      'Mathematics': 'Math',
+      'الفرنسية': 'FR',
+      'French': 'FR',
+      'Physics': 'Phy',
+      'فيزياء': 'Phy',
+      'العلوم الفيزيائية': 'Phy',
+      'الطور المتوسط': 'CEM',
+      'Middle School': 'CEM',
+      'الطور الثانوي': 'SEC',
+      'Secondary School': 'SEC',
+      'الطور الابتدائي': 'PRI',
+      'Primary School': 'PRI',
+      'علوم الطبيعة والحياة': 'SVT',
+      'Science': 'SVT',
+      'الإنجليزية': 'ENG',
+      'English': 'ENG',
+      'العربية': 'ARA',
+      'Arabic': 'ARA',
+    };
+    return map[text] || text;
+  };
+
   if (!profile) return null;
 
   return (
@@ -1318,72 +1344,72 @@ export default function ChatBubble() {
               {activeChat ? (
                 <div className="flex items-center gap-2 sm:gap-4 h-14 sm:h-16" dir="rtl">
                   {/* Identity Section (Right) */}
-                  <div className="flex items-center gap-2 min-w-0 bg-white/5 rounded-2xl p-1.5 pr-2 border border-white/10 shadow-lg flex-shrink-0">
+                  <div className={`flex items-center gap-1.5 sm:gap-2 min-w-0 bg-white/5 rounded-2xl p-1 sm:p-1.5 pr-2 border border-white/10 shadow-lg flex-shrink-0 ${isMobile && isKeyboardOpen ? 'max-w-[120px]' : ''}`}>
                     <div className="relative flex-shrink-0">
                       <img 
                         src={activeChat.photoURL} 
-                        className="w-10 h-10 sm:w-11 sm:h-11 rounded-xl object-cover border border-white/20 shadow-xl" 
+                        className={`rounded-xl object-cover border border-white/20 shadow-xl ${isMobile && isKeyboardOpen ? 'w-8 h-8' : 'w-10 h-10 sm:w-11 sm:h-11'}`} 
                         referrerPolicy="no-referrer"
                         alt={activeChat.displayName}
                       />
-                      <div className={`absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full border-2 border-slate-900 ${isOnline(activeChat.uid === 'global' ? null : activeChat.lastSeen) ? 'bg-green-500' : 'bg-slate-500'}`}></div>
+                      <div className={`absolute -bottom-0.5 -right-0.5 rounded-full border-2 border-slate-900 ${isOnline(activeChat.uid === 'global' ? null : activeChat.lastSeen) ? 'bg-green-500' : 'bg-slate-500'} ${isMobile && isKeyboardOpen ? 'w-2.5 h-2.5' : 'w-3 h-3'}`}></div>
                     </div>
                     <div className="min-w-0 flex flex-col justify-center text-right">
-                      <div className="flex items-center gap-1.5 min-w-0">
-                        <h4 className="font-black text-white text-[11px] sm:text-sm truncate max-w-[100px] leading-tight">
+                      <div className="flex items-center gap-1 min-w-0">
+                        <h4 className={`font-black text-white truncate leading-tight ${isMobile && isKeyboardOpen ? 'text-[9px]' : 'text-[11px] sm:text-sm max-w-[100px]'}`}>
                           {activeChat.displayName}
                         </h4>
                         {!isConnected && <span className="w-1.5 h-1.5 bg-yellow-400 rounded-full animate-pulse"></span>}
                       </div>
-                      <div className="flex items-center gap-1 mt-0.5 opacity-60">
-                         <span className={`w-1.5 h-1.5 rounded-full ${isOnline(activeChat.uid === 'global' ? true : activeChat.lastSeen) ? 'bg-green-400' : 'bg-slate-500'}`}></span>
-                         <p className="text-[8px] sm:text-[9px] font-black text-white uppercase tracking-tighter">
-                           {activeChat.uid === 'global' ? 'بث مباشر' : (isOnline(activeChat.lastSeen) ? 'متصل' : 'أوفلاين')}
-                         </p>
-                      </div>
+                      {!isKeyboardOpen && (
+                        <div className="flex items-center gap-1 mt-0.5 opacity-60">
+                           <span className={`w-1.5 h-1.5 rounded-full ${isOnline(activeChat.uid === 'global' ? true : activeChat.lastSeen) ? 'bg-green-400' : 'bg-slate-500'}`}></span>
+                           <p className="text-[8px] sm:text-[9px] font-black text-white uppercase tracking-tighter">
+                             {activeChat.uid === 'global' ? 'بث مباشر' : (isOnline(activeChat.lastSeen) ? 'متصل' : 'أوفلاين')}
+                           </p>
+                        </div>
+                      )}
                     </div>
                   </div>
 
                   {/* Info Grid Section (Center) */}
-                  {!isKeyboardOpen && (
-                    <div className="flex-1 grid grid-cols-2 gap-x-2 gap-y-1.5 px-2 border-r border-white/5 min-w-0">
-                      <div className="flex items-center gap-1.5 min-w-0 overflow-hidden">
-                        <div className="w-4 h-4 rounded bg-blue-500/20 flex items-center justify-center flex-shrink-0">
-                          {activeChat.uid === 'global' ? <Globe className="w-2.5 h-2.5 text-blue-400" /> : <BookOpen className="w-2.5 h-2.5 text-blue-400" />}
-                        </div>
-                        <span className="text-[9px] sm:text-[10px] font-black text-white/50 truncate leading-none">
-                          {activeChat.uid === 'global' ? 'كل المواد' : (activeChat.subject || 'مادة')}
-                        </span>
+                  <div className="flex-1 grid grid-cols-2 gap-x-1.5 gap-y-0.5 px-1.5 border-r border-white/5 min-w-0" dir="rtl">
+                    <div className="flex items-center gap-1 min-w-0">
+                      <div className="w-3.5 h-3.5 rounded bg-blue-500/20 flex items-center justify-center flex-shrink-0">
+                        {activeChat.uid === 'global' ? <Globe className="w-1.5 h-1.5 text-blue-400" /> : getSubjectIcon(activeChat.subject || '')}
                       </div>
-                      
-                      <div className="flex items-center gap-1.5 min-w-0 overflow-hidden">
-                        <div className="w-4 h-4 rounded bg-emerald-500/20 flex items-center justify-center flex-shrink-0">
-                          <GraduationCap className="w-2.5 h-2.5 text-emerald-400" />
-                        </div>
-                        <span className="text-[9px] sm:text-[10px] font-black text-white/50 truncate leading-none">
-                          {activeChat.uid === 'global' ? 'منصة وطنية' : (activeChat.level || 'طور التعليم')}
-                        </span>
-                      </div>
-
-                      <div className="flex items-center gap-1.5 min-w-0 overflow-hidden">
-                        <div className="w-4 h-4 rounded bg-amber-500/20 flex items-center justify-center flex-shrink-0">
-                          <MapPin className="w-2.5 h-2.5 text-amber-400" />
-                        </div>
-                        <span className="text-[9px] sm:text-[10px] font-black text-white/50 truncate leading-none">
-                          {activeChat.uid === 'global' ? 'الجزائر' : (activeChat.wilaya || 'ولاية')}
-                        </span>
-                      </div>
-
-                      <div className="flex items-center gap-1.5 min-w-0 overflow-hidden">
-                        <div className="w-4 h-4 rounded bg-purple-500/20 flex items-center justify-center flex-shrink-0">
-                          <Clock className="w-2.5 h-2.5 text-purple-400" />
-                        </div>
-                        <span className="text-[9px] sm:text-[10px] font-black text-white/50 truncate leading-none">
-                          {activeChat.uid === 'global' ? '24/7' : `${activeChat.yearsOfExperience || 0} ans`}
-                        </span>
-                      </div>
+                      <span className="text-[10px] font-black text-blue-300/80 truncate leading-none">
+                        {activeChat.uid === 'global' ? 'Global' : getAbbreviated(activeChat.subject || 'مادة')}
+                      </span>
                     </div>
-                  )}
+                    
+                    <div className="flex items-center gap-1 min-w-0">
+                      <div className="w-3.5 h-3.5 rounded bg-emerald-500/20 flex items-center justify-center flex-shrink-0">
+                        <GraduationCap className="w-2 h-2 text-emerald-400" />
+                      </div>
+                      <span className="text-[10px] font-black text-emerald-300/80 truncate leading-none">
+                        {activeChat.uid === 'global' ? 'Dz' : getAbbreviated(activeChat.level || 'تعليم')}
+                      </span>
+                    </div>
+
+                    <div className="flex items-center gap-1 min-w-0">
+                      <div className="w-3.5 h-3.5 rounded bg-amber-500/20 flex items-center justify-center flex-shrink-0">
+                        <MapPin className="w-2 h-2 text-amber-400" />
+                      </div>
+                      <span className="text-[10px] font-black text-amber-300/80 truncate leading-none">
+                        {activeChat.uid === 'global' ? 'DZ' : (activeChat.wilaya?.split(' ')[0] || 'Wilaya')}
+                      </span>
+                    </div>
+
+                    <div className="flex items-center gap-1 min-w-0">
+                      <div className="w-3.5 h-3.5 rounded bg-purple-500/20 flex items-center justify-center flex-shrink-0">
+                        <Clock className="w-2 h-2 text-purple-400" />
+                      </div>
+                      <span className="text-[10px] font-black text-purple-300/80 truncate leading-none">
+                        {activeChat.uid === 'global' ? '24/7' : `${activeChat.yearsOfExperience || 0}a`}
+                      </span>
+                    </div>
+                  </div>
 
                   {/* Actions Section (Left) */}
                   <div className="flex items-center gap-1.5 sm:gap-2 flex-shrink-0 mr-auto">
