@@ -1314,121 +1314,130 @@ export default function ChatBubble() {
             style={{ height: isMobile ? vHeight : undefined }}
           >
             {/* Header */}
-            <div className={`shrink-0 bg-slate-900 border-b border-white/10 flex flex-col transition-all ${isMobile && isKeyboardOpen ? 'p-1.5' : 'p-3 sm:p-4'}`}>
+            <div className={`shrink-0 bg-slate-900/60 backdrop-blur-xl border-b border-white/10 transition-all ${isMobile && isKeyboardOpen ? 'p-1' : 'p-2 sm:p-3'}`}>
               {activeChat ? (
-                <>
-                  <div className="flex items-center justify-between gap-3 overflow-hidden">
-                    {/* Actions - Left */}
-                    <div className="flex items-center gap-1.5">
-                      <button 
-                        onClick={() => setIsOpen(false)} 
-                        className="p-1.5 rounded-lg bg-red-500/20 text-red-400 hover:bg-red-500 hover:text-white transition-all border border-red-500/10 active:scale-95"
-                        title="Close / أغلق"
-                      >
-                        <X className="w-4 h-4" />
-                      </button>
-                      
-                      {activeChat.uid !== 'global' && (
-                        <>
-                          <button 
-                            onClick={handleConnect}
-                            disabled={isConnecting}
-                            className={`p-1.5 rounded-lg transition-all active:scale-95 ${profile?.following?.includes(activeChat.uid) ? 'bg-amber-500 text-white' : 'bg-white/10 text-white/60 hover:bg-white/20'}`}
-                            title={profile?.following?.includes(activeChat.uid) ? "Connected" : "Connect"}
-                          >
-                            {profile?.following?.includes(activeChat.uid) ? <UserCheck className="w-4 h-4" /> : <UserPlus className="w-4 h-4" />}
-                          </button>
-                          <button 
-                            onClick={() => handleStartCall('audio')}
-                            className="p-1.5 rounded-lg bg-emerald-500 text-white shadow-lg active:scale-95 flex items-center justify-center transition-all hover:bg-emerald-600"
-                            title="اتصال صوتي"
-                          >
-                            <Phone className="w-4 h-4" />
-                          </button>
-                          <button 
-                            onClick={() => handleStartCall('video')}
-                            className="p-1.5 rounded-lg bg-indigo-500 text-white shadow-lg active:scale-95 flex items-center justify-center transition-all hover:bg-indigo-600"
-                            title="اتصال فيديو"
-                          >
-                            <Video className="w-4 h-4" />
-                          </button>
-                        </>
-                      )}
+                <div className="flex items-center gap-2 sm:gap-4 h-14 sm:h-16" dir="rtl">
+                  {/* Identity Section (Right) */}
+                  <div className="flex items-center gap-2 min-w-0 bg-white/5 rounded-2xl p-1.5 pr-2 border border-white/10 shadow-lg flex-shrink-0">
+                    <div className="relative flex-shrink-0">
+                      <img 
+                        src={activeChat.photoURL} 
+                        className="w-10 h-10 sm:w-11 sm:h-11 rounded-xl object-cover border border-white/20 shadow-xl" 
+                        referrerPolicy="no-referrer"
+                        alt={activeChat.displayName}
+                      />
+                      <div className={`absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full border-2 border-slate-900 ${isOnline(activeChat.uid === 'global' ? null : activeChat.lastSeen) ? 'bg-green-500' : 'bg-slate-500'}`}></div>
                     </div>
-
-                    {/* Identity - Right */}
-                    <div className="flex items-center gap-2 text-right min-w-0" dir="rtl">
-                      <div className="relative flex-shrink-0">
-                        <img 
-                          src={activeChat.photoURL} 
-                          className="w-10 h-10 rounded-xl object-cover border border-white/20 shadow-xl" 
-                          referrerPolicy="no-referrer"
-                          alt={activeChat.displayName}
-                        />
-                        <div className={`absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full border-2 border-slate-900 ${isOnline(activeChat.uid === 'global' ? null : activeChat.lastSeen) ? 'bg-green-500' : 'bg-slate-500'}`}></div>
+                    <div className="min-w-0 flex flex-col justify-center text-right">
+                      <div className="flex items-center gap-1.5 min-w-0">
+                        <h4 className="font-black text-white text-[11px] sm:text-sm truncate max-w-[100px] leading-tight">
+                          {activeChat.displayName}
+                        </h4>
+                        {!isConnected && <span className="w-1.5 h-1.5 bg-yellow-400 rounded-full animate-pulse"></span>}
                       </div>
-                      <div className="min-w-0 flex flex-col items-start text-right">
-                        <div className="flex items-center gap-1.5">
-                          <h4 className="font-black text-white text-xs sm:text-sm truncate max-w-[120px]">{activeChat.displayName}</h4>
-                          {!isConnected && <span className="w-1.5 h-1.5 bg-yellow-400 rounded-full animate-pulse" title="Connecting..."></span>}
-                        </div>
-                        <div className="flex items-center gap-1 w-full flex-row-reverse">
-                           <span className={`w-1.5 h-1.5 rounded-full ${isOnline(activeChat.uid === 'global' ? true : activeChat.lastSeen) ? 'bg-green-400 opacity-80' : 'bg-slate-500 opacity-50'}`}></span>
-                           <p className="text-[10px] font-bold text-white/40">
-                             {activeChat.uid === 'global' ? 'البث المباشر' : (isOnline(activeChat.lastSeen) ? 'متصل الآن' : 'غير متصل')}
-                           </p>
-                        </div>
+                      <div className="flex items-center gap-1 mt-0.5 opacity-60">
+                         <span className={`w-1.5 h-1.5 rounded-full ${isOnline(activeChat.uid === 'global' ? true : activeChat.lastSeen) ? 'bg-green-400' : 'bg-slate-500'}`}></span>
+                         <p className="text-[8px] sm:text-[9px] font-black text-white uppercase tracking-tighter">
+                           {activeChat.uid === 'global' ? 'بث مباشر' : (isOnline(activeChat.lastSeen) ? 'متصل' : 'أوفلاين')}
+                         </p>
                       </div>
-                      <button onClick={() => setActiveChat(null)} className="p-1.5 rounded-lg hover:bg-white/10 text-white/30 hover:text-red-400 transition-all ml-1">
-                         <X className="w-4 h-4 rotate-45" />
-                      </button>
                     </div>
                   </div>
 
-                  {/* Info Badges - Row 2 */}
+                  {/* Info Grid Section (Center) */}
                   {!isKeyboardOpen && (
-                    <div className="flex items-center gap-2 overflow-x-auto no-scrollbar mt-3 pt-2.5 border-t border-white/5 justify-between" dir="rtl">
-                      <div className="flex-shrink-0 flex items-center gap-1.5 bg-blue-500/10 text-blue-300 px-2 py-1 rounded-lg border border-blue-500/20">
-                        <div className="w-4 h-4 rounded-md bg-blue-500/20 flex items-center justify-center">
-                          {activeChat.uid === 'global' ? <Globe className="w-2.5 h-2.5" /> : getSubjectIcon(activeChat.subject || '')}
+                    <div className="flex-1 grid grid-cols-2 gap-x-2 gap-y-1.5 px-2 border-r border-white/5 min-w-0">
+                      <div className="flex items-center gap-1.5 min-w-0 overflow-hidden">
+                        <div className="w-4 h-4 rounded bg-blue-500/20 flex items-center justify-center flex-shrink-0">
+                          {activeChat.uid === 'global' ? <Globe className="w-2.5 h-2.5 text-blue-400" /> : <BookOpen className="w-2.5 h-2.5 text-blue-400" />}
                         </div>
-                        <span className="text-[10px] font-black whitespace-nowrap">{activeChat.uid === 'global' ? 'كل المواد' : (activeChat.subject || 'مادة')}</span>
+                        <span className="text-[9px] sm:text-[10px] font-black text-white/50 truncate leading-none">
+                          {activeChat.uid === 'global' ? 'كل المواد' : (activeChat.subject || 'مادة')}
+                        </span>
                       </div>
                       
-                      <div className="flex-shrink-0 flex items-center gap-1.5 bg-emerald-500/10 text-emerald-300 px-2 py-1 rounded-lg border border-emerald-500/20">
-                        <div className="w-4 h-4 rounded-md bg-emerald-500/20 flex items-center justify-center">
-                          <GraduationCap className="w-2.5 h-2.5" />
+                      <div className="flex items-center gap-1.5 min-w-0 overflow-hidden">
+                        <div className="w-4 h-4 rounded bg-emerald-500/20 flex items-center justify-center flex-shrink-0">
+                          <GraduationCap className="w-2.5 h-2.5 text-emerald-400" />
                         </div>
-                        <span className="text-[10px] font-black whitespace-nowrap">{activeChat.uid === 'global' ? 'منصة وطنية' : (activeChat.level || 'طور التعليم')}</span>
+                        <span className="text-[9px] sm:text-[10px] font-black text-white/50 truncate leading-none">
+                          {activeChat.uid === 'global' ? 'منصة وطنية' : (activeChat.level || 'طور التعليم')}
+                        </span>
                       </div>
 
-                      <div className="flex-shrink-0 flex items-center gap-1.5 bg-amber-500/10 text-amber-300 px-2 py-1 rounded-lg border border-amber-500/20">
-                        <div className="w-4 h-4 rounded-md bg-amber-500/20 flex items-center justify-center">
-                          <MapPin className="w-2.5 h-2.5" />
+                      <div className="flex items-center gap-1.5 min-w-0 overflow-hidden">
+                        <div className="w-4 h-4 rounded bg-amber-500/20 flex items-center justify-center flex-shrink-0">
+                          <MapPin className="w-2.5 h-2.5 text-amber-400" />
                         </div>
-                        <span className="text-[10px] font-black whitespace-nowrap">{activeChat.uid === 'global' ? 'الجزائر' : (activeChat.wilaya || 'ولاية')}</span>
+                        <span className="text-[9px] sm:text-[10px] font-black text-white/50 truncate leading-none">
+                          {activeChat.uid === 'global' ? 'الجزائر' : (activeChat.wilaya || 'ولاية')}
+                        </span>
                       </div>
 
-                      <div className="flex-shrink-0 flex items-center gap-1.5 bg-purple-500/10 text-purple-300 px-2 py-1 rounded-lg border border-purple-500/20">
-                        <div className="w-4 h-4 rounded-md bg-purple-500/20 flex items-center justify-center">
-                          <Clock className="w-2.5 h-2.5" />
+                      <div className="flex items-center gap-1.5 min-w-0 overflow-hidden">
+                        <div className="w-4 h-4 rounded bg-purple-500/20 flex items-center justify-center flex-shrink-0">
+                          <Clock className="w-2.5 h-2.5 text-purple-400" />
                         </div>
-                        <span className="text-[10px] font-black whitespace-nowrap">{activeChat.uid === 'global' ? '24/7' : `${activeChat.yearsOfExperience || 0} ans exp`}</span>
+                        <span className="text-[9px] sm:text-[10px] font-black text-white/50 truncate leading-none">
+                          {activeChat.uid === 'global' ? '24/7' : `${activeChat.yearsOfExperience || 0} ans`}
+                        </span>
                       </div>
                     </div>
                   )}
-                </>
+
+                  {/* Actions Section (Left) */}
+                  <div className="flex items-center gap-1.5 sm:gap-2 flex-shrink-0 mr-auto">
+                    {activeChat.uid !== 'global' && (
+                      <div className="flex items-center gap-1.5 bg-white/5 p-1 rounded-xl border border-white/10">
+                        <button 
+                          onClick={() => handleStartCall('audio')}
+                          className="flex flex-col items-center gap-1 p-1 sm:p-1.5 rounded-lg bg-emerald-500 text-white shadow-lg active:scale-90 transition-all hover:bg-emerald-600"
+                          title="صوتي"
+                        >
+                          <Phone className="w-3.5 h-3.5" />
+                        </button>
+                        <button 
+                          onClick={() => handleStartCall('video')}
+                          className="flex flex-col items-center gap-1 p-1 sm:p-1.5 rounded-lg bg-indigo-500 text-white shadow-lg active:scale-90 transition-all hover:bg-indigo-600"
+                          title="فيديو"
+                        >
+                          <Video className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    )}
+                    
+                    <div className="flex flex-col gap-1">
+                      {activeChat.uid !== 'global' && (
+                        <button 
+                          onClick={handleConnect}
+                          disabled={isConnecting}
+                          className={`p-1.5 rounded-lg transition-all active:scale-95 ${profile?.following?.includes(activeChat.uid) ? 'bg-amber-500 text-white' : 'bg-white/10 text-white/40 hover:bg-white/20'}`}
+                          title="اتصال"
+                        >
+                          {profile?.following?.includes(activeChat.uid) ? <UserCheck className="w-3.5 h-3.5" /> : <UserPlus className="w-3.5 h-3.5" />}
+                        </button>
+                      )}
+                      <button 
+                        onClick={() => setIsOpen(false)} 
+                        className="p-1.5 rounded-lg bg-red-500/20 text-red-400 hover:bg-red-500 hover:text-white transition-all border border-red-500/10 active:scale-95"
+                        title="Close"
+                      >
+                        <X className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  </div>
+                </div>
               ) : (
-                <div className="flex items-center justify-between w-full h-full min-h-[48px]">
+                <div className="flex items-center justify-between w-full h-12">
                    <div className="flex items-center gap-3">
                       <div className="bg-purple-500/20 p-2 rounded-xl border border-purple-500/30">
                         <MessageSquare className="w-5 h-5 text-purple-400" />
                       </div>
                       <div className="text-right" dir="rtl">
-                        <h4 className="font-black text-white text-sm sm:text-base tracking-tight">قاعة الأساتذة</h4>
+                        <h4 className="font-black text-white text-sm sm:text-base tracking-tight">قاعة الأساتذة المباشرة 🇩🇿</h4>
                         <Link to="/discussions" className="text-[10px] text-purple-400 hover:text-purple-300 flex items-center gap-1 transition-all font-bold">
                           <TrendingUp className="w-2.5 h-2.5" />
-                          <span>منتدى النقاشات والمذكرات</span>
+                          <span>تصفح منتدى المذكرات</span>
                         </Link>
                       </div>
                    </div>
