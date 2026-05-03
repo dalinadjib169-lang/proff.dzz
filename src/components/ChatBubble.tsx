@@ -678,7 +678,7 @@ export default function ChatBubble() {
         setIncomingCall(callData);
         // Only play ringtone if one isn't already playing and we aren't already in a call
         if (!ringtoneRef.current && !isCalling) {
-          ringtoneRef.current = playSound('ringtone', true, 1.0);
+          ringtoneRef.current = playSound('ringtone', true);
         }
         setEmojiState('happy');
       } else {
@@ -1027,6 +1027,8 @@ export default function ChatBubble() {
   const handleStartCall = async (type: 'audio' | 'video') => {
     if (!profile || !activeChat) return;
 
+    // Call allowed regardless of calculated online status for better reliability
+    
     try {
       if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
         throw new Error("Media devices not supported or unsecure context");
@@ -1048,23 +1050,9 @@ export default function ChatBubble() {
       setLocalStream(stream);
       setIsCalling(type);
 
-      // Start dialtone for caller
+      // Start ringing for caller
       if (!ringtoneRef.current) {
-        ringtoneRef.current = playSound('dialtone', true, 0.7);
-      }
-
-      // If peer is offline, play busy tone after a short delay
-      if (!isOnline(activeChat.lastSeen)) {
-        setTimeout(() => {
-          if (ringtoneRef.current) {
-            ringtoneRef.current.pause();
-            ringtoneRef.current = null;
-          }
-          playSound('busy', false, 1.0);
-          alert("الزميل غير متصل حالياً. سيتم إنهاء المحاولة.");
-          endCall();
-        }, 3000);
-        return;
+        ringtoneRef.current = playSound('ringtone', true);
       }
 
       const callDoc = await addDoc(collection(db, 'calls'), {
@@ -1098,13 +1086,9 @@ export default function ChatBubble() {
           }
         }, 45000);
       }
-    } catch (err: any) {
+    } catch (err) {
       console.error("Call error:", err);
-      // More descriptive error based on error type
-      const errorMsg = err?.name === 'NotAllowedError' 
-        ? "تعذر الوصول إلى الكاميرا أو الميكروفون. يرجى تفعيل الأذونات من إعدادات المتصفح (أعلى يسار العنوان)."
-        : "تعذر بدء المكالمة. تأكد من أن جهازك يدعم الكاميرا والميكروفون ومن اتصالك بالإنترنت.";
-      alert(errorMsg);
+      alert("تعذر بدء المكالمة. يرجى التأكد من منح أذونات الكاميرا والميكروفون.");
       endCall();
     }
   };
@@ -1170,12 +1154,9 @@ export default function ChatBubble() {
       setIsCalling(incomingCall.type);
       setIncomingCall(null);
       playSound('message'); 
-    } catch (err: any) {
+    } catch (err) {
       console.error("Accept call error:", err);
-      const errorMsg = err?.name === 'NotAllowedError'
-        ? "تعذر الرد على المكالمة بسبب عدم وجود أذونات الكاميرا/الميكروفون. يرجى منح الأذونات في المتصفح."
-        : "حدث خطأ أثناء محاولة الرد على المكالمة. يرجى المحاولة مرة أخرى.";
-      alert(errorMsg);
+      alert("تعذر الوصول إلى الكاميرا أو الميكروفون. يرجى التأكد من منح الأذونات في المتصفح.");
       handleRejectCall();
     }
   };
@@ -1305,7 +1286,7 @@ export default function ChatBubble() {
     if (!lastSeen) return false;
     try {
       const lastSeenDate = lastSeen.toDate ? lastSeen.toDate() : new Date(lastSeen);
-      return Date.now() - lastSeenDate.getTime() < 900000; // 15 minutes (more lenient)
+      return Date.now() - lastSeenDate.getTime() < 600000; // Increased to 10 minutes for better tolerance
     } catch (e) {
       return false;
     }
@@ -1364,7 +1345,7 @@ export default function ChatBubble() {
                             ) : (
                               <>
                                 <span className={`w-1.5 h-1.5 rounded-full ${isOnline(activeChat.lastSeen) ? 'bg-green-400 animate-pulse' : 'bg-slate-400'}`}></span>
-                                {isOnline(activeChat.lastSeen) ? 'Online' : 'Offline'}
+                                {isOnline(activeChat.lastSeen) ? 'متصل (Online)' : 'غير متصل (Offline)'}
                               </>
                             )}
                           </p>
@@ -1402,7 +1383,7 @@ export default function ChatBubble() {
                 )}
               </div>
             <div className="flex items-center gap-1">
-                {activeChat && activeChat.uid !== 'global' && !isKeyboardOpen && (
+                {activeChat && activeChat.uid !== 'global' && (
                   <>
                     <button 
                       onClick={handleConnect}
@@ -1414,15 +1395,15 @@ export default function ChatBubble() {
                     </button>
                     <button 
                       onClick={() => handleStartCall('audio')}
-                      className="p-2 rounded-xl transition-all text-white/80 hover:text-white hover:bg-white/10"
-                      title="Audio Call / مكالمة صوتية"
+                      className={`p-2 rounded-xl transition-all ${!isOnline(activeChat.lastSeen) ? 'text-white/40 hover:text-white hover:bg-white/10' : 'text-white/80 hover:text-white hover:bg-white/10'}`}
+                      title={isOnline(activeChat.lastSeen) ? "Audio Call" : "Call anyway (User may be offline)"}
                     >
                       <Phone className="w-4 h-4" />
                     </button>
                     <button 
                       onClick={() => handleStartCall('video')}
-                      className="p-2 rounded-xl transition-all text-white/80 hover:text-white hover:bg-white/10"
-                      title="Video Call / مكالمة فيديو"
+                      className={`p-2 rounded-xl transition-all ${!isOnline(activeChat.lastSeen) ? 'text-white/40 hover:text-white hover:bg-white/10' : 'text-white/80 hover:text-white hover:bg-white/10'}`}
+                      title={isOnline(activeChat.lastSeen) ? "Video Call" : "Call anyway (User may be offline)"}
                     >
                       <Video className="w-4 h-4" />
                     </button>
