@@ -66,10 +66,16 @@ function Sidebar() {
   }, [profile, unreadCount]);
 
   const isOnline = (lastSeen: any) => {
-    if (!lastSeen || typeof lastSeen.toDate !== 'function') return false;
-    const date = lastSeen.toDate();
-    const now = new Date();
-    return (now.getTime() - date.getTime()) < 300000; // 5 minutes
+    if (lastSeen === true) return true;
+    if (!lastSeen) return false;
+    try {
+      const date = lastSeen.toDate ? lastSeen.toDate() : new Date(lastSeen);
+      const now = new Date();
+      // Increased tolerance to 10 minutes for better sync reliability
+      return (now.getTime() - date.getTime()) < 600000;
+    } catch (e) {
+      return false;
+    }
   };
 
   const isPremium = (profile?.email === 'dalinadjib1990@gmail.com') || (profile?.premiumUntil ? profile.premiumUntil.toDate() > new Date() : false);
@@ -78,6 +84,7 @@ function Sidebar() {
     { icon: Home, label: t('home'), path: '/' },
     { icon: MessageSquare, label: t('discussions'), path: '/discussions' },
     { icon: Wand2, label: 'مولد المذكرات - Pro-Mat', path: 'https://pro-mat-1243.vercel.app/', external: true },
+    { icon: FileText, label: 'مولد السيرة الذاتية - CV AI', path: 'https://cv-arabic.vercel.app/', external: true },
     { icon: ShoppingBag, label: t('market'), path: '/market' },
     { icon: Bell, label: t('notifications'), path: '/notifications', badge: unreadCount },
     { icon: Bookmark, label: t('saved'), path: '/saved' },
@@ -143,10 +150,12 @@ function Sidebar() {
               <div className="flex items-center gap-4">
                 <item.icon className={cn(
                   "w-5 h-5 transition-all group-hover:scale-125", 
-                  (item.label.includes('Mosa7i7') || item.label.includes('Pro-Mat')) && "text-amber-400 drop-shadow-[0_0_8px_rgba(251,191,36,0.5)] animate-pulse"
+                  (item.label.includes('Mosa7i7') || item.label.includes('Pro-Mat')) && "text-amber-400 drop-shadow-[0_0_8px_rgba(251,191,36,0.5)] animate-pulse",
+                  item.label.includes('CV AI') && "text-indigo-400 drop-shadow-[0_0_8px_rgba(129,140,248,0.5)]"
                 )} />
                 <span className={cn(
-                  (item.label.includes('Mosa7i7') || item.label.includes('Pro-Mat')) && "text-amber-400 font-black bg-amber-500/10 px-3 py-1 rounded-full border border-amber-500/20 shadow-[0_0_15px_rgba(251,191,36,0.2)]"
+                  (item.label.includes('Mosa7i7') || item.label.includes('Pro-Mat')) && "text-amber-400 font-black bg-amber-500/10 px-3 py-1 rounded-full border border-amber-500/20 shadow-[0_0_15px_rgba(251,191,36,0.2)]",
+                  item.label.includes('CV AI') && "text-indigo-400 font-black bg-indigo-500/10 px-3 py-1 rounded-full border border-indigo-500/20 shadow-[0_0_15px_rgba(129,140,248,0.2)]"
                 )}>
                   {item.label}
                 </span>

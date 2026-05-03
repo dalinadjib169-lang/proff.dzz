@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
+import { toast } from 'react-hot-toast';
 import { 
+  Plus,
   MessageSquare, 
   X, 
   Send, 
@@ -547,13 +549,52 @@ export default function ChatBubble() {
     // Reminders are now handled via system events or triggers rather than polling
   }, [profile]);
 
-  // Initialize PeerJS
+  // Update lastSeen periodically when using the chat
   useEffect(() => {
-    if (!profile) return;
+    if (!profile?.uid) return;
+    
+    // Heartbeat for status and connectivity
+    const updateStatus = async () => {
+      try {
+        if (profile?.uid) {
+          await updateDoc(doc(db, 'users', profile.uid), {
+            lastSeen: serverTimestamp()
+          });
+        }
+      } catch (err) {
+        console.error("Status update error:", err);
+      }
+    };
+
+    updateStatus();
+    const interval = setInterval(updateStatus, 60000); // Pulse every minute
+    
+    // PeerJS signaling heartbeat
+    const peerHeartbeat = setInterval(() => {
+      if (peerRef.current && !peerRef.current.destroyed) {
+        if (peerRef.current.disconnected) {
+          console.log("PeerJS disconnected, reconnecting...");
+          peerRef.current.reconnect();
+        }
+      }
+    }, 10000);
+
+    return () => {
+      clearInterval(interval);
+      clearInterval(peerHeartbeat);
+    };
+  }, [profile?.uid]);
+
+  // Initialize PeerJS
+  const initPeer = () => {
+    if (!profile?.uid) return;
 
     // Avoid recreating if already connected with same ID
     if (peerRef.current && peerRef.current.id === profile.uid && !peerRef.current.destroyed) {
-      return;
+      if (peerRef.current.disconnected) {
+        peerRef.current.reconnect();
+      }
+      return peerRef.current;
     }
 
     // Cleanup existing peer if any
@@ -562,51 +603,34 @@ export default function ChatBubble() {
     }
 
     const peer = new Peer(profile.uid, {
-      debug: 0, // Silence logs for cleaner production experience
+      debug: 0,
       config: {
         iceServers: [
           { urls: 'stun:stun.l.google.com:19302' },
+          { urls: 'stun:stun1.l.google.com:19302' },
+          { urls: 'stun:stun2.l.google.com:19302' },
           { urls: 'stun:global.stun.twilio.com:3478' }
         ]
       }
     });
-    peerRef.current = peer;
 
     peer.on('open', (id) => {
       console.log('Peer connected to signaling server with ID:', id);
-      if (id !== profile.uid) {
-        console.error('Peer ID mismatch! Expected:', profile.uid, 'Got:', id);
-      }
       (peer as any)._ready = true;
     });
 
-    peer.on('error', (err: any) => {
-      console.error('PeerJS global error:', err.type, err);
-      if (err.type === 'peer-unavailable') {
-        console.warn('Target peer is not online or ID is incorrect');
-      }
-      if (err.type === 'unavailable-id') {
-        setPeerError('unavailable-id');
-        console.error('This Peer ID is already taken! This usually means the app is open in another tab.');
-      }
-    });
-
     peer.on('disconnected', () => {
-      console.log('Peer signaling connection lost. Attempting to reconnect...');
+      console.log('Peer signaling connection lost.');
       (peer as any)._ready = false;
-      // Reconnect to signaling server
-      if (peerRef.current && !peerRef.current.destroyed) {
+      if (!peer.destroyed) {
         setTimeout(() => {
-          if (peerRef.current && peerRef.current.disconnected && !peerRef.current.destroyed) {
-            console.log('Trying to reconnect PeerJS...');
-            peerRef.current.reconnect();
-          }
-        }, 2000);
+          if (!peer.destroyed && peer.disconnected) peer.reconnect();
+        }, 3000);
       }
     });
 
-    peer.on('call', async (call) => {
-      console.log('Incoming PeerJS call from:', call.peer, 'Metadata:', call.options?.metadata);
+    peer.on('call', (call) => {
+      console.log('Incoming PeerJS call from:', call.peer);
       activePeerCallRef.current = call;
       setActivePeerCall(call);
       
@@ -616,33 +640,27 @@ export default function ChatBubble() {
     });
 
     peer.on('error', (err: any) => {
-      const errorStr = (err?.message || String(err)).toLowerCase();
-      const errorType = err?.type;
+      console.error('PeerJS global error:', err.type, err);
+      if (err.type === 'peer-unavailable') {
+        toast.error("الطرف الآخر غير متاح حالياً.");
+      }
+      if (err.type === 'unavailable-id') {
+        setPeerError('unavailable-id');
+      }
       
-      // Handle known error types
-      if (errorType === 'unavailable-id') {
-        console.warn('Peer ID already taken. This usually happens after a quick refresh.');
-      } else if (errorType === 'peer-unavailable') {
-        console.warn('Target peer unavailable:', err);
-        if (isCalling || incomingCall) {
-          alert("المستخدم غير متاح حالياً للاتصال.");
-          endCall();
-        }
-      } else if (errorType === 'network' || errorStr.includes('lost connection to server') || errorStr.includes('socket-error')) {
-        // These are signaling server connectivity issues, often transient
-        console.warn('PeerJS signaling connectivity issue (non-critical):', errorStr);
-        
-        // Reconnect attempt if we were disconnected from signaling server
-        if (peerRef.current && !peerRef.current.destroyed && peerRef.current.disconnected) {
-          peerRef.current.reconnect();
-        }
-      } else if (errorType === 'socket-closed' || errorType === 'socket-error') {
-        console.warn('PeerJS socket issue, signaling will attempt recovery...');
-      } else {
-        // Only log other errors as errors, but don't throw them
-        console.error('PeerJS error:', err);
+      const errorStr = (err?.message || String(err)).toLowerCase();
+      if (peerRef.current && !peerRef.current.destroyed && peerRef.current.disconnected) {
+        peerRef.current.reconnect();
       }
     });
+
+    peerRef.current = peer;
+    return peer;
+  };
+
+  useEffect(() => {
+    if (!profile) return;
+    initPeer();
 
     return () => {
       if (peerRef.current) {
@@ -689,7 +707,7 @@ export default function ChatBubble() {
     const q = query(
       collection(db, 'calls'),
       where('recipientId', '==', profile.uid),
-      where('status', '==', 'ringing'),
+      where('status', 'in', ['ringing', 'accepted']),
       limit(1)
     );
 
@@ -731,17 +749,19 @@ export default function ChatBubble() {
     const q = query(
       collection(db, 'calls'),
       where('senderId', '==', profile.uid),
-      where('status', 'in', ['connected', 'rejected', 'ended']),
+      where('status', 'in', ['accepted', 'connected', 'rejected', 'ended']),
       orderBy('createdAt', 'desc'),
       limit(1)
     );
 
     const unsubscribe = onSnapshot(q, async (snapshot) => {
       if (!snapshot.empty) {
-        const call = snapshot.docs[0].data();
-        if (call.status === 'rejected') {
-          endCall();
-        } else if (call.status === 'ended') {
+        const call = { id: snapshot.docs[0].id, ...snapshot.docs[0].data() as any };
+        
+        if (call.status === 'accepted' && localStreamRef.current && !activePeerCallRef.current) {
+          console.log("Recipient accepted via Firestore, now establishing P2P connection...");
+          initiatePeerCall(call, localStreamRef.current);
+        } else if (call.status === 'rejected' || call.status === 'ended') {
           endCall();
         } else if (call.status === 'connected') {
           // Stop ringing once connected
@@ -1048,14 +1068,11 @@ export default function ChatBubble() {
   const handleStartCall = async (type: 'audio' | 'video') => {
     if (!profile || !activeChat) return;
 
-    // Call allowed regardless of calculated online status for better reliability
-    
     try {
       if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
         throw new Error("Media devices not supported or unsecure context");
       }
 
-      // More robust constraints
       const constraints = {
         video: type === 'video' ? {
           facingMode: 'user',
@@ -1086,64 +1103,65 @@ export default function ChatBubble() {
         createdAt: serverTimestamp()
       });
       setCurrentCallId(callDoc.id);
-
-      // Initiate PeerJS call
-      console.log('Initiating PeerJS call to:', activeChat.uid);
       
-      // Ensure peer is connected to signaling server
-      if (!peerRef.current || peerRef.current.destroyed) {
-        console.error('PeerJS instance is lost, cannot call.');
-        throw new Error('Peer connection lost');
-      }
+      console.log('Call document created:', callDoc.id, 'Waiting for recipient to accept via status listener...');
 
-      // Explicitly wait for 'open' state if not ready (crucial for P2P signaling)
-      if (!(peerRef.current as any)._ready && peerRef.current.disconnected) {
-        console.log('Peer not ready, attempting emergency reconnect...');
-        peerRef.current.reconnect();
-      }
-
-      // Wait up to 5 seconds for signaling ready
-      for (let i = 0; i < 10; i++) {
-        if ((peerRef.current as any)._ready && !peerRef.current.disconnected) break;
-        console.log(`Waiting for Peer signaling to be ready (attempt ${i+1}/10)...`);
-        await new Promise(r => setTimeout(r, 500));
-      }
-
-      if (!(peerRef.current as any)._ready) {
-        console.warn('Peer signaling still not ready, call might fail but proceeding anyway...');
-      }
-
-      const callOptions = { metadata: { type, senderId: profile.uid, senderName: profile.displayName } };
-      const call = peerRef.current.call(activeChat.uid, stream, callOptions);
-      
-      if (call) {
-        console.log('PeerJS call object created successfully');
-        call.on('stream', (remoteStream) => {
-          console.log('Caller received remote stream');
-          setRemoteStream(remoteStream);
-        });
-        call.on('error', (err) => {
-          console.error('PeerJS call instance error:', err);
-        });
-        call.on('close', () => {
-          console.log('PeerJS call instance closed');
-          endCall();
-        });
-        setActivePeerCall(call);
-
-        // Call Timeout: End call if not connected within 45 seconds
-        setTimeout(() => {
-          if (isCalling && !remoteStream) {
-            console.log("Call timed out");
-            alert("لم يتم الرد على المكالمة. قد يكون المستخدم غير متاح.");
-            endCall();
-          }
-        }, 45000);
-      }
     } catch (err) {
       console.error("Call error:", err);
-      alert("تعذر بدء المكالمة. يرجى التأكد من منح أذونات الكاميرا والميكروفون.");
+      toast.error("تعذر بدء المكالمة. يرجى التأكد من منح أذونات الكاميرا والميكروفون.");
       endCall();
+    }
+  };
+
+  // Separate function to actually initiate the PeerJS call (P2P signaling)
+  const initiatePeerCall = async (callData: any, stream: MediaStream) => {
+    if (!profile || activePeerCallRef.current || !stream) return;
+    
+    console.log('Initiating PeerJS call (P2P Phase) to:', callData.recipientId);
+    
+    const currentPeer = initPeer();
+    if (!currentPeer || currentPeer.destroyed) {
+      console.error('PeerJS instance is lost, cannot call.');
+      return;
+    }
+
+    // Wait up to 10 seconds for signaling ready
+    let isReady = false;
+    for (let i = 0; i < 20; i++) {
+      if ((currentPeer as any)._ready && !currentPeer.disconnected) {
+        isReady = true;
+        break;
+      }
+      console.log(`Waiting for Peer signaling to be ready (attempt ${i+1}/20)...`);
+      await new Promise(r => setTimeout(r, 500));
+    }
+
+    if (!isReady) {
+      console.warn('Peer signaling still not ready, call might fail but proceeding anyway...');
+      if (currentPeer.disconnected) currentPeer.reconnect();
+    }
+
+    const callOptions = { metadata: { type: callData.type, senderId: profile.uid, senderName: profile.displayName } };
+    const call = currentPeer.call(callData.recipientId, stream, callOptions);
+    
+    if (call) {
+      console.log('PeerJS call object created successfully');
+      call.on('stream', (remoteStream) => {
+        console.log('Caller received remote stream');
+        setRemoteStream(remoteStream);
+        if (callData.id) {
+          updateDoc(doc(db, 'calls', callData.id), { status: 'connected' }).catch(console.error);
+        }
+      });
+      call.on('error', (err) => {
+        console.error('PeerJS call instance error:', err);
+      });
+      call.on('close', () => {
+        console.log('PeerJS call instance closed');
+        endCall();
+      });
+      setActivePeerCall(call);
+      activePeerCallRef.current = call;
     }
   };
 
@@ -1160,6 +1178,11 @@ export default function ChatBubble() {
     try {
       if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
         throw new Error("Media devices not supported or unsecure context");
+      }
+
+      // Update call status to 'accepted' FIRST to notify the caller
+      if (incomingCall?.id) {
+        await updateDoc(doc(db, 'calls', incomingCall.id), { status: 'accepted' });
       }
 
       const constraints = {
@@ -1179,39 +1202,49 @@ export default function ChatBubble() {
       // Wait if peer call hasn't arrived yet (race condition with Firestore)
       let currentPeerCall = activePeerCallRef.current;
       if (!currentPeerCall) {
+        toast.loading("جاري تأسيس الاتصال المشفر...", { id: 'call-negotiating' });
         console.log("Peer call not found yet, checking PeerJS state and waiting...");
         
-        if (peerRef.current?.disconnected) {
-          console.log("Receiver PeerJS is disconnected, attempting emergency reconnect...");
-          peerRef.current.reconnect();
+        if (peerRef.current?.disconnected || peerRef.current?.destroyed) {
+          console.log("Receiver PeerJS is offline, attempting emergency restart/reconnect...");
+          initPeer();
         }
 
-        // Wait up to 20 seconds total, checking every 500ms
-        for (let i = 0; i < 40; i++) { 
+        // Wait up to 30 seconds total, checking every 500ms
+        for (let i = 0; i < 60; i++) { 
           await new Promise(r => setTimeout(r, 500));
           if (activePeerCallRef.current) {
             currentPeerCall = activePeerCallRef.current;
             console.log("Peer call arrived after waiting", (i+1)*500, "ms");
             break;
           }
-          if (i % 4 === 0) {
-            console.log(`Still waiting for PeerJS call (attempt ${i/4 + 1}/10)...`);
+          if (i % 10 === 0) {
+            console.log(`Still waiting for PeerJS call (attempt ${i/10 + 1}/6)...`);
             console.log(`Peer state: ID=${peerRef.current?.id}, Disc=${peerRef.current?.disconnected}, Dest=${peerRef.current?.destroyed}`);
           }
         }
+        toast.dismiss('call-negotiating');
       }
 
       if (currentPeerCall) {
+        console.log("Answering PeerJS call...");
         currentPeerCall.answer(stream);
         currentPeerCall.on('stream', (remoteStream: MediaStream) => {
           console.log('Received remote stream');
           setRemoteStream(remoteStream);
         });
+        currentPeerCall.on('error', (err) => {
+          console.error("PeerJS Call object error:", err);
+          toast.error("خطأ في الاتصال المباشر.");
+          endCall();
+        });
         currentPeerCall.on('close', () => {
+          console.log("PeerJS Call closed");
           endCall();
         });
       } else {
         console.error("Peer call failed to arrive after timeout");
+        toast.error("فشل تأسيس الاتصال. يرجى المحاولة لاحقاً.");
         throw new Error("Failed to establish peer connection");
       }
 
@@ -1224,7 +1257,7 @@ export default function ChatBubble() {
       if (err?.code || (err?.message && err.message.includes('permission-denied'))) {
         handleFirestoreError(err, OperationType.UPDATE, `calls/${incomingCall?.id}`);
       }
-      alert("تعذر الاتصال. يرجى التأكد من استقرار الإنترنت ومنح أذونات الكاميرا والميكروفون.");
+      toast.error("تعذر الاتصال. يرجى التأكد من استقرار الإنترنت ومنح أذونات الكاميرا والميكروفون.");
       handleRejectCall();
     }
   };
@@ -1352,10 +1385,12 @@ export default function ChatBubble() {
   };
 
   const isOnline = (lastSeen: any) => {
+    if (lastSeen === true) return true;
     if (!lastSeen) return false;
     try {
       const lastSeenDate = lastSeen.toDate ? lastSeen.toDate() : new Date(lastSeen);
-      return Date.now() - lastSeenDate.getTime() < 600000; // Increased to 10 minutes for better tolerance
+      // Increased tolerance to 10 minutes for better stability
+      return Date.now() - lastSeenDate.getTime() < 600000;
     } catch (e) {
       return false;
     }
@@ -1363,37 +1398,51 @@ export default function ChatBubble() {
 
   const getAbbreviated = (text: string) => {
     if (!text) return '';
+    const cleanText = text.trim();
     const map: Record<string, string> = {
-      'الرياضيات': 'Math',
+      'رياضيات': 'Math',
       'Mathematics': 'Math',
-      'الفرنسية': 'Fr',
-      'French': 'Fr',
-      'فرنسية': 'Fr',
-      'Physics': 'Phy',
-      'فيزياء': 'Phy',
-      'العلوم الفيزيائية': 'Phy',
-      'الطور المتوسط': 'ce',
-      'متوسط': 'ce',
-      'Middle School': 'ce',
-      'الطور الثانوي': 'sec',
-      'ثانوي': 'sec',
-      'Secondary School': 'sec',
-      'الطور الابتدائي': 'pri',
-      'ابتدائي': 'pri',
-      'Primary School': 'pri',
-      'علوم الطبيعة والحياة': 'SVT',
-      'Science': 'SVT',
-      'الإنجليزية': 'eng',
-      'English': 'eng',
-      'انجليزية': 'eng',
-      'العربية': 'ara',
-      'Arabic': 'ara',
-      'فلسفة': 'Phi',
-      'تاريخ وجغرافيا': 'H-G',
-      'تربية إسلامية': 'Isl',
-      'رياضة': 'PE'
+      'فرنسية': 'FRE',
+      'الفرنسية': 'FRE',
+      'French': 'FRE',
+      'فيزياء': 'PHY',
+      'Physics': 'PHY',
+      'متوسط': 'CEM',
+      'CEM': 'CEM',
+      'Middle School': 'CEM',
+      'الطور المتوسط': 'CEM',
+      'ثانوي': 'SEC',
+      'SEC': 'SEC',
+      'Secondary School': 'SEC',
+      'الطور الثانوي': 'SEC',
+      'ابتدائي': 'PRI',
+      'Primary School': 'PRI',
+      'الطور الابتدائي': 'PRI',
+      'علوم الطبيعة': 'SVT',
+      'العلوم': 'SCI',
+      'Science': 'SCI',
+      'SVT': 'SVT',
+      'انجليزية': 'ENG',
+      'الإنجليزية': 'ENG',
+      'English': 'ENG',
+      'عربية': 'ARA',
+      'اللغة العربية': 'ARA',
+      'Arabic': 'ARA',
+      'فلسفة': 'PHI',
+      'تاريخ': 'H-G',
+      'إسلامية': 'ISL',
+      'رياضة': 'SPT'
     };
-    return map[text] || text;
+
+    if (map[cleanText]) return map[cleanText];
+
+    // Then try partial match
+    const normalized = cleanText.toLowerCase();
+    for (const key in map) {
+      if (cleanText.includes(key) || normalized.includes(key.toLowerCase())) return map[key];
+    }
+
+    return cleanText;
   };
 
   if (!profile) return null;
@@ -1488,11 +1537,15 @@ export default function ChatBubble() {
 
                     <div className="flex items-center gap-1 min-w-0">
                       <div className="w-3.5 h-3.5 rounded bg-purple-500/20 flex items-center justify-center flex-shrink-0">
-                        <Clock className="w-2 h-2 text-purple-400" />
+                        <User className="w-2 h-2 text-purple-400" />
                       </div>
-                      <span className="text-[10px] font-black text-purple-300/80 truncate leading-none">
-                        {activeChat.uid === 'global' ? '24/7' : `${activeChat.yearsOfExperience || 0}a`}
-                      </span>
+                      <Link 
+                        to={`/profile/${activeChat.uid}`}
+                        className="text-[10px] font-black text-purple-300/80 hover:text-white truncate leading-none transition-colors"
+                        onClick={() => isMobile && setIsOpen(false)}
+                      >
+                        بروفايل
+                      </Link>
                     </div>
                   </div>
 
@@ -1735,6 +1788,24 @@ export default function ChatBubble() {
                           <span className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse"></span>
                         </h5>
                         <div className="flex gap-4 overflow-x-auto pb-4 px-2 custom-scrollbar-hide">
+                          {/* Search/Add Button */}
+                          <button
+                            onClick={() => {
+                              if (searchInputRef.current) {
+                                searchInputRef.current.focus();
+                                setSearchTerm('');
+                              }
+                            }}
+                            className="flex flex-col items-center gap-1 min-w-[60px] group"
+                          >
+                            <div className="relative">
+                              <div className="w-12 h-12 rounded-2xl bg-purple-500/10 border-2 border-dashed border-purple-500/30 flex items-center justify-center group-hover:bg-purple-500/20 transition-all">
+                                <Plus className="w-5 h-5 text-purple-400" />
+                              </div>
+                            </div>
+                            <span className="text-[9px] font-bold text-slate-500 text-center">زميل جديد</span>
+                          </button>
+
                           {users.filter(u => isOnline(u.lastSeen)).length > 0 ? (
                             users.filter(u => isOnline(u.lastSeen)).map(u => (
                               <button
@@ -1837,7 +1908,7 @@ export default function ChatBubble() {
                             <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">{u.subject || 'Teacher'}</p>
                             <span className="text-[8px] text-slate-600">•</span>
                             <p className={`text-[9px] font-bold ${isOnline(u.lastSeen) ? 'text-green-500' : 'text-slate-600'}`}>
-                              {isOnline(u.lastSeen) ? 'Online' : 'Offline'}
+                              {isOnline(u.lastSeen) ? 'متصل' : 'أوفلاين'}
                             </p>
                           </div>
                         </div>

@@ -93,13 +93,13 @@ export function useAuth() {
               updates.isProfileComplete = isComplete;
             }
             
-            // Update lastSeen if not updated recently (more than 5 minutes)
+            // Update lastSeen if not updated recently (more than 2 minutes)
             // Be careful with serverTimestamp() comparison
             const now = new Date();
             const lastSeen = publicData.lastSeen?.toDate();
             // Only update if we have a real date and it's old enough
             // and we are NOT currently in a pending write state (approximated)
-            if (lastSeen && (now.getTime() - lastSeen.getTime() > 300000)) {
+            if (lastSeen && (now.getTime() - lastSeen.getTime() > 120000)) {
               updates.lastSeen = serverTimestamp();
             } else if (!lastSeen) {
               // If it's null, it might be a pending write, so we wait

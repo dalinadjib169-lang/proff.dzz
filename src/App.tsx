@@ -37,6 +37,7 @@ import { motion, AnimatePresence } from 'motion/react';
 
 import { UploadProvider } from './hooks/useUpload';
 import InstallPrompt from './components/InstallPrompt';
+import { Toaster } from 'react-hot-toast';
 
 import { useTranslation } from './hooks/useTranslation';
 
@@ -138,6 +139,7 @@ export default function App() {
     <ErrorBoundary>
       <UploadProvider>
         <Router>
+          <Toaster position="top-center" gutter={8} toastOptions={{ duration: 4000, style: { background: '#0f172a', color: '#f1f5f9', border: '1px solid #1e293b' } }} />
           <div className="min-h-screen bg-slate-950 text-slate-100 selection:bg-primary/30 relative">
             {profile?.appBackground && (
               <img 

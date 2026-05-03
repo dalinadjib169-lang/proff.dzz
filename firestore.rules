@@ -240,13 +240,12 @@ service cloud.firestore {
       return data.keys().hasAll(['senderId', 'senderName', 'recipientId', 'type', 'status', 'createdAt']) &&
              data.senderId is string &&
              data.senderName is string &&
-             (!('senderPhoto' in data) || data.senderPhoto is string || data.senderPhoto == null) &&
              data.recipientId is string &&
              data.type in ['audio', 'video'] &&
              data.status in ['ringing', 'connected', 'accepted', 'rejected', 'missed', 'ended'] &&
              (request.method == 'create' ? 
                (data.senderId == request.auth.uid && data.createdAt == request.time) : 
-               (data.senderId == existing().senderId && data.createdAt == existing().createdAt)
+               (data.senderId == existing().senderId)
              );
     }
 
@@ -259,9 +258,9 @@ service cloud.firestore {
       allow list: if isSignedIn();
       allow create: if isOwner(userId) && isValidUserProfile(incoming());
       allow update: if (isOwner(userId) && isValidUserProfile(incoming()) && (
-          incoming().diff(existing()).affectedKeys().hasOnly(['displayName', 'firstName', 'lastName', 'photoURL', 'bio', 'subject', 'school', 'wilaya', 'level', 'yearsOfExperience', 'gender', 'birthDate', 'role', 'rank', 'isProfileComplete', 'lastSeen', 'bioBackground', 'bioTextColor', 'blockedUsers', 'isActivated', 'premiumUntil', 'lastGenerationDate', 'lastUsageResetDate', 'dailyGenCount', 'dailyCorrectCount', 'savedPreferences', 'settings', 'friends', 'followers', 'following', 'appBackground', 'phoneNumber', 'email', 'usage', 'reminders']) &&
+          incoming().diff(existing()).affectedKeys().hasOnly(['displayName', 'firstName', 'lastName', 'photoURL', 'bio', 'subject', 'school', 'wilaya', 'level', 'yearsOfExperience', 'gender', 'birthDate', 'role', 'rank', 'isProfileComplete', 'lastSeen', 'bioBackground', 'bioTextColor', 'blockedUsers', 'isActivated', 'premiumUntil', 'lastGenerationDate', 'lastUsageResetDate', 'dailyGenCount', 'dailyCorrectCount', 'savedPreferences', 'settings', 'friends', 'followers', 'following', 'appBackground', 'phoneNumber', 'email', 'usage', 'reminders', 'appSettings']) &&
           incoming().uid == existing().uid &&
-          incoming().createdAt == existing().createdAt
+          (incoming().createdAt == existing().createdAt || !('createdAt' in incoming()))
         )) || (
           // Social interaction: anyone can add themselves to followers/following/friends
           isSignedIn() && incoming().diff(existing()).affectedKeys().hasOnly(['followers', 'following', 'friends', 'blockedUsers']) &&
@@ -348,12 +347,12 @@ service cloud.firestore {
     }
 
     match /calls/{callId} {
-      allow get: if isSignedIn() && isValidId(callId) && (resource == null || request.auth.uid == resource.data.senderId || request.auth.uid == resource.data.recipientId || isAdmin());
-      allow list: if isSignedIn() && (request.auth.uid == resource.data.senderId || request.auth.uid == resource.data.recipientId || isAdmin());
-      allow create: if isSignedIn() && isValidId(callId) && isValidCall(incoming());
-      allow update: if isSignedIn() && isValidId(callId) && isValidCall(incoming()) && 
-                    (request.auth.uid == existing().senderId || request.auth.uid == existing().recipientId || isAdmin());
-      allow delete: if isSignedIn() && isValidId(callId) && (request.auth.uid == existing().senderId || request.auth.uid == existing().recipientId || isAdmin());
+      allow get, list: if isSignedIn() && (resource == null || request.auth.uid == resource.data.senderId || request.auth.uid == resource.data.recipientId || isAdmin());
+      allow create: if isSignedIn() && isValidCall(incoming());
+      allow update: if isSignedIn() && 
+                    (request.auth.uid == existing().senderId || request.auth.uid == existing().recipientId || isAdmin()) &&
+                    incoming().status in ['ringing', 'connected', 'accepted', 'rejected', 'missed', 'ended'];
+      allow delete: if isSignedIn() && (request.auth.uid == existing().senderId || request.auth.uid == existing().recipientId || isAdmin());
     }
 
     match /groups/{groupId} {
