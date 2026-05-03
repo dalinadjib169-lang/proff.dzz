@@ -1395,14 +1395,14 @@ export default function ChatBubble() {
                     </button>
                     <button 
                       onClick={() => handleStartCall('audio')}
-                      className="p-2 rounded-xl transition-all text-white/90 hover:text-white hover:bg-white/10 active:scale-95 bg-white/5"
+                      className="p-2.5 rounded-full transition-all bg-emerald-500 hover:bg-emerald-600 text-white shadow-lg active:scale-90 flex items-center justify-center"
                       title="اتصال صوتي (Audio Call)"
                     >
                       <Phone className="w-4 h-4" />
                     </button>
                     <button 
                       onClick={() => handleStartCall('video')}
-                      className="p-2 rounded-xl transition-all text-white/90 hover:text-white hover:bg-white/10 active:scale-95 bg-white/5"
+                      className="p-2.5 rounded-full transition-all bg-indigo-500 hover:bg-indigo-600 text-white shadow-lg active:scale-90 flex items-center justify-center"
                       title="اتصال فيديو (Video Call)"
                     >
                       <Video className="w-4 h-4" />

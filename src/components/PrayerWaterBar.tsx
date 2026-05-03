@@ -423,35 +423,34 @@ export const PrayerWaterBar: React.FC = () => {
       </motion.div>
 
       {/* Azkar Marquee */}
-      <div className="w-full bg-slate-900 border border-white/20 rounded-full h-10 flex items-center overflow-hidden relative" dir="ltr">
-        <div className="absolute inset-y-0 left-0 w-20 bg-gradient-to-r from-slate-900 via-slate-900/80 to-transparent z-10 pointer-events-none" />
-        <div className="absolute inset-y-0 right-0 w-20 bg-gradient-to-l from-slate-900 via-slate-900/80 to-transparent z-10 pointer-events-none" />
+      <div className="w-full bg-slate-800/80 backdrop-blur-sm border border-white/10 rounded-full h-10 flex items-center overflow-hidden relative" dir="ltr">
+        <div className="absolute inset-y-0 left-0 w-10 bg-gradient-to-r from-slate-800 to-transparent z-10 pointer-events-none" />
+        <div className="absolute inset-y-0 right-0 w-10 bg-gradient-to-l from-slate-800 to-transparent z-10 pointer-events-none" />
         
         <motion.div 
-          animate={{ x: ["0%", "-50%"] }}
+          animate={{ x: ["0%", "-50%"] }} // Standard left-scroll (items come from right)
           transition={{ 
             repeat: Infinity, 
             duration: 80, 
             ease: "linear"
           }}
-          className="flex whitespace-nowrap py-1 items-center"
+          className="flex whitespace-nowrap items-center w-max"
         >
           {[1, 2].map((group) => (
-            <div key={group} className="flex gap-24 text-[19px] font-black px-12 font-amiri tracking-wider items-center" dir="rtl">
+            <div key={group} className="flex gap-10 px-4 items-center" dir="rtl">
               {getAzkar().map((item, i) => (
                 <span 
                   key={`${group}-${i}`} 
                   className={cn(
-                    "transition-all flex-shrink-0 flex items-center gap-4",
-                    item.type === 'surah' ? 'text-green-400' : 
-                    item.type === 'dua' ? 'text-amber-300' : 
-                    item.type === 'zekr' ? 'text-rose-400' : 
+                    "flex-shrink-0 flex items-center gap-3",
+                    item.type === 'surah' ? 'text-green-300 font-bold' : 
+                    item.type === 'dua' ? 'text-amber-200' : 
+                    item.type === 'zekr' ? 'text-rose-300' : 
                     'text-white'
                   )}
                 >
-                  <span className="opacity-40 text-[11px] font-sans">{i + 1}</span>
-                  {item.text}
-                  <div className="w-2 h-2 rounded-full bg-white/20 mx-4" />
+                  <span className="text-[18px] font-amiri whitespace-nowrap drop-shadow-md">{item.text}</span>
+                  <div className="w-1.5 h-1.5 rounded-full bg-white/20" />
                 </span>
               ))}
             </div>
