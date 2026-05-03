@@ -408,7 +408,7 @@ export default function Login() {
               className="w-full py-3 bg-amber-500/5 hover:bg-amber-500/10 border border-amber-500/30 text-amber-500 font-bold rounded-xl transition-all flex items-center justify-center gap-2 group active:scale-[0.98]"
             >
               <Sparkles className="w-4 h-4 group-hover:animate-pulse" />
-              صلي على محمد و سجل لتجربة رقمية اكثر احترافية
+              صلي على محمد و سجل  زميلي لتجربة رقمية احترافية في اول منصة للاساتذة الجزائريين 🇩🇿
             </button>
           )}
         </form>
