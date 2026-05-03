@@ -1314,109 +1314,133 @@ export default function ChatBubble() {
             style={{ height: isMobile ? vHeight : undefined }}
           >
             {/* Header */}
-            <div className={`shrink-0 bg-gradient-to-br from-purple-600 via-indigo-600 to-slate-900 flex items-center justify-between border-b border-white/10 transition-all ${isMobile && isKeyboardOpen ? 'p-2' : 'p-4 sm:p-5'}`}>
-              <div className="flex items-center gap-3">
-                {activeChat ? (
-                  <>
-                    <button onClick={() => setActiveChat(null)} className="text-white/80 hover:text-white transition-colors">
-                      {isMobile && isKeyboardOpen ? <X className="w-4 h-4 rotate-45" /> : <X className="w-5 h-5 rotate-45" />}
-                    </button>
-                    <div className="relative">
-                      <img 
-                        src={activeChat.photoURL} 
-                        className={`${isMobile && isKeyboardOpen ? 'w-8 h-8' : 'w-10 h-10'} rounded-2xl object-cover border-2 border-white/20 transition-all`} 
-                        referrerPolicy="no-referrer"
-                      />
-                      <div className={`absolute -bottom-1 -right-1 w-3 h-3 rounded-full border-2 border-slate-900 ${isOnline(activeChat.uid === 'global' ? null : activeChat.lastSeen) ? 'bg-green-500' : 'bg-slate-500'}`}></div>
+            <div className={`shrink-0 bg-slate-900 border-b border-white/10 flex flex-col transition-all ${isMobile && isKeyboardOpen ? 'p-1.5' : 'p-3 sm:p-4'}`}>
+              {activeChat ? (
+                <>
+                  <div className="flex items-center justify-between gap-3 overflow-hidden">
+                    {/* Actions - Left */}
+                    <div className="flex items-center gap-1.5">
+                      <button 
+                        onClick={() => setIsOpen(false)} 
+                        className="p-1.5 rounded-lg bg-red-500/20 text-red-400 hover:bg-red-500 hover:text-white transition-all border border-red-500/10 active:scale-95"
+                        title="Close / أغلق"
+                      >
+                        <X className="w-4 h-4" />
+                      </button>
+                      
+                      {activeChat.uid !== 'global' && (
+                        <>
+                          <button 
+                            onClick={handleConnect}
+                            disabled={isConnecting}
+                            className={`p-1.5 rounded-lg transition-all active:scale-95 ${profile?.following?.includes(activeChat.uid) ? 'bg-amber-500 text-white' : 'bg-white/10 text-white/60 hover:bg-white/20'}`}
+                            title={profile?.following?.includes(activeChat.uid) ? "Connected" : "Connect"}
+                          >
+                            {profile?.following?.includes(activeChat.uid) ? <UserCheck className="w-4 h-4" /> : <UserPlus className="w-4 h-4" />}
+                          </button>
+                          <button 
+                            onClick={() => handleStartCall('audio')}
+                            className="p-1.5 rounded-lg bg-emerald-500 text-white shadow-lg active:scale-95 flex items-center justify-center transition-all hover:bg-emerald-600"
+                            title="اتصال صوتي"
+                          >
+                            <Phone className="w-4 h-4" />
+                          </button>
+                          <button 
+                            onClick={() => handleStartCall('video')}
+                            className="p-1.5 rounded-lg bg-indigo-500 text-white shadow-lg active:scale-95 flex items-center justify-center transition-all hover:bg-indigo-600"
+                            title="اتصال فيديو"
+                          >
+                            <Video className="w-4 h-4" />
+                          </button>
+                        </>
+                      )}
                     </div>
-                    <div>
-                      <h4 className={`font-black text-white leading-tight ${isMobile && isKeyboardOpen ? 'text-[12px]' : 'text-sm'}`}>
-                        {activeChat.displayName}
-                        {!isConnected && <span className="ml-2 text-[10px] text-yellow-400 font-normal animate-pulse">(Connecting...)</span>}
-                      </h4>
-                      {!isKeyboardOpen && (
-                        <div className="flex flex-col">
-                          <p className="text-[10px] font-bold text-white/90 flex items-center gap-1">
-                            {activeChat.uid === 'global' ? (
-                              <>
-                                <Users className="w-2 h-2" />
-                                <span>Professional Global Lounge</span>
-                              </>
-                            ) : (
-                              <>
-                                <span className={`w-1.5 h-1.5 rounded-full ${isOnline(activeChat.lastSeen) ? 'bg-green-400 animate-pulse' : 'bg-slate-400'}`}></span>
-                                {isOnline(activeChat.lastSeen) ? 'متصل (Online)' : 'غير متصل (Offline)'}
-                              </>
-                            )}
-                          </p>
-                          {!isKeyboardOpen && (
-                            <>
-                              <p className="text-[10px] font-bold text-white/90 flex items-center gap-1">
-                                {activeChat.uid === 'global' ? <Globe className="w-2 h-2" /> : getSubjectIcon(activeChat.subject || '')}
-                                {activeChat.uid === 'global' ? 'All Subjects' : (activeChat.subject || 'Teacher')} • {activeChat.level || 'General'}
-                              </p>
-                              <p className="text-[9px] font-bold text-white/70 flex items-center gap-1">
-                                <MapPin className="w-2 h-2" /> {activeChat.uid === 'global' ? 'Algeria (National)' : (activeChat.wilaya || 'Algeria')} • <Clock className="w-2 h-2" /> {activeChat.uid === 'global' ? '24/7 Live' : `${activeChat.yearsOfExperience || 0} ans exp`}
-                              </p>
-                            </>
-                          )}
+
+                    {/* Identity - Right */}
+                    <div className="flex items-center gap-2 text-right min-w-0" dir="rtl">
+                      <div className="relative flex-shrink-0">
+                        <img 
+                          src={activeChat.photoURL} 
+                          className="w-10 h-10 rounded-xl object-cover border border-white/20 shadow-xl" 
+                          referrerPolicy="no-referrer"
+                          alt={activeChat.displayName}
+                        />
+                        <div className={`absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full border-2 border-slate-900 ${isOnline(activeChat.uid === 'global' ? null : activeChat.lastSeen) ? 'bg-green-500' : 'bg-slate-500'}`}></div>
+                      </div>
+                      <div className="min-w-0 flex flex-col items-start text-right">
+                        <div className="flex items-center gap-1.5">
+                          <h4 className="font-black text-white text-xs sm:text-sm truncate max-w-[120px]">{activeChat.displayName}</h4>
+                          {!isConnected && <span className="w-1.5 h-1.5 bg-yellow-400 rounded-full animate-pulse" title="Connecting..."></span>}
                         </div>
-                      )}
-                      {isMobile && isKeyboardOpen && (
-                         <p className="text-[9px] font-bold text-white/80">Online</p>
-                      )}
+                        <div className="flex items-center gap-1 w-full flex-row-reverse">
+                           <span className={`w-1.5 h-1.5 rounded-full ${isOnline(activeChat.uid === 'global' ? true : activeChat.lastSeen) ? 'bg-green-400 opacity-80' : 'bg-slate-500 opacity-50'}`}></span>
+                           <p className="text-[10px] font-bold text-white/40">
+                             {activeChat.uid === 'global' ? 'البث المباشر' : (isOnline(activeChat.lastSeen) ? 'متصل الآن' : 'غير متصل')}
+                           </p>
+                        </div>
+                      </div>
+                      <button onClick={() => setActiveChat(null)} className="p-1.5 rounded-lg hover:bg-white/10 text-white/30 hover:text-red-400 transition-all ml-1">
+                         <X className="w-4 h-4 rotate-45" />
+                      </button>
                     </div>
-                  </>
-                ) : (
-                  <>
-                    <div className="bg-white/20 p-2 rounded-xl">
-                      <MessageSquare className="w-5 h-5 text-white" />
+                  </div>
+
+                  {/* Info Badges - Row 2 */}
+                  {!isKeyboardOpen && (
+                    <div className="flex items-center gap-2 overflow-x-auto no-scrollbar mt-3 pt-2.5 border-t border-white/5 justify-between" dir="rtl">
+                      <div className="flex-shrink-0 flex items-center gap-1.5 bg-blue-500/10 text-blue-300 px-2 py-1 rounded-lg border border-blue-500/20">
+                        <div className="w-4 h-4 rounded-md bg-blue-500/20 flex items-center justify-center">
+                          {activeChat.uid === 'global' ? <Globe className="w-2.5 h-2.5" /> : getSubjectIcon(activeChat.subject || '')}
+                        </div>
+                        <span className="text-[10px] font-black whitespace-nowrap">{activeChat.uid === 'global' ? 'كل المواد' : (activeChat.subject || 'مادة')}</span>
+                      </div>
+                      
+                      <div className="flex-shrink-0 flex items-center gap-1.5 bg-emerald-500/10 text-emerald-300 px-2 py-1 rounded-lg border border-emerald-500/20">
+                        <div className="w-4 h-4 rounded-md bg-emerald-500/20 flex items-center justify-center">
+                          <GraduationCap className="w-2.5 h-2.5" />
+                        </div>
+                        <span className="text-[10px] font-black whitespace-nowrap">{activeChat.uid === 'global' ? 'منصة وطنية' : (activeChat.level || 'طور التعليم')}</span>
+                      </div>
+
+                      <div className="flex-shrink-0 flex items-center gap-1.5 bg-amber-500/10 text-amber-300 px-2 py-1 rounded-lg border border-amber-500/20">
+                        <div className="w-4 h-4 rounded-md bg-amber-500/20 flex items-center justify-center">
+                          <MapPin className="w-2.5 h-2.5" />
+                        </div>
+                        <span className="text-[10px] font-black whitespace-nowrap">{activeChat.uid === 'global' ? 'الجزائر' : (activeChat.wilaya || 'ولاية')}</span>
+                      </div>
+
+                      <div className="flex-shrink-0 flex items-center gap-1.5 bg-purple-500/10 text-purple-300 px-2 py-1 rounded-lg border border-purple-500/20">
+                        <div className="w-4 h-4 rounded-md bg-purple-500/20 flex items-center justify-center">
+                          <Clock className="w-2.5 h-2.5" />
+                        </div>
+                        <span className="text-[10px] font-black whitespace-nowrap">{activeChat.uid === 'global' ? '24/7' : `${activeChat.yearsOfExperience || 0} ans exp`}</span>
+                      </div>
                     </div>
-                    <div>
-                      <h4 className="font-black text-white">Teacher Lounge</h4>
-                      <Link to="/discussions" className="text-[10px] text-white/70 hover:text-white flex items-center gap-1 transition-all">
-                        <TrendingUp className="w-2 h-2" />
-                        <span>Visit Forum - اذهب إلى منتدى النقاشات</span>
-                      </Link>
-                    </div>
-                  </>
-                )}
-              </div>
-            <div className="flex items-center gap-1">
-                {activeChat && activeChat.uid !== 'global' && (
-                  <>
-                    <button 
-                      onClick={handleConnect}
-                      disabled={isConnecting}
-                      className={`p-2 rounded-xl transition-all ${profile?.following?.includes(activeChat.uid) ? 'text-green-400 bg-green-400/10' : 'text-white/80 hover:text-white hover:bg-white/10'}`}
-                      title={profile?.following?.includes(activeChat.uid) ? "Connected" : "Connect"}
+                  )}
+                </>
+              ) : (
+                <div className="flex items-center justify-between w-full h-full min-h-[48px]">
+                   <div className="flex items-center gap-3">
+                      <div className="bg-purple-500/20 p-2 rounded-xl border border-purple-500/30">
+                        <MessageSquare className="w-5 h-5 text-purple-400" />
+                      </div>
+                      <div className="text-right" dir="rtl">
+                        <h4 className="font-black text-white text-sm sm:text-base tracking-tight">قاعة الأساتذة</h4>
+                        <Link to="/discussions" className="text-[10px] text-purple-400 hover:text-purple-300 flex items-center gap-1 transition-all font-bold">
+                          <TrendingUp className="w-2.5 h-2.5" />
+                          <span>منتدى النقاشات والمذكرات</span>
+                        </Link>
+                      </div>
+                   </div>
+                   <button 
+                      onClick={() => setIsOpen(false)} 
+                      className="p-2 rounded-xl bg-white/5 text-white/50 hover:bg-red-500 hover:text-white transition-all border border-white/10 active:scale-95"
+                      title="Close"
                     >
-                      {profile?.following?.includes(activeChat.uid) ? <UserCheck className="w-4 h-4" /> : <UserPlus className="w-4 h-4" />}
+                      <X className="w-5 h-5" />
                     </button>
-                    <button 
-                      onClick={() => handleStartCall('audio')}
-                      className="p-2.5 rounded-full transition-all bg-emerald-500 hover:bg-emerald-600 text-white shadow-lg active:scale-90 flex items-center justify-center"
-                      title="اتصال صوتي (Audio Call)"
-                    >
-                      <Phone className="w-4 h-4" />
-                    </button>
-                    <button 
-                      onClick={() => handleStartCall('video')}
-                      className="p-2.5 rounded-full transition-all bg-indigo-500 hover:bg-indigo-600 text-white shadow-lg active:scale-90 flex items-center justify-center"
-                      title="اتصال فيديو (Video Call)"
-                    >
-                      <Video className="w-4 h-4" />
-                    </button>
-                  </>
-                )}
-                <button 
-                  onClick={() => setIsOpen(false)} 
-                  className={`bg-white/10 text-white hover:bg-red-500 rounded-xl transition-all shadow-lg border border-white/20 ${isMobile && isKeyboardOpen ? 'p-1' : 'p-2'}`}
-                  title="Close / أغلق"
-                >
-                  <X className={isMobile && isKeyboardOpen ? 'w-4 h-4' : 'w-5 h-5'} />
-                </button>
-              </div>
+                </div>
+              )}
             </div>
 
             {/* Content */}
