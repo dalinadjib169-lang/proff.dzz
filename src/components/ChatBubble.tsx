@@ -61,7 +61,7 @@ import { Link } from 'react-router-dom';
 import { handleFirestoreError, OperationType } from '../lib/firestore-errors';
 import { playSound } from '../lib/sounds';
 import { useUpload } from '../hooks/useUpload';
-import { Peer } from 'peerjs';
+import AgoraRTC, { IAgoraRTCClient, ICameraVideoTrack, IMicrophoneAudioTrack, IAgoraRTCRemoteUser } from 'agora-rtc-sdk-ng';
 
 import ImageLightbox from './ImageLightbox';
 import { useUnreadMessages } from '../hooks/useUnreadMessages';
@@ -231,15 +231,17 @@ export default function ChatBubble() {
   const [filterSameSubject, setFilterSameSubject] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [isCalling, setIsCalling] = useState<'video' | 'audio' | null>(null);
-  const [peerError, setPeerError] = useState<string | null>(null);
+  const [agoraJoined, setAgoraJoined] = useState(false);
+  const agoraJoinedRef = useRef(false);
+  const isJoiningRef = useRef(false);
+  const agoraClientRef = useRef<IAgoraRTCClient | null>(null);
+  const localAudioTrackRef = useRef<IMicrophoneAudioTrack | null>(null);
+  const localVideoTrackRef = useRef<ICameraVideoTrack | null>(null);
+  const remoteUsersRef = useRef<{ [uid: string]: IAgoraRTCRemoteUser }>({});
   const [incomingCall, setIncomingCall] = useState<any>(null);
-  const localStreamRef = useRef<MediaStream | null>(null);
   const [localStream, setLocalStream] = useState<MediaStream | null>(null);
   const [remoteStream, setRemoteStream] = useState<MediaStream | null>(null);
-  const activePeerCallRef = useRef<any>(null);
-  const [activePeerCall, setActivePeerCall] = useState<any>(null);
   const [currentCallId, setCurrentCallId] = useState<string | null>(null);
-  const peerRef = useRef<Peer | null>(null);
   const localVideoRef = useRef<HTMLVideoElement>(null);
   const remoteVideoRef = useRef<HTMLVideoElement>(null);
   const [isConnecting, setIsConnecting] = useState(false);
@@ -574,7 +576,7 @@ export default function ChatBubble() {
         if (profile?.uid) {
           await updateDoc(doc(db, 'users', profile.uid), {
             lastSeen: serverTimestamp(),
-            peerId: `${profile.uid}-${sessionID}`
+            // No more peerId needed for Agora
           });
         }
       } catch (err) {
@@ -585,115 +587,156 @@ export default function ChatBubble() {
     updateStatus();
     const interval = setInterval(updateStatus, 60000); // Pulse every minute
     
-    // PeerJS signaling heartbeat
-    const peerHeartbeat = setInterval(() => {
-      if (peerRef.current && !peerRef.current.destroyed) {
-        if (peerRef.current.disconnected) {
-          console.log("PeerJS disconnected, reconnecting...");
-          peerRef.current.reconnect();
-        }
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible' && profile?.uid) {
+        console.log('App visible, checking signaling connection...');
       }
-    }, 10000);
+    };
+    document.addEventListener('visibilitychange', handleVisibilityChange);
 
     return () => {
       clearInterval(interval);
-      clearInterval(peerHeartbeat);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
   }, [profile?.uid]);
 
-  // Initialize PeerJS
-  const initPeer = () => {
-    if (!profile?.uid) return;
+  const leaveAgora = async () => {
+    if (isJoiningRef.current) {
+       console.warn("Agora: Attempted to leave while joining, waiting...");
+       // Busy wait or just flag it? Better to prevent.
+    }
+    
+    if (localAudioTrackRef.current) {
+      localAudioTrackRef.current.stop();
+      localAudioTrackRef.current.close();
+      localAudioTrackRef.current = null;
+    }
+    if (localVideoTrackRef.current) {
+      localVideoTrackRef.current.stop();
+      localVideoTrackRef.current.close();
+      localVideoTrackRef.current = null;
+    }
+    if (agoraClientRef.current) {
+      try {
+        await agoraClientRef.current.leave();
+      } catch(e) {}
+      agoraClientRef.current = null;
+    }
+    setAgoraJoined(false);
+    agoraJoinedRef.current = false;
+    remoteUsersRef.current = {};
+    setRemoteStream(null);
+  };
 
-    const peerId = `${profile.uid}-${sessionID}`;
-
-    // Avoid recreating if already connected with same ID
-    if (peerRef.current && peerRef.current.id === peerId && !peerRef.current.destroyed) {
-      if (peerRef.current.disconnected) {
-        peerRef.current.reconnect();
-      }
-      return peerRef.current;
+   const joinAgoraChannel = async (channelName: string, uid: string, type: 'video' | 'audio') => {
+    // Priority: hardcoded new ID if env is missing or default
+    const HARDCODED_ID = '8caf4f84ad15420792f81cf1dbf9944f';
+    const envAppId = (import.meta as any).env.VITE_AGORA_APP_ID;
+    const appId = (envAppId && envAppId !== 'MY_AGORA_APP_ID' ? envAppId.trim() : HARDCODED_ID);
+    
+    const envToken = (import.meta as any).env.VITE_AGORA_TOKEN;
+    const token = envToken && envToken.trim() !== '' ? envToken.trim() : null;
+    
+    if (!appId || appId === 'MY_AGORA_APP_ID') {
+      toast.error("Agora App ID missing or invalid (5469...)");
+      return;
     }
 
-    // Cleanup existing peer if any
-    if (peerRef.current && !peerRef.current.destroyed) {
-      peerRef.current.destroy();
+    if (agoraJoinedRef.current || isJoiningRef.current) {
+      console.warn("Agora: Already joined or joining, skipping...");
+      return;
     }
 
-    const peer = new Peer(peerId, {
-      debug: 0,
-      pingInterval: 5000, // Faster heartbeats to prevent signaling drop
-      config: {
-        iceServers: [
-          { urls: 'stun:stun.l.google.com:19302' },
-          { urls: 'stun:stun1.l.google.com:19302' },
-          { urls: 'stun:stun2.l.google.com:19302' },
-          { urls: 'stun:global.stun.twilio.com:3478' }
-        ]
-      }
+    console.log("Agora: Joining with", { 
+      appId: appId.substring(0, 8) + '...', 
+      channelName, 
+      uid, 
+      hasToken: !!token 
     });
 
-    peer.on('open', (id) => {
-      console.log('Peer connected to signaling server with ID:', id);
-      (peer as any)._ready = true;
-    });
+    isJoiningRef.current = true;
+    try {
+      const client = AgoraRTC.createClient({ mode: 'rtc', codec: 'vp8' });
+      agoraClientRef.current = client;
 
-    peer.on('disconnected', () => {
-      console.log('Peer signaling connection lost.');
-      (peer as any)._ready = false;
-      if (!peer.destroyed) {
-        setTimeout(() => {
-          if (!peer.destroyed && peer.disconnected) peer.reconnect();
-        }, 3000);
-      }
-    });
-
-    peer.on('call', (call) => {
-      console.log('Incoming PeerJS call from:', call.peer);
-      activePeerCallRef.current = call;
-      setActivePeerCall(call);
-      
-      call.on('error', (err) => {
-        console.error('Incoming call PeerJS error:', err);
-      });
-    });
-
-    peer.on('error', (err: any) => {
-      console.error('PeerJS global error:', err.type, err);
-      if (err.type === 'peer-unavailable' || err.type === 'network' || err.type === 'server-error') {
-        console.warn(`PeerJS ${err.type} error, attempting reconnection...`);
-        if (!peer.destroyed) {
-          setTimeout(() => {
-            if (!peer.destroyed && peer.disconnected) peer.reconnect();
-          }, 3000);
+      client.on('user-published', async (user, mediaType) => {
+        await client.subscribe(user, mediaType);
+        if (mediaType === 'video') {
+          const remoteVideoTrack = user.videoTrack;
+          if (remoteVideoTrack) {
+            const ms = new MediaStream([remoteVideoTrack.getMediaStreamTrack()]);
+            setRemoteStream(ms);
+          }
         }
-      }
-      
-      if (err.type === 'peer-unavailable') {
-        toast.error("الطرف الآخر غير متاح أو انقطع اتصاله.");
-      }
-      if (err.type === 'unavailable-id') {
-        setPeerError('unavailable-id');
-      }
-      
-      if (peerRef.current && !peerRef.current.destroyed && peerRef.current.disconnected) {
-        peerRef.current.reconnect();
-      }
-    });
+        if (mediaType === 'audio') {
+          user.audioTrack?.play();
+        }
+      });
 
-    peerRef.current = peer;
-    return peer;
+      client.on('user-unpublished', (user) => {
+        setRemoteStream(null);
+      });
+
+      // Passing token if available, otherwise null (requires project to be in 'App ID' only mode)
+      await client.join(appId, channelName, token, uid);
+      
+      const audioTrack = await AgoraRTC.createMicrophoneAudioTrack().catch(e => {
+        console.error("Agora: Mic track failed", e);
+        return null;
+      });
+      
+      if (audioTrack) {
+        localAudioTrackRef.current = audioTrack;
+        await client.publish([audioTrack]);
+      }
+      
+      if (type === 'video') {
+        const videoTrack = await AgoraRTC.createCameraVideoTrack().catch(e => {
+          console.error("Agora: Cam track failed", e);
+          return null;
+        });
+        if (videoTrack) {
+          localVideoTrackRef.current = videoTrack;
+          await client.publish([videoTrack]);
+          const tracks = [videoTrack.getMediaStreamTrack()];
+          if (audioTrack) tracks.push(audioTrack.getMediaStreamTrack());
+          setLocalStream(new MediaStream(tracks));
+        }
+      } else if (audioTrack) {
+        setLocalStream(new MediaStream([audioTrack.getMediaStreamTrack()]));
+      }
+      
+      setAgoraJoined(true);
+      agoraJoinedRef.current = true;
+      console.log("Agora joined and published successfully");
+    } catch (err: any) {
+      if (err.code === 'OPERATION_ABORTED' || err.message?.includes('OPERATION_ABORTED') || err.message?.includes('cancel token canceled')) {
+        console.warn("Agora: Join process interrupted/aborted.");
+        return;
+      }
+      
+      console.error("Agora join ERROR details:", JSON.stringify(err, null, 2));
+      console.error("Agora full error message:", err.message);
+      
+      if (err.message?.includes('dynamic use static key') || err.code === 'CAN_NOT_GET_GATEWAY_SERVER' || err.message?.includes('4096')) {
+        toast.error("خطأ في Agora: المشروع يتطلب Token. يرجى تعطيل 'App Certificate' في لوحة Agora أو الحصول على Token مؤقت.");
+        console.warn("TIP: Go to Agora Console -> Project Settings -> Disable Primary Certificate OR enable it and copy the Temp Token.");
+      } else {
+        toast.error("فشل الاتصال بخادم البث. تأكد من إعدادات Agora وApp ID.");
+      }
+      
+      // Clean up if join failed partially
+      await leaveAgora();
+    } finally {
+      isJoiningRef.current = false;
+    }
   };
 
   useEffect(() => {
     if (!profile) return;
-    initPeer();
 
     return () => {
-      if (peerRef.current) {
-        peerRef.current.destroy();
-        peerRef.current = null;
-      }
+      leaveAgora();
     };
   }, [profile?.uid]);
 
@@ -710,17 +753,10 @@ export default function ChatBubble() {
 
     setIsCalling(null);
     setIncomingCall(null);
-    if (localStreamRef.current) {
-      localStreamRef.current.getTracks().forEach(track => track.stop());
-    }
     setLocalStream(null);
-    localStreamRef.current = null;
     setRemoteStream(null);
-    if (activePeerCallRef.current) {
-      activePeerCallRef.current.close();
-    }
-    activePeerCallRef.current = null;
-    setActivePeerCall(null);
+    
+    await leaveAgora();
   };
 
   // Handle Incoming Calls
@@ -737,9 +773,6 @@ export default function ChatBubble() {
       if (!snapshot.empty) {
         const callData = { id: snapshot.docs[0].id, ...snapshot.docs[0].data() as any };
         setIncomingCall(callData);
-        
-        // Initialize Peer immediately when ringing so we are ready to receive the call
-        initPeer();
         
         // Handle ringtone based on status
         if (callData.status === 'ringing' && !isCalling) {
@@ -786,10 +819,10 @@ export default function ChatBubble() {
       if (!snapshot.empty) {
         const call = { id: snapshot.docs[0].id, ...snapshot.docs[0].data() as any };
         
-        if (call.status === 'accepted' && call.recipientPeerId && localStreamRef.current && !activePeerCallRef.current) {
-          console.log("Recipient accepted via Firestore with PeerID:", call.recipientPeerId);
+        if (call.status === 'accepted' && !agoraJoined) {
           stopRingtone(); // Stop dial tone for caller
-          initiatePeerCall(call, localStreamRef.current);
+          await joinAgoraChannel(call.channelName, profile.uid, call.type);
+          await updateDoc(doc(db, 'calls', call.id), { status: 'connected' });
         } else if (call.status === 'rejected' || call.status === 'ended' || call.status === 'failed') {
           stopRingtone();
           if (call.status === 'failed') {
@@ -1097,39 +1130,22 @@ export default function ChatBubble() {
     if (!profile || !activeChat) return;
 
     try {
-      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-        throw new Error("Media devices not supported or unsecure context");
-      }
-
-      const constraints = {
-        video: type === 'video' ? {
-          facingMode: 'user',
-          width: { ideal: 640 },
-          height: { ideal: 480 }
-        } : false,
-        audio: true
-      };
-
-      console.log('Requesting media with constraints:', constraints);
-      const stream = await navigator.mediaDevices.getUserMedia(constraints);
-      localStreamRef.current = stream;
-      setLocalStream(stream);
       setIsCalling(type);
 
-      // Start ringing for caller
+      // Start ringing for caller (dial tone)
       if (!ringtoneRef.current) {
         ringtoneRef.current = playSound('ringtone', true);
       }
 
-      const senderPeerId = `${profile.uid}-${sessionID}`;
+      const channelName = `call_${profile.uid}_${Date.now()}`;
       const callDoc = await addDoc(collection(db, 'calls'), {
         senderId: profile.uid,
         senderName: profile.displayName,
         senderPhoto: profile.photoURL || null,
-        senderPeerId,
         recipientId: activeChat.uid,
         type,
         status: 'ringing',
+        channelName,
         createdAt: serverTimestamp()
       });
       setCurrentCallId(callDoc.id);
@@ -1149,255 +1165,56 @@ export default function ChatBubble() {
         }
       }, 60000);
       
-      console.log('Call document created:', callDoc.id, 'Waiting for recipient to accept via status listener...');
+      console.log('Call document created:', callDoc.id, 'Waiting for recipient to accept...');
 
     } catch (err: any) {
       console.error("Call error:", err);
       stopRingtone();
-      if (err.name === 'NotAllowedError' || err.message?.includes('Permission denied')) {
-        toast.error("تم رفض إذن الكاميرا. يرجى تفعيل الإذن من إعدادات المتصفح.");
-      } else if (err.name === 'NotFoundError') {
-        toast.error("لم يتم العثور على كاميرا أو ميكروفون.");
-      } else {
-        toast.error("تعذر بدء المكالمة. يرجى التأكد من استقرار الإنترنت ومنح أذونات الكاميرا.");
-      }
+      toast.error("تعذر بدء المكالمة. يرجى التأكد من استقرار الإنترنت.");
       endCall();
     }
-  };
-
-  // Separate function to actually initiate the PeerJS call (P2P signaling)
-  const initiatePeerCall = async (callData: any, stream: MediaStream) => {
-    if (!profile || activePeerCallRef.current || !stream) return;
-    
-    // We expect recipientPeerId to be present if status is accepted
-    const getTargetPeerId = (data: any) => data.recipientPeerId || data.recipientId;
-    
-    console.log('Initiating PeerJS call (P2P Phase) to:', getTargetPeerId(callData));
-    
-    const currentPeer = initPeer();
-    if (!currentPeer || currentPeer.destroyed) {
-      console.error('PeerJS instance is lost, cannot call.');
-      return;
-    }
-
-    // Wait until peer is ready
-    let isReady = false;
-    for (let i = 0; i < 20; i++) {
-      if ((currentPeer as any)._ready && !currentPeer.disconnected) {
-        isReady = true;
-        break;
-      }
-      console.log(`Waiting for Peer signaling to be ready (attempt ${i+1}/20)...`);
-      await new Promise(r => setTimeout(r, 500));
-      if (currentPeer.disconnected) currentPeer.reconnect();
-    }
-
-    let p2pActive = false;
-
-    const performCall = (targetId: string) => {
-      if (p2pActive || activePeerCallRef.current) return;
-      console.log('Performing PeerJS call attempt to:', targetId);
-      const callOptions = { metadata: { type: callData.type, senderId: profile.uid, senderName: profile.displayName } };
-      const call = currentPeer.call(targetId, stream, callOptions);
-      
-      if (call) {
-        call.on('stream', (remoteStream) => {
-          console.log('Caller received remote stream');
-          p2pActive = true;
-          setRemoteStream(remoteStream);
-          stopRingtone();
-          if (callData.id) {
-            updateDoc(doc(db, 'calls', callData.id), { status: 'connected' }).catch(console.error);
-          }
-        });
-        call.on('error', (err) => {
-          console.error('PeerJS call instance error:', err);
-        });
-        call.on('close', () => {
-          console.log('PeerJS call instance closed');
-          endCall();
-        });
-        setActivePeerCall(call);
-        activePeerCallRef.current = call;
-      }
-    };
-
-    // First attempt
-    performCall(getTargetPeerId(callData));
-
-    // Retry logic with potential for updated ID from Firestore
-    let retryCount = 0;
-    const retryInterval = setInterval(async () => {
-      if (p2pActive || !isCalling || activePeerCallRef.current?.open || retryCount > 8) {
-        clearInterval(retryInterval);
-        return;
-      }
-      
-      retryCount++;
-      console.log(`Retrying PeerJS call (Attempt ${retryCount})...`);
-      
-      try {
-        const docSnap = await getDoc(doc(db, 'calls', callData.id));
-        if (docSnap.exists()) {
-          const freshData = docSnap.data();
-          performCall(getTargetPeerId(freshData));
-        }
-      } catch (e) {
-        performCall(getTargetPeerId(callData));
-      }
-    }, 4000);
   };
 
   const handleAcceptCall = async () => {
     if (!incomingCall) return;
     
-    stopRingtone(); // Stop immediately on click
+    stopRingtone(); 
 
     try {
-      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-        toast.error("متصفحك لا يدعم الوصول للكاميرا. يرجى فتح التطبيق في نافذة جديدة أو متصفح Chrome.");
-        throw new Error("Media devices not supported or unsecure context");
-      }
-
-      const constraints = {
-        video: incomingCall.type === 'video' ? {
-          facingMode: 'user',
-          width: { ideal: 1280 },
-          height: { ideal: 720 }
-        } : false,
-        audio: {
-          echoCancellation: true,
-          noiseSuppression: true
-        }
-      };
-
-      console.log('Answering call with constraints:', constraints);
-      toast.loading("يرجى منح إذن الكاميرا والميكروفون...", { id: 'media-prep', duration: 10000 });
-      
-      const stream = await navigator.mediaDevices.getUserMedia(constraints)
-        .catch(async (err) => {
-          console.warn('First media attempt failed, retrying with audio only...', err);
-          return await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
-        });
-
-      toast.dismiss('media-prep');
-      localStreamRef.current = stream;
-      setLocalStream(stream);
-
-      const currentPeer = initPeer();
-      if (!currentPeer || currentPeer.destroyed) {
-        throw new Error("Peer connection lost");
-      }
-
-      // Wait for signaling server to confirm readiness
-      for (let i = 0; i < 20; i++) {
-        if ((currentPeer as any)._ready && !currentPeer.disconnected) break;
-        console.log(`Waiting for Peer ready to answer (attempt ${i+1})...`);
-        await new Promise(r => setTimeout(r, 500));
-        if (currentPeer.disconnected) currentPeer.reconnect();
-      }
-
-      // Update call status to 'accepted' with the new PeerID
-      if (incomingCall?.id) {
-        const recipientPeerId = `${profile.uid}-${sessionID}`;
-        await updateDoc(doc(db, 'calls', incomingCall.id), { 
-          status: 'accepted',
-          recipientPeerId 
-        });
-      }
-
-      toast.loading("جاري تأسيس الاتصال المشفر (P2P)...", { id: 'call-negotiating' });
-      
-      // Wait for the incoming direct P2P call from the caller
-      let currentPeerCall = activePeerCallRef.current;
-      if (!currentPeerCall) {
-        for (let i = 0; i < 100; i++) { // Wait up to 50 seconds
-          await new Promise(r => setTimeout(r, 500));
-          if (activePeerCallRef.current) {
-            currentPeerCall = activePeerCallRef.current;
-            break;
-          }
-        }
-      }
-      toast.dismiss('call-negotiating');
-
-      if (currentPeerCall) {
-        console.log("Answering PeerJS call and providing local stream...");
-        currentPeerCall.answer(stream);
-        
-        currentPeerCall.on('stream', (remoteStream: MediaStream) => {
-          console.log('Recipient received remote stream');
-          setRemoteStream(remoteStream);
-          toast.success("تم الاتصال بنجاح!");
-          stopRingtone();
-        });
-        
-        currentPeerCall.on('error', (err: any) => {
-          console.error("PeerJS Call object error:", err);
-          toast.error("حدث خطأ في الاتصال.");
-          endCall();
-        });
-      } else {
-        console.error("Peer call failed to arrive after timeout");
-        if (incomingCall?.id) {
-          updateDoc(doc(db, 'calls', incomingCall.id), { 
-            status: 'failed', 
-            error: 'p2p_timeout',
-            endedAt: serverTimestamp() 
-          }).catch(console.error);
-        }
-        throw new Error("PeerJS call timed out");
-      }
-
-      await updateDoc(doc(db, 'calls', incomingCall.id), { status: 'connected' });
       setIsCalling(incomingCall.type);
-      setIncomingCall(null);
-    } catch (err: any) {
-      console.error("Critical Accept call error:", err);
-      toast.dismiss('media-prep');
+      await updateDoc(doc(db, 'calls', incomingCall.id), { 
+        status: 'accepted'
+      });
+
+      toast.loading("جاري تأسيس الاتصال الآمن...", { id: 'call-negotiating' });
+      await joinAgoraChannel(incomingCall.channelName, profile.uid, incomingCall.type);
       toast.dismiss('call-negotiating');
-      
-      if (err.message?.includes("NotAllowedError") || err.name === "NotAllowedError") {
-        toast.error("تم رفض إذن الكاميرا. يرجى تفعيل الإذن من إعدادات المتصفح.");
-      } else if (err.message?.includes("NotFoundError") || err.name === "NotFoundError") {
-        toast.error("لم يتم العثور على كاميرا أو ميكروفون.");
-      } else {
-        toast.error("فشل الاتصال: يرجى التحقق من أذونات الكاميرا والإنترنت.");
-      }
-      handleRejectCall();
+
+      // Mark as connected once Agora is joined
+      await updateDoc(doc(db, 'calls', incomingCall.id), { 
+        status: 'connected'
+      });
+
+    } catch (err: any) {
+      console.error("Accept call error:", err);
+      toast.error("فشل قبول المكالمة.");
+      endCall();
     }
   };
 
   const handleRejectCall = async () => {
     if (!incomingCall) return;
-
     stopRingtone();
-
     try {
       await updateDoc(doc(db, 'calls', incomingCall.id), { status: 'rejected' });
-      
-      // Add missed call notification
-      await addDoc(collection(db, 'notifications'), {
-        recipientId: incomingCall.senderId,
-        senderId: profile?.uid,
-        senderName: profile?.displayName,
-        type: 'missed_call',
-        callType: incomingCall.type,
-        read: false,
-        createdAt: serverTimestamp(),
-        clientCreatedAt: Date.now()
-      });
-      
       setIncomingCall(null);
-      if (activePeerCall) {
-        activePeerCall.close();
-      }
-      setActivePeerCall(null);
-    } catch (err) {
-      console.error("Reject call error:", err);
-      handleFirestoreError(err, OperationType.UPDATE, `calls/${incomingCall?.id}`);
+    } catch (e) {
+      console.error(e);
+      setIncomingCall(null);
     }
   };
+
+
 
   const getSubjectIcon = (subject: string) => {
     const s = subject.toLowerCase();
@@ -1567,13 +1384,6 @@ export default function ChatBubble() {
             }`}
             style={{ height: isMobile ? vHeight : undefined }}
           >
-            {peerError === 'unavailable-id' && (
-              <div className="shrink-0 bg-red-500/20 text-red-400 text-[10px] sm:text-xs font-bold p-3 flex items-center gap-2 border-b border-red-500/20">
-                <AlertCircle className="w-4 h-4 shrink-0" />
-                <p className="flex-1">تنبيه: التطبيق مفتوح في نافذة أخرى. لن تتمكن من استقبال المكالمات هنا.</p>
-                <button onClick={() => window.location.reload()} className="px-2 py-1 bg-red-500 text-white rounded-lg text-[9px] hover:bg-red-600 transition-colors">تحديث</button>
-              </div>
-            )}
             {/* Header */}
             <div className={`shrink-0 bg-slate-900/60 backdrop-blur-xl border-b border-white/10 transition-all ${isMobile && isKeyboardOpen ? 'p-1' : 'p-2 sm:p-3'}`}>
               {activeChat ? (
@@ -1672,6 +1482,14 @@ export default function ChatBubble() {
                     )}
                     
                     <div className="flex flex-col gap-1">
+                      {/* Advanced Broadcast Status */}
+                      <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-slate-900 border border-slate-800" title="Stream Engine Status">
+                        <div className={`w-1.5 h-1.5 rounded-full ${agoraJoined ? 'bg-green-500' : 'bg-amber-500 animate-pulse'}`}></div>
+                        <span className="text-[7px] font-black text-slate-500 uppercase tracking-tighter">
+                          {agoraJoined ? 'Engine Live' : 'Engine Ready'}
+                        </span>
+                      </div>
+                      
                       {activeChat.uid !== 'global' && (
                         <button 
                           onClick={handleConnect}
@@ -1811,9 +1629,22 @@ export default function ChatBubble() {
                             />
                           </div>
                           <h3 className="text-xl font-black text-white mb-2">{activeChat?.displayName}</h3>
-                          <p className="text-purple-400 font-bold text-sm mb-12 animate-pulse">
+                          <p className="text-purple-400 font-bold text-sm mb-4 animate-pulse">
                             {isCalling === 'video' ? 'Starting Video Call...' : 'Calling...'}
                           </p>
+                          <div className="flex flex-col gap-1 items-center mb-8 px-6 py-2 bg-purple-500/10 rounded-2xl border border-purple-500/20">
+                             <div className="flex items-center gap-2">
+                               <div className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse"></div>
+                               <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">
+                                 {remoteStream ? "Connected" : "Connecting to Secure Channel (Agora)..."}
+                               </span>
+                             </div>
+                             {!remoteStream && (
+                               <p className="text-[8px] text-slate-500 font-medium">
+                                 Optimizing network path...
+                               </p>
+                             )}
+                          </div>
                         </>
                       )}
                       

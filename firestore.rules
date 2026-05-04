@@ -69,12 +69,12 @@ service cloud.firestore {
     // ===============================================================
 
     function isValidUserProfile(data) {
-      return data.keys().hasAll(['uid', 'displayName', 'photoURL', 'createdAt']) &&
+      return (request.method == 'create' ? data.keys().hasAll(['uid', 'displayName', 'photoURL', 'createdAt']) : true) &&
              data.keys().size() <= 80 &&
-             data.uid == request.auth.uid &&
-             data.displayName is string && data.displayName.size() > 0 && data.displayName.size() <= 100 &&
-             data.photoURL is string && data.photoURL.size() <= 2000 &&
-             (request.method == 'create' ? data.createdAt == request.time : data.createdAt == existing().createdAt) &&
+             (!('uid' in data) || data.uid == request.auth.uid) &&
+             (!('displayName' in data) || (data.displayName is string && data.displayName.size() > 0 && data.displayName.size() <= 100)) &&
+             (!('photoURL' in data) || (data.photoURL is string && data.photoURL.size() <= 2000)) &&
+             (!('createdAt' in data) || (request.method == 'create' ? data.createdAt == request.time : data.createdAt == existing().createdAt)) &&
              (!('firstName' in data) || (data.firstName is string && data.firstName.size() <= 50)) &&
              (!('lastName' in data) || (data.lastName is string && data.lastName.size() <= 50)) &&
              (!('bio' in data) || (data.bio is string && data.bio.size() <= 2000)) &&
@@ -121,13 +121,13 @@ service cloud.firestore {
     }
 
     function isValidPost(data) {
-      return data.keys().hasAll(['authorId', 'authorName', 'authorPhoto', 'content', 'likes', 'commentCount', 'createdAt']) &&
-             data.authorId == request.auth.uid &&
-             data.authorName is string && data.authorName.size() > 0 &&
-             data.authorPhoto is string &&
-             data.content is string && data.content.size() > 0 && data.content.size() <= 5000 &&
-             data.likes is list && data.likes.size() <= 10000 &&
-             data.commentCount is int && data.commentCount >= 0 &&
+      return (request.method == 'create' ? data.keys().hasAll(['authorId', 'authorName', 'authorPhoto', 'content', 'likes', 'commentCount', 'createdAt']) : true) &&
+             (!('authorId' in data) || data.authorId == request.auth.uid) &&
+             (!('authorName' in data) || (data.authorName is string && data.authorName.size() > 0)) &&
+             (!('authorPhoto' in data) || (data.authorPhoto is string)) &&
+             (!('content' in data) || (data.content is string && data.content.size() > 0 && data.content.size() <= 5000)) &&
+             (!('likes' in data) || (data.likes is list && data.likes.size() <= 10000)) &&
+             (!('commentCount' in data) || (data.commentCount is int && data.commentCount >= 0)) &&
              (!('privacy' in data) || data.privacy in ['public', 'friends', 'private']) &&
              (!('imageUrl' in data) || data.imageUrl == null || (data.imageUrl is string && data.imageUrl.size() <= 1000)) &&
              (!('videoUrl' in data) || data.videoUrl == null || (data.videoUrl is string && data.videoUrl.size() <= 1000)) &&
@@ -135,72 +135,72 @@ service cloud.firestore {
              (!('reactions' in data) || data.reactions is map) &&
              (!('republishedFrom' in data) || (data.republishedFrom is string)) &&
              (!('republishedAuthor' in data) || (data.republishedAuthor is string)) &&
-             (request.method == 'create' ? data.createdAt == request.time : data.createdAt == existing().createdAt);
+             (!('createdAt' in data) || (request.method == 'create' ? data.createdAt == request.time : data.createdAt == existing().createdAt));
     }
 
     function isValidComment(data) {
-      return data.keys().hasAll(['postId', 'authorId', 'authorName', 'authorPhoto', 'content', 'createdAt']) &&
-             data.authorId == request.auth.uid &&
-             data.postId is string &&
-             data.content is string && (data.content.size() > 0 || ('imageUrl' in data)) && data.content.size() <= 2000 &&
+      return (request.method == 'create' ? data.keys().hasAll(['postId', 'authorId', 'authorName', 'authorPhoto', 'content', 'createdAt']) : true) &&
+             (!('authorId' in data) || data.authorId == request.auth.uid) &&
+             (!('postId' in data) || data.postId is string) &&
+             (!('content' in data) || (data.content is string && (data.content.size() > 0 || ('imageUrl' in data)) && data.content.size() <= 2000)) &&
              (!('parentId' in data) || (data.parentId is string)) &&
              (!('replyTo' in data) || (data.replyTo is string)) &&
              (!('imageUrl' in data) || (data.imageUrl is string && data.imageUrl.size() <= 1000)) &&
-             (request.method == 'create' ? data.createdAt == request.time : data.createdAt == existing().createdAt);
+             (!('createdAt' in data) || (request.method == 'create' ? data.createdAt == request.time : data.createdAt == existing().createdAt));
     }
 
     function isValidProduct(data) {
-      return data.keys().hasAll(['sellerId', 'sellerName', 'sellerPhoto', 'title', 'description', 'price', 'category', 'wilaya', 'images', 'status', 'hasDelivery', 'createdAt']) &&
-             data.sellerId == request.auth.uid &&
-             data.sellerName is string &&
-             data.sellerPhoto is string &&
-             data.title is string && data.title.size() > 0 && data.title.size() <= 200 &&
-             data.description is string && data.description.size() <= 2000 &&
-             data.price is number && data.price >= 0 &&
-             data.category is string &&
-             data.wilaya is string &&
-             data.images is list && data.images.size() > 0 && data.images.size() <= 5 &&
-             data.status in ['available', 'sold'] &&
-             data.hasDelivery is bool &&
+      return (request.method == 'create' ? data.keys().hasAll(['sellerId', 'sellerName', 'sellerPhoto', 'title', 'description', 'price', 'category', 'wilaya', 'images', 'status', 'hasDelivery', 'createdAt']) : true) &&
+             (!('sellerId' in data) || data.sellerId == request.auth.uid) &&
+             (!('sellerName' in data) || data.sellerName is string) &&
+             (!('sellerPhoto' in data) || data.sellerPhoto is string) &&
+             (!('title' in data) || (data.title is string && data.title.size() > 0 && data.title.size() <= 200)) &&
+             (!('description' in data) || (data.description is string && data.description.size() <= 2000)) &&
+             (!('price' in data) || (data.price is number && data.price >= 0)) &&
+             (!('category' in data) || data.category is string) &&
+             (!('wilaya' in data) || data.wilaya is string) &&
+             (!('images' in data) || (data.images is list && data.images.size() > 0 && data.images.size() <= 5)) &&
+             (!('status' in data) || data.status in ['available', 'sold']) &&
+             (!('hasDelivery' in data) || data.hasDelivery is bool) &&
              (!('sellerPhone' in data) || data.sellerPhone is string) &&
-             (request.method == 'create' ? data.createdAt == request.time : data.createdAt == existing().createdAt);
+             (!('createdAt' in data) || (request.method == 'create' ? data.createdAt == request.time : data.createdAt == existing().createdAt));
     }
     function isValidNotification(data) {
-      return data.keys().hasAll(['recipientId', 'senderId', 'senderName', 'type', 'read', 'createdAt']) &&
-             (data.senderId == request.auth.uid || isAdmin() || (data.recipientId == request.auth.uid && (data.type == 'missed_call' || data.type == 'group_request'))) &&
-             data.recipientId is string &&
-             data.senderName is string &&
-             data.type in ['like', 'comment', 'follow', 'missed_call', 'market_interest', 'group_invite', 'group_request', 'group_accepted', 'group_rejected'] &&
-             data.read is bool &&
+      return (request.method == 'create' ? data.keys().hasAll(['recipientId', 'senderId', 'senderName', 'type', 'read', 'createdAt']) : true) &&
+             (!('senderId' in data) || (data.senderId == request.auth.uid || isAdmin() || (data.recipientId == request.auth.uid && (data.type == 'missed_call' || data.type == 'group_request')))) &&
+             (!('recipientId' in data) || data.recipientId is string) &&
+             (!('senderName' in data) || data.senderName is string) &&
+             (!('type' in data) || data.type in ['like', 'comment', 'follow', 'missed_call', 'market_interest', 'group_invite', 'group_request', 'group_accepted', 'group_rejected']) &&
+             (!('read' in data) || data.read is bool) &&
              (!('message' in data) || data.message is string) &&
              (!('postId' in data) || data.postId is string) &&
              (!('groupId' in data) || data.groupId is string) &&
-             (request.method == 'create' ? data.createdAt == request.time : data.createdAt == existing().createdAt);
+             (!('createdAt' in data) || (request.method == 'create' ? data.createdAt == request.time : data.createdAt == existing().createdAt));
     }
 
     function isValidMessage(data) {
-      return data.keys().hasAll(['roomId', 'participants', 'senderId', 'senderName', 'seen', 'createdAt']) &&
-             data.senderId == request.auth.uid &&
-             data.roomId is string &&
-             data.participants is list && (data.roomId == 'global' ? 'global' in data.participants : request.auth.uid in data.participants) &&
-             data.senderName is string &&
-             data.seen is bool &&
+      return (request.method == 'create' ? data.keys().hasAll(['roomId', 'participants', 'senderId', 'senderName', 'seen', 'createdAt']) : true) &&
+             (!('senderId' in data) || data.senderId == request.auth.uid) &&
+             (!('roomId' in data) || data.roomId is string) &&
+             (!('participants' in data) || (data.participants is list && (data.roomId == 'global' ? 'global' in data.participants : request.auth.uid in data.participants))) &&
+             (!('senderName' in data) || data.senderName is string) &&
+             (!('seen' in data) || data.seen is bool) &&
              (!('text' in data) || (data.text is string && data.text.size() <= 2000)) &&
              (!('imageUrl' in data) || (data.imageUrl is string && data.imageUrl.size() <= 1000)) &&
              (!('audioUrl' in data) || (data.audioUrl is string && data.audioUrl.size() <= 1000)) &&
              (!('videoUrl' in data) || (data.videoUrl is string && data.videoUrl.size() <= 1000)) &&
              (!('reactions' in data) || (data.reactions is map)) &&
              (!('clientCreatedAt' in data) || (data.clientCreatedAt is int)) &&
-             (request.method == 'create' ? data.createdAt == request.time : data.createdAt == existing().createdAt);
+             (!('createdAt' in data) || (request.method == 'create' ? data.createdAt == request.time : data.createdAt == existing().createdAt));
     }
 
     function isValidEducationalGroup(data) {
-      return data.keys().hasAll(['name', 'creatorId', 'admins', 'members', 'privacy', 'createdAt']) &&
-             data.creatorId == request.auth.uid &&
-             data.name is string && data.name.size() > 0 && data.name.size() <= 100 &&
-             data.admins is list && request.auth.uid in data.admins &&
-             data.members is list && request.auth.uid in data.members &&
-             data.privacy in ['public', 'private', 'hidden'] &&
+      return (request.method == 'create' ? data.keys().hasAll(['name', 'creatorId', 'admins', 'members', 'privacy', 'createdAt']) : true) &&
+             (!('creatorId' in data) || data.creatorId == request.auth.uid) &&
+             (!('name' in data) || (data.name is string && data.name.size() > 0 && data.name.size() <= 100)) &&
+             (!('admins' in data) || (data.admins is list && request.auth.uid in data.admins)) &&
+             (!('members' in data) || (data.members is list && request.auth.uid in data.members)) &&
+             (!('privacy' in data) || data.privacy in ['public', 'private', 'hidden']) &&
              (!('description' in data) || (data.description is string && data.description.size() <= 2000)) &&
              (!('coverImage' in data) || (data.coverImage is string && data.coverImage.size() <= 2000)) &&
              (!('autoJoin' in data) || (data.autoJoin is bool)) &&
@@ -209,44 +209,47 @@ service cloud.firestore {
              (!('pendingRequests' in data) || (data.pendingRequests is list)) &&
              (!('tags' in data) || (data.tags is list)) &&
              (!('rules' in data) || (data.rules is list)) &&
-             (request.method == 'create' ? data.createdAt == request.time : data.createdAt == existing().createdAt);
+             (!('createdAt' in data) || (request.method == 'create' ? data.createdAt == request.time : data.createdAt == existing().createdAt));
     }
 
     function isValidGroupPost(data) {
-      return isValidPost(data) && ('groupId' in data) && (data.groupId is string);
+      return isValidPost(data) && (!('groupId' in data) || (data.groupId is string));
     }
 
     function isValidDiscussion(data) {
-      return data.keys().hasAll(['title', 'category', 'authorId', 'authorName', 'authorPhoto', 'createdAt', 'lastActivity', 'repliesCount', 'viewsCount']) &&
-             data.authorId == request.auth.uid &&
-             data.title is string && data.title.size() > 0 && data.title.size() <= 300 &&
-             data.category is string &&
-             data.authorName is string &&
-             data.authorPhoto is string &&
-             data.repliesCount is int &&
-             data.viewsCount is int &&
-             (request.method == 'create' ? data.createdAt == request.time : data.createdAt == existing().createdAt);
+      return (request.method == 'create' ? data.keys().hasAll(['title', 'category', 'authorId', 'authorName', 'authorPhoto', 'createdAt', 'lastActivity', 'repliesCount', 'viewsCount']) : true) &&
+             (!('authorId' in data) || data.authorId == request.auth.uid) &&
+             (!('title' in data) || (data.title is string && data.title.size() > 0 && data.title.size() <= 300)) &&
+             (!('category' in data) || data.category is string) &&
+             (!('authorName' in data) || data.authorName is string) &&
+             (!('authorPhoto' in data) || data.authorPhoto is string) &&
+             (!('repliesCount' in data) || data.repliesCount is int) &&
+             (!('viewsCount' in data) || data.viewsCount is int) &&
+             (!('createdAt' in data) || (request.method == 'create' ? data.createdAt == request.time : data.createdAt == existing().createdAt));
     }
 
     function isValidDiscussionMessage(data) {
-      return data.keys().hasAll(['text', 'senderId', 'senderName', 'senderPhoto', 'createdAt']) &&
-             data.senderId == request.auth.uid &&
-             data.text is string && data.text.size() > 0 && data.text.size() <= 5000 &&
-             data.senderName is string &&
-             data.senderPhoto is string &&
-             (request.method == 'create' ? data.createdAt == request.time : data.createdAt == existing().createdAt);
+      return (request.method == 'create' ? data.keys().hasAll(['text', 'senderId', 'senderName', 'senderPhoto', 'createdAt']) : true) &&
+             (!('senderId' in data) || data.senderId == request.auth.uid) &&
+             (!('text' in data) || (data.text is string && data.text.size() > 0 && data.text.size() <= 5000)) &&
+             (!('senderName' in data) || data.senderName is string) &&
+             (!('senderPhoto' in data) || data.senderPhoto is string) &&
+             (!('createdAt' in data) || (request.method == 'create' ? data.createdAt == request.time : data.createdAt == existing().createdAt));
     }
 
     function isValidCall(data) {
-      return data.keys().hasAll(['senderId', 'recipientId', 'type', 'status', 'createdAt']) &&
-             data.senderId is string &&
-             data.recipientId is string &&
-             data.type in ['audio', 'video'] &&
-             data.status in ['ringing', 'connected', 'accepted', 'rejected', 'missed', 'ended'] &&
+      return (request.method == 'create' ? data.keys().hasAll(['senderId', 'recipientId', 'type', 'status', 'createdAt']) : true) &&
+             (!('senderId' in data) || data.senderId is string) &&
+             (!('recipientId' in data) || data.recipientId is string) &&
+             (!('type' in data) || data.type in ['audio', 'video']) &&
+             (!('status' in data) || data.status in ['ringing', 'connected', 'accepted', 'rejected', 'missed', 'ended', 'failed']) &&
              (!('senderName' in data) || data.senderName is string || data.senderName == null) &&
              (!('senderPhoto' in data) || data.senderPhoto is string || data.senderPhoto == null) &&
-             (!('senderPeerId' in data) || data.senderPeerId is string) &&
-             (!('recipientPeerId' in data) || data.recipientPeerId is string);
+             (!('senderPeerId' in data) || data.senderPeerId is string || data.senderPeerId == null) &&
+             (!('recipientPeerId' in data) || data.recipientPeerId is string || data.recipientPeerId == null) &&
+             (!('error' in data) || data.error is string) &&
+             (!('endedAt' in data) || data.endedAt is timestamp || data.endedAt == null) &&
+             (!('createdAt' in data) || (request.method == 'create' ? data.createdAt == request.time : true));
     }
 
     // ===============================================================
@@ -257,8 +260,7 @@ service cloud.firestore {
       allow get: if isSignedIn();
       allow list: if isSignedIn();
       allow create: if isOwner(userId) && isValidUserProfile(incoming());
-      allow update: if (isOwner(userId) && isValidUserProfile(incoming()) && (
-          incoming().diff(existing()).affectedKeys().hasOnly(['displayName', 'firstName', 'lastName', 'photoURL', 'bio', 'subject', 'school', 'wilaya', 'level', 'yearsOfExperience', 'gender', 'birthDate', 'role', 'rank', 'isProfileComplete', 'lastSeen', 'bioBackground', 'bioTextColor', 'blockedUsers', 'isActivated', 'premiumUntil', 'lastGenerationDate', 'lastUsageResetDate', 'dailyGenCount', 'dailyCorrectCount', 'savedPreferences', 'settings', 'friends', 'followers', 'following', 'appBackground', 'phoneNumber', 'email', 'usage', 'reminders', 'appSettings', 'peerId']) &&
+      allow update: if (isOwner(userId) && (
           incoming().uid == existing().uid &&
           (incoming().createdAt == existing().createdAt || !('createdAt' in incoming()))
         )) || (
@@ -349,12 +351,11 @@ service cloud.firestore {
     match /calls/{callId} {
       allow get, list: if isSignedIn() && (resource == null || request.auth.uid == resource.data.senderId || request.auth.uid == resource.data.recipientId || isAdmin());
       allow create: if isSignedIn() && isValidCall(incoming()) && 
-                    incoming().senderId == request.auth.uid && 
-                    incoming().createdAt == request.time;
-      allow update: if isSignedIn() && 
-                    (request.auth.uid == existing().senderId || request.auth.uid == existing().recipientId || isAdmin()) &&
-                    isValidCall(incoming()) &&
-                    incoming().senderId == existing().senderId;
+                    incoming().senderId == request.auth.uid;
+      allow update: if isSignedIn() && (
+          // Participants or Admin can update
+          (request.auth.uid == existing().senderId || request.auth.uid == existing().recipientId || isAdmin())
+        );
       allow delete: if isSignedIn() && (request.auth.uid == existing().senderId || request.auth.uid == existing().recipientId || isAdmin());
     }
 
