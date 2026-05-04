@@ -258,8 +258,13 @@ export default function ChatBubble() {
   const stopRingtone = () => {
     if (ringtoneRef.current) {
       console.log('Stopping ringtone...');
-      ringtoneRef.current.pause();
-      ringtoneRef.current.currentTime = 0;
+      try {
+        ringtoneRef.current.pause();
+        ringtoneRef.current.muted = true; // Extra safety
+        ringtoneRef.current.currentTime = 0;
+      } catch (e) {
+        console.warn('Ringtone stop error:', e);
+      }
       ringtoneRef.current = null;
     }
   };
@@ -655,19 +660,20 @@ export default function ChatBubble() {
 
     peer.on('error', (err: any) => {
       console.error('PeerJS global error:', err.type, err);
-      if (err.type === 'peer-unavailable') {
-        toast.error("الطرف الآخر غير متاح حالياً.");
-      }
-      if (err.type === 'unavailable-id') {
-        setPeerError('unavailable-id');
-      }
-      if (err.type === 'network' || err.type === 'server-error') {
+      if (err.type === 'peer-unavailable' || err.type === 'network' || err.type === 'server-error') {
         console.warn(`PeerJS ${err.type} error, attempting reconnection...`);
         if (!peer.destroyed) {
           setTimeout(() => {
             if (!peer.destroyed && peer.disconnected) peer.reconnect();
           }, 3000);
         }
+      }
+      
+      if (err.type === 'peer-unavailable') {
+        toast.error("الطرف الآخر غير متاح أو انقطع اتصاله.");
+      }
+      if (err.type === 'unavailable-id') {
+        setPeerError('unavailable-id');
       }
       
       if (peerRef.current && !peerRef.current.destroyed && peerRef.current.disconnected) {
@@ -771,7 +777,7 @@ export default function ChatBubble() {
     const q = query(
       collection(db, 'calls'),
       where('senderId', '==', profile.uid),
-      where('status', 'in', ['accepted', 'connected', 'rejected', 'ended']),
+      where('status', 'in', ['accepted', 'connected', 'rejected', 'ended', 'failed']),
       orderBy('createdAt', 'desc'),
       limit(1)
     );
@@ -784,8 +790,11 @@ export default function ChatBubble() {
           console.log("Recipient accepted via Firestore with PeerID:", call.recipientPeerId);
           stopRingtone(); // Stop dial tone for caller
           initiatePeerCall(call, localStreamRef.current);
-        } else if (call.status === 'rejected' || call.status === 'ended') {
+        } else if (call.status === 'rejected' || call.status === 'ended' || call.status === 'failed') {
           stopRingtone();
+          if (call.status === 'failed') {
+            toast.error("فشل تأسيس الاتصال المشفر بين الجهازين.");
+          }
           endCall();
         } else if (call.status === 'connected') {
           stopRingtone();
@@ -1142,9 +1151,16 @@ export default function ChatBubble() {
       
       console.log('Call document created:', callDoc.id, 'Waiting for recipient to accept via status listener...');
 
-    } catch (err) {
+    } catch (err: any) {
       console.error("Call error:", err);
-      toast.error("تعذر بدء المكالمة. يرجى التأكد من منح أذونات الكاميرا والميكروفون.");
+      stopRingtone();
+      if (err.name === 'NotAllowedError' || err.message?.includes('Permission denied')) {
+        toast.error("تم رفض إذن الكاميرا. يرجى تفعيل الإذن من إعدادات المتصفح.");
+      } else if (err.name === 'NotFoundError') {
+        toast.error("لم يتم العثور على كاميرا أو ميكروفون.");
+      } else {
+        toast.error("تعذر بدء المكالمة. يرجى التأكد من استقرار الإنترنت ومنح أذونات الكاميرا.");
+      }
       endCall();
     }
   };
@@ -1323,6 +1339,13 @@ export default function ChatBubble() {
         });
       } else {
         console.error("Peer call failed to arrive after timeout");
+        if (incomingCall?.id) {
+          updateDoc(doc(db, 'calls', incomingCall.id), { 
+            status: 'failed', 
+            error: 'p2p_timeout',
+            endedAt: serverTimestamp() 
+          }).catch(console.error);
+        }
         throw new Error("PeerJS call timed out");
       }
 
@@ -1333,7 +1356,14 @@ export default function ChatBubble() {
       console.error("Critical Accept call error:", err);
       toast.dismiss('media-prep');
       toast.dismiss('call-negotiating');
-      toast.error("فشل الاتصال: يرجى التحقق من أذونات الكاميرا.");
+      
+      if (err.message?.includes("NotAllowedError") || err.name === "NotAllowedError") {
+        toast.error("تم رفض إذن الكاميرا. يرجى تفعيل الإذن من إعدادات المتصفح.");
+      } else if (err.message?.includes("NotFoundError") || err.name === "NotFoundError") {
+        toast.error("لم يتم العثور على كاميرا أو ميكروفون.");
+      } else {
+        toast.error("فشل الاتصال: يرجى التحقق من أذونات الكاميرا والإنترنت.");
+      }
       handleRejectCall();
     }
   };
