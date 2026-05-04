@@ -247,12 +247,22 @@ export default function ChatBubble() {
   const [isOtherTyping, setIsOtherTyping] = useState(false);
   const [lastOpenTime, setLastOpenTime] = useState<number>(Date.now());
   const [showEmojiPicker, setShowEmojiPicker] = useState<string | null>(null); // messageId for reactions, or 'input' for new message
+  const sessionID = useRef(Math.random().toString(36).substring(7)).current;
   const typingTimeoutRef = useRef<any>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const chatInputRef = useRef<HTMLInputElement | HTMLTextAreaElement>(null);
   const searchInputRef = useRef<HTMLInputElement | HTMLTextAreaElement>(null);
   const ringtoneRef = useRef<HTMLAudioElement | null>(null);
+
+  const stopRingtone = () => {
+    if (ringtoneRef.current) {
+      console.log('Stopping ringtone...');
+      ringtoneRef.current.pause();
+      ringtoneRef.current.currentTime = 0;
+      ringtoneRef.current = null;
+    }
+  };
 
   const [vHeight, setVHeight] = useState('100dvh');
   const [isMobile, setIsMobile] = useState(false);
@@ -558,7 +568,8 @@ export default function ChatBubble() {
       try {
         if (profile?.uid) {
           await updateDoc(doc(db, 'users', profile.uid), {
-            lastSeen: serverTimestamp()
+            lastSeen: serverTimestamp(),
+            peerId: `${profile.uid}-${sessionID}`
           });
         }
       } catch (err) {
@@ -589,8 +600,10 @@ export default function ChatBubble() {
   const initPeer = () => {
     if (!profile?.uid) return;
 
+    const peerId = `${profile.uid}-${sessionID}`;
+
     // Avoid recreating if already connected with same ID
-    if (peerRef.current && peerRef.current.id === profile.uid && !peerRef.current.destroyed) {
+    if (peerRef.current && peerRef.current.id === peerId && !peerRef.current.destroyed) {
       if (peerRef.current.disconnected) {
         peerRef.current.reconnect();
       }
@@ -602,7 +615,7 @@ export default function ChatBubble() {
       peerRef.current.destroy();
     }
 
-    const peer = new Peer(profile.uid, {
+    const peer = new Peer(peerId, {
       debug: 0,
       pingInterval: 5000, // Faster heartbeats to prevent signaling drop
       config: {
@@ -648,8 +661,15 @@ export default function ChatBubble() {
       if (err.type === 'unavailable-id') {
         setPeerError('unavailable-id');
       }
+      if (err.type === 'network' || err.type === 'server-error') {
+        console.warn(`PeerJS ${err.type} error, attempting reconnection...`);
+        if (!peer.destroyed) {
+          setTimeout(() => {
+            if (!peer.destroyed && peer.disconnected) peer.reconnect();
+          }, 3000);
+        }
+      }
       
-      const errorStr = (err?.message || String(err)).toLowerCase();
       if (peerRef.current && !peerRef.current.destroyed && peerRef.current.disconnected) {
         peerRef.current.reconnect();
       }
@@ -680,12 +700,7 @@ export default function ChatBubble() {
       await updateDoc(doc(db, 'calls', incomingCall.id), { status: 'ended' }).catch(console.error);
     }
     
-    // Stop any active ringtone
-    if (ringtoneRef.current) {
-      ringtoneRef.current.pause();
-      ringtoneRef.current.currentTime = 0;
-      ringtoneRef.current = null;
-    }
+    stopRingtone();
 
     setIsCalling(null);
     setIncomingCall(null);
@@ -714,20 +729,26 @@ export default function ChatBubble() {
 
     const unsubscribe = onSnapshot(q, { includeMetadataChanges: true }, (snapshot) => {
       if (!snapshot.empty) {
-        const callData = { id: snapshot.docs[0].id, ...snapshot.docs[0].data() };
+        const callData = { id: snapshot.docs[0].id, ...snapshot.docs[0].data() as any };
         setIncomingCall(callData);
-        // Only play ringtone if one isn't already playing and we aren't already in a call
-        if (!ringtoneRef.current && !isCalling) {
-          ringtoneRef.current = playSound('ringtone', true);
+        
+        // Initialize Peer immediately when ringing so we are ready to receive the call
+        initPeer();
+        
+        // Handle ringtone based on status
+        if (callData.status === 'ringing' && !isCalling) {
+          if (!ringtoneRef.current) {
+            ringtoneRef.current = playSound('ringtone', true);
+          }
+        } else {
+          // If status moved to accepted/connected/ended, stop ringing
+          stopRingtone();
         }
+        
         setEmojiState('happy');
       } else {
         setIncomingCall(null);
-        if (ringtoneRef.current) {
-          ringtoneRef.current.pause();
-          ringtoneRef.current.currentTime = 0;
-          ringtoneRef.current = null;
-        }
+        stopRingtone();
       }
     }, (error) => {
       handleFirestoreError(error, OperationType.LIST, 'calls');
@@ -759,18 +780,15 @@ export default function ChatBubble() {
       if (!snapshot.empty) {
         const call = { id: snapshot.docs[0].id, ...snapshot.docs[0].data() as any };
         
-        if (call.status === 'accepted' && localStreamRef.current && !activePeerCallRef.current) {
-          console.log("Recipient accepted via Firestore, now establishing P2P connection...");
+        if (call.status === 'accepted' && call.recipientPeerId && localStreamRef.current && !activePeerCallRef.current) {
+          console.log("Recipient accepted via Firestore with PeerID:", call.recipientPeerId);
+          stopRingtone(); // Stop dial tone for caller
           initiatePeerCall(call, localStreamRef.current);
         } else if (call.status === 'rejected' || call.status === 'ended') {
+          stopRingtone();
           endCall();
         } else if (call.status === 'connected') {
-          // Stop ringing once connected
-          if (ringtoneRef.current) {
-            ringtoneRef.current.pause();
-            ringtoneRef.current.currentTime = 0;
-            ringtoneRef.current = null;
-          }
+          stopRingtone();
         }
       }
     }, (error) => {
@@ -1094,16 +1112,33 @@ export default function ChatBubble() {
         ringtoneRef.current = playSound('ringtone', true);
       }
 
+      const senderPeerId = `${profile.uid}-${sessionID}`;
       const callDoc = await addDoc(collection(db, 'calls'), {
         senderId: profile.uid,
         senderName: profile.displayName,
         senderPhoto: profile.photoURL || null,
+        senderPeerId,
         recipientId: activeChat.uid,
         type,
         status: 'ringing',
         createdAt: serverTimestamp()
       });
       setCurrentCallId(callDoc.id);
+      
+      // Auto-timeout after 60 seconds if not answered
+      setTimeout(async () => {
+        try {
+          const docRef = doc(db, 'calls', callDoc.id);
+          const docSnap = await getDoc(docRef);
+          if (docSnap.exists() && docSnap.data().status === 'ringing') {
+            await updateDoc(docRef, { status: 'missed' });
+            toast.error("لم يتم الرد على الاتصال.");
+            endCall();
+          }
+        } catch (e) {
+          console.error("Call timeout error:", e);
+        }
+      }, 60000);
       
       console.log('Call document created:', callDoc.id, 'Waiting for recipient to accept via status listener...');
 
@@ -1118,7 +1153,10 @@ export default function ChatBubble() {
   const initiatePeerCall = async (callData: any, stream: MediaStream) => {
     if (!profile || activePeerCallRef.current || !stream) return;
     
-    console.log('Initiating PeerJS call (P2P Phase) to:', callData.recipientId);
+    // We expect recipientPeerId to be present if status is accepted
+    const getTargetPeerId = (data: any) => data.recipientPeerId || data.recipientId;
+    
+    console.log('Initiating PeerJS call (P2P Phase) to:', getTargetPeerId(callData));
     
     const currentPeer = initPeer();
     if (!currentPeer || currentPeer.destroyed) {
@@ -1126,7 +1164,7 @@ export default function ChatBubble() {
       return;
     }
 
-    // Wait up to 10 seconds for signaling ready
+    // Wait until peer is ready
     let isReady = false;
     for (let i = 0; i < 20; i++) {
       if ((currentPeer as any)._ready && !currentPeer.disconnected) {
@@ -1135,26 +1173,23 @@ export default function ChatBubble() {
       }
       console.log(`Waiting for Peer signaling to be ready (attempt ${i+1}/20)...`);
       await new Promise(r => setTimeout(r, 500));
-    }
-
-    if (!isReady) {
-      console.warn('Peer signaling still not ready, attempting call anyway but may fail...');
       if (currentPeer.disconnected) currentPeer.reconnect();
     }
 
     let p2pActive = false;
 
-    const performCall = () => {
-      if (p2pActive) return;
-      console.log('Performing PeerJS call attempt to:', callData.recipientId);
+    const performCall = (targetId: string) => {
+      if (p2pActive || activePeerCallRef.current) return;
+      console.log('Performing PeerJS call attempt to:', targetId);
       const callOptions = { metadata: { type: callData.type, senderId: profile.uid, senderName: profile.displayName } };
-      const call = currentPeer.call(callData.recipientId, stream, callOptions);
+      const call = currentPeer.call(targetId, stream, callOptions);
       
       if (call) {
         call.on('stream', (remoteStream) => {
           console.log('Caller received remote stream');
           p2pActive = true;
           setRemoteStream(remoteStream);
+          stopRingtone();
           if (callData.id) {
             updateDoc(doc(db, 'calls', callData.id), { status: 'connected' }).catch(console.error);
           }
@@ -1171,121 +1206,134 @@ export default function ChatBubble() {
       }
     };
 
-    performCall();
+    // First attempt
+    performCall(getTargetPeerId(callData));
 
-    // Retry once after 5 seconds if no stream received yet
-    setTimeout(() => {
-      if (!p2pActive && isCalling && !activePeerCallRef.current?.open) {
-        console.log('Retrying PeerJS call (Phase 2)...');
-        performCall();
+    // Retry logic with potential for updated ID from Firestore
+    let retryCount = 0;
+    const retryInterval = setInterval(async () => {
+      if (p2pActive || !isCalling || activePeerCallRef.current?.open || retryCount > 8) {
+        clearInterval(retryInterval);
+        return;
       }
-    }, 5000);
+      
+      retryCount++;
+      console.log(`Retrying PeerJS call (Attempt ${retryCount})...`);
+      
+      try {
+        const docSnap = await getDoc(doc(db, 'calls', callData.id));
+        if (docSnap.exists()) {
+          const freshData = docSnap.data();
+          performCall(getTargetPeerId(freshData));
+        }
+      } catch (e) {
+        performCall(getTargetPeerId(callData));
+      }
+    }, 4000);
   };
 
   const handleAcceptCall = async () => {
     if (!incomingCall) return;
     
-    // Stop ringtone immediately
-    if (ringtoneRef.current) {
-      ringtoneRef.current.pause();
-      ringtoneRef.current.currentTime = 0;
-      ringtoneRef.current = null;
-    }
+    stopRingtone(); // Stop immediately on click
 
     try {
       if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        toast.error("متصفحك لا يدعم الوصول للكاميرا. يرجى فتح التطبيق في نافذة جديدة أو متصفح Chrome.");
         throw new Error("Media devices not supported or unsecure context");
       }
 
       const constraints = {
         video: incomingCall.type === 'video' ? {
           facingMode: 'user',
-          width: { ideal: 640 },
-          height: { ideal: 480 }
+          width: { ideal: 1280 },
+          height: { ideal: 720 }
         } : false,
-        audio: true
+        audio: {
+          echoCancellation: true,
+          noiseSuppression: true
+        }
       };
 
       console.log('Answering call with constraints:', constraints);
-      toast.loading("جاري تشغيل الكاميرا والميكروفون...", { id: 'media-prep' });
-      const stream = await navigator.mediaDevices.getUserMedia(constraints);
+      toast.loading("يرجى منح إذن الكاميرا والميكروفون...", { id: 'media-prep', duration: 10000 });
+      
+      const stream = await navigator.mediaDevices.getUserMedia(constraints)
+        .catch(async (err) => {
+          console.warn('First media attempt failed, retrying with audio only...', err);
+          return await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+        });
+
       toast.dismiss('media-prep');
       localStreamRef.current = stream;
       setLocalStream(stream);
 
-      // Ensure Peer is ready before accepting via Firestore
       const currentPeer = initPeer();
       if (!currentPeer || currentPeer.destroyed) {
         throw new Error("Peer connection lost");
       }
 
-      // Wait for signaling to be stable
-      for (let i = 0; i < 10; i++) {
+      // Wait for signaling server to confirm readiness
+      for (let i = 0; i < 20; i++) {
         if ((currentPeer as any)._ready && !currentPeer.disconnected) break;
-        console.log("Waiting for Peer to be ready before accepting...");
+        console.log(`Waiting for Peer ready to answer (attempt ${i+1})...`);
         await new Promise(r => setTimeout(r, 500));
+        if (currentPeer.disconnected) currentPeer.reconnect();
       }
 
-      // Update call status to 'accepted' NOW that we are ready
+      // Update call status to 'accepted' with the new PeerID
       if (incomingCall?.id) {
-        await updateDoc(doc(db, 'calls', incomingCall.id), { status: 'accepted' });
+        const recipientPeerId = `${profile.uid}-${sessionID}`;
+        await updateDoc(doc(db, 'calls', incomingCall.id), { 
+          status: 'accepted',
+          recipientPeerId 
+        });
       }
 
-      // Wait if peer call hasn't arrived yet (race condition with Firestore)
+      toast.loading("جاري تأسيس الاتصال المشفر (P2P)...", { id: 'call-negotiating' });
+      
+      // Wait for the incoming direct P2P call from the caller
       let currentPeerCall = activePeerCallRef.current;
       if (!currentPeerCall) {
-        toast.loading("جاري تأسيس الاتصال المشفر...", { id: 'call-negotiating' });
-        console.log("Peer call not found yet, checking PeerJS state and waiting...");
-        
-        // Wait up to 30 seconds total, checking every 500ms
-        for (let i = 0; i < 60; i++) { 
+        for (let i = 0; i < 100; i++) { // Wait up to 50 seconds
           await new Promise(r => setTimeout(r, 500));
           if (activePeerCallRef.current) {
             currentPeerCall = activePeerCallRef.current;
-            console.log("Peer call arrived after waiting", (i+1)*500, "ms");
             break;
           }
-          if (i % 10 === 0) {
-            console.log(`Still waiting for PeerJS call (attempt ${i/10 + 1}/6)...`);
-          }
         }
-        toast.dismiss('call-negotiating');
       }
+      toast.dismiss('call-negotiating');
 
       if (currentPeerCall) {
-        console.log("Answering PeerJS call...");
+        console.log("Answering PeerJS call and providing local stream...");
         currentPeerCall.answer(stream);
+        
         currentPeerCall.on('stream', (remoteStream: MediaStream) => {
-          console.log('Received remote stream');
+          console.log('Recipient received remote stream');
           setRemoteStream(remoteStream);
+          toast.success("تم الاتصال بنجاح!");
+          stopRingtone();
         });
+        
         currentPeerCall.on('error', (err: any) => {
           console.error("PeerJS Call object error:", err);
-          toast.error("خطأ في الاتصال المباشر.");
-          endCall();
-        });
-        currentPeerCall.on('close', () => {
-          console.log("PeerJS Call closed");
+          toast.error("حدث خطأ في الاتصال.");
           endCall();
         });
       } else {
         console.error("Peer call failed to arrive after timeout");
-        toast.error("فشل تأسيس الاتصال. الطرف الآخر قد يكون أوفلاين.");
-        throw new Error("Failed to establish peer connection");
+        throw new Error("PeerJS call timed out");
       }
 
       await updateDoc(doc(db, 'calls', incomingCall.id), { status: 'connected' });
       setIsCalling(incomingCall.type);
       setIncomingCall(null);
-      playSound('message'); 
     } catch (err: any) {
-      console.error("Accept call error:", err);
+      console.error("Critical Accept call error:", err);
       toast.dismiss('media-prep');
       toast.dismiss('call-negotiating');
-      if (err?.code || (err?.message && err.message.includes('permission-denied'))) {
-        handleFirestoreError(err, OperationType.UPDATE, `calls/${incomingCall?.id}`);
-      }
-      toast.error("تعذر الاتصال. يرجى التأكد من استقرار الإنترنت ومنح أذونات الكاميرا.");
+      toast.error("فشل الاتصال: يرجى التحقق من أذونات الكاميرا.");
       handleRejectCall();
     }
   };
@@ -1293,12 +1341,7 @@ export default function ChatBubble() {
   const handleRejectCall = async () => {
     if (!incomingCall) return;
 
-    // Stop ringtone immediately
-    if (ringtoneRef.current) {
-      ringtoneRef.current.pause();
-      ringtoneRef.current.currentTime = 0;
-      ringtoneRef.current = null;
-    }
+    stopRingtone();
 
     try {
       await updateDoc(doc(db, 'calls', incomingCall.id), { status: 'rejected' });
