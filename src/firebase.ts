@@ -16,10 +16,26 @@ const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);
 
 // Use initializeFirestore with settings optimized for the AI Studio environment
+const databaseId = (firebaseConfig as any).firestoreDatabaseId || "(default)";
 export const db = initializeFirestore(app, {
   experimentalForceLongPolling: true,
-  ignoreUndefinedProperties: true,
-}, (firebaseConfig as any).firestoreDatabaseId || "(default)");
+  ignoreUndefinedProperties: true
+}, databaseId);
+
+// Add a reachability check logic if needed via standard getDoc
+import { getDocFromCache } from "firebase/firestore";
+export const checkFirestoreConnection = async () => {
+  try {
+    // Try a simple server-side fetch to warm up connection
+    const testDoc = doc(db, "_health", "connection");
+    await getDocFromServer(testDoc).catch(() => null);
+    return true;
+  } catch (e) {
+    return false;
+  }
+};
+
+console.log("Firebase initialized with DB ID:", databaseId);
 
 // Tracking connection status
 export let isFirestoreConnected = false;

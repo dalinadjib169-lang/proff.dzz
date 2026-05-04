@@ -61,10 +61,15 @@ import { Link } from 'react-router-dom';
 import { handleFirestoreError, OperationType } from '../lib/firestore-errors';
 import { playSound } from '../lib/sounds';
 import { useUpload } from '../hooks/useUpload';
-import AgoraRTC, { IAgoraRTCClient, ICameraVideoTrack, IMicrophoneAudioTrack, IAgoraRTCRemoteUser } from 'agora-rtc-sdk-ng';
 
 import ImageLightbox from './ImageLightbox';
 import { useUnreadMessages } from '../hooks/useUnreadMessages';
+
+declare global {
+  interface Window {
+    JitsiMeetExternalAPI: any;
+  }
+}
 
 interface Message {
   id: string;
@@ -231,16 +236,9 @@ export default function ChatBubble() {
   const [filterSameSubject, setFilterSameSubject] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [isCalling, setIsCalling] = useState<'video' | 'audio' | null>(null);
-  const [agoraJoined, setAgoraJoined] = useState(false);
-  const agoraJoinedRef = useRef(false);
-  const isJoiningRef = useRef(false);
-  const agoraClientRef = useRef<IAgoraRTCClient | null>(null);
-  const localAudioTrackRef = useRef<IMicrophoneAudioTrack | null>(null);
-  const localVideoTrackRef = useRef<ICameraVideoTrack | null>(null);
-  const remoteUsersRef = useRef<{ [uid: string]: IAgoraRTCRemoteUser }>({});
+  const jitsiApiRef = useRef<any>(null);
+  const jitsiContainerRef = useRef<HTMLDivElement>(null);
   const [incomingCall, setIncomingCall] = useState<any>(null);
-  const [localStream, setLocalStream] = useState<MediaStream | null>(null);
-  const [remoteStream, setRemoteStream] = useState<MediaStream | null>(null);
   const [currentCallId, setCurrentCallId] = useState<string | null>(null);
   const localVideoRef = useRef<HTMLVideoElement>(null);
   const remoteVideoRef = useRef<HTMLVideoElement>(null);
@@ -600,143 +598,61 @@ export default function ChatBubble() {
     };
   }, [profile?.uid]);
 
-  const leaveAgora = async () => {
-    if (isJoiningRef.current) {
-       console.warn("Agora: Attempted to leave while joining, waiting...");
-       // Busy wait or just flag it? Better to prevent.
-    }
-    
-    if (localAudioTrackRef.current) {
-      localAudioTrackRef.current.stop();
-      localAudioTrackRef.current.close();
-      localAudioTrackRef.current = null;
-    }
-    if (localVideoTrackRef.current) {
-      localVideoTrackRef.current.stop();
-      localVideoTrackRef.current.close();
-      localVideoTrackRef.current = null;
-    }
-    if (agoraClientRef.current) {
-      try {
-        await agoraClientRef.current.leave();
-      } catch(e) {}
-      agoraClientRef.current = null;
-    }
-    setAgoraJoined(false);
-    agoraJoinedRef.current = false;
-    remoteUsersRef.current = {};
-    setRemoteStream(null);
-  };
-
-   const joinAgoraChannel = async (channelName: string, uid: string, type: 'video' | 'audio') => {
-    // Priority: hardcoded new ID if env is missing or default
-    const HARDCODED_ID = '8caf4f84ad15420792f81cf1dbf9944f';
-    const envAppId = (import.meta as any).env.VITE_AGORA_APP_ID;
-    const appId = (envAppId && envAppId !== 'MY_AGORA_APP_ID' ? envAppId.trim() : HARDCODED_ID);
-    
-    const envToken = (import.meta as any).env.VITE_AGORA_TOKEN;
-    const token = envToken && envToken.trim() !== '' ? envToken.trim() : null;
-    
-    if (!appId || appId === 'MY_AGORA_APP_ID') {
-      toast.error("Agora App ID missing or invalid (5469...)");
+  const startJitsiCall = (roomName: string, type: 'video' | 'audio') => {
+    if (!window.JitsiMeetExternalAPI) {
+      toast.error("Jitsi library not loaded yet.");
       return;
     }
 
-    if (agoraJoinedRef.current || isJoiningRef.current) {
-      console.warn("Agora: Already joined or joining, skipping...");
-      return;
-    }
-
-    console.log("Agora: Joining with", { 
-      appId: appId.substring(0, 8) + '...', 
-      channelName, 
-      uid, 
-      hasToken: !!token 
-    });
-
-    isJoiningRef.current = true;
-    try {
-      const client = AgoraRTC.createClient({ mode: 'rtc', codec: 'vp8' });
-      agoraClientRef.current = client;
-
-      client.on('user-published', async (user, mediaType) => {
-        await client.subscribe(user, mediaType);
-        if (mediaType === 'video') {
-          const remoteVideoTrack = user.videoTrack;
-          if (remoteVideoTrack) {
-            const ms = new MediaStream([remoteVideoTrack.getMediaStreamTrack()]);
-            setRemoteStream(ms);
-          }
+    // Wait for the container to be available
+    setTimeout(() => {
+      const domain = "meet.jit.si";
+      const options = {
+        roomName: roomName,
+        width: '100%',
+        height: '100%',
+        parentNode: jitsiContainerRef.current,
+        configOverwrite: {
+          startWithAudioMuted: false,
+          startWithVideoMuted: type === 'audio',
+          prejoinPageEnabled: false,
+          disableDeepLinking: true,
+        },
+        interfaceConfigOverwrite: {
+          TOOLBAR_BUTTONS: [
+            'microphone', 'camera', 'closedcaptions', 'desktop', 'fullscreen',
+            'fodeviceselection', 'hangup', 'profile', 'chat', 'recording',
+            'livestreaming', 'etherpad', 'sharedvideo', 'settings', 'raisehand',
+            'videoquality', 'filmstrip', 'invite', 'feedback', 'stats', 'shortcuts',
+            'tileview', 'videobackgroundblur', 'download', 'help', 'mute-everyone',
+            'security'
+          ],
+        },
+        userInfo: {
+          displayName: profile.displayName || "User"
         }
-        if (mediaType === 'audio') {
-          user.audioTrack?.play();
-        }
-      });
+      };
 
-      client.on('user-unpublished', (user) => {
-        setRemoteStream(null);
-      });
+      const api = new window.JitsiMeetExternalAPI(domain, options);
+      jitsiApiRef.current = api;
 
-      // Passing token if available, otherwise null (requires project to be in 'App ID' only mode)
-      await client.join(appId, channelName, token, uid);
-      
-      const audioTrack = await AgoraRTC.createMicrophoneAudioTrack().catch(e => {
-        console.error("Agora: Mic track failed", e);
-        return null;
+      api.on('readyToClose', () => {
+        endCall();
       });
       
-      if (audioTrack) {
-        localAudioTrackRef.current = audioTrack;
-        await client.publish([audioTrack]);
-      }
-      
-      if (type === 'video') {
-        const videoTrack = await AgoraRTC.createCameraVideoTrack().catch(e => {
-          console.error("Agora: Cam track failed", e);
-          return null;
-        });
-        if (videoTrack) {
-          localVideoTrackRef.current = videoTrack;
-          await client.publish([videoTrack]);
-          const tracks = [videoTrack.getMediaStreamTrack()];
-          if (audioTrack) tracks.push(audioTrack.getMediaStreamTrack());
-          setLocalStream(new MediaStream(tracks));
-        }
-      } else if (audioTrack) {
-        setLocalStream(new MediaStream([audioTrack.getMediaStreamTrack()]));
-      }
-      
-      setAgoraJoined(true);
-      agoraJoinedRef.current = true;
-      console.log("Agora joined and published successfully");
-    } catch (err: any) {
-      if (err.code === 'OPERATION_ABORTED' || err.message?.includes('OPERATION_ABORTED') || err.message?.includes('cancel token canceled')) {
-        console.warn("Agora: Join process interrupted/aborted.");
-        return;
-      }
-      
-      console.error("Agora join ERROR details:", JSON.stringify(err, null, 2));
-      console.error("Agora full error message:", err.message);
-      
-      if (err.message?.includes('dynamic use static key') || err.code === 'CAN_NOT_GET_GATEWAY_SERVER' || err.message?.includes('4096')) {
-        toast.error("خطأ في Agora: المشروع يتطلب Token. يرجى تعطيل 'App Certificate' في لوحة Agora أو الحصول على Token مؤقت.");
-        console.warn("TIP: Go to Agora Console -> Project Settings -> Disable Primary Certificate OR enable it and copy the Temp Token.");
-      } else {
-        toast.error("فشل الاتصال بخادم البث. تأكد من إعدادات Agora وApp ID.");
-      }
-      
-      // Clean up if join failed partially
-      await leaveAgora();
-    } finally {
-      isJoiningRef.current = false;
-    }
+      api.on('videoConferenceTerminated', () => {
+        endCall();
+      });
+    }, 100);
   };
 
   useEffect(() => {
     if (!profile) return;
 
     return () => {
-      leaveAgora();
+      if (jitsiApiRef.current) {
+        jitsiApiRef.current.dispose();
+      }
     };
   }, [profile?.uid]);
 
@@ -751,12 +667,13 @@ export default function ChatBubble() {
     
     stopRingtone();
 
+    if (jitsiApiRef.current) {
+      jitsiApiRef.current.dispose();
+      jitsiApiRef.current = null;
+    }
+
     setIsCalling(null);
     setIncomingCall(null);
-    setLocalStream(null);
-    setRemoteStream(null);
-    
-    await leaveAgora();
   };
 
   // Handle Incoming Calls
@@ -819,9 +736,9 @@ export default function ChatBubble() {
       if (!snapshot.empty) {
         const call = { id: snapshot.docs[0].id, ...snapshot.docs[0].data() as any };
         
-        if (call.status === 'accepted' && !agoraJoined) {
+        if (call.status === 'accepted' && !jitsiApiRef.current) {
           stopRingtone(); // Stop dial tone for caller
-          await joinAgoraChannel(call.channelName, profile.uid, call.type);
+          startJitsiCall(call.channelName, call.type);
           await updateDoc(doc(db, 'calls', call.id), { status: 'connected' });
         } else if (call.status === 'rejected' || call.status === 'ended' || call.status === 'failed') {
           stopRingtone();
@@ -838,7 +755,7 @@ export default function ChatBubble() {
     });
 
     return unsubscribe;
-  }, [profile, isCalling, localStream]);
+  }, [profile, isCalling]);
 
   useEffect(() => {
     if (!profile?.uid || !activeChat?.uid) {
@@ -1186,11 +1103,9 @@ export default function ChatBubble() {
         status: 'accepted'
       });
 
-      toast.loading("جاري تأسيس الاتصال الآمن...", { id: 'call-negotiating' });
-      await joinAgoraChannel(incomingCall.channelName, profile.uid, incomingCall.type);
-      toast.dismiss('call-negotiating');
+      startJitsiCall(incomingCall.channelName, incomingCall.type);
 
-      // Mark as connected once Agora is joined
+      // Mark as connected once Jitsi starts
       await updateDoc(doc(db, 'calls', incomingCall.id), { 
         status: 'connected'
       });
@@ -1482,11 +1397,11 @@ export default function ChatBubble() {
                     )}
                     
                     <div className="flex flex-col gap-1">
-                      {/* Advanced Broadcast Status */}
-                      <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-slate-900 border border-slate-800" title="Stream Engine Status">
-                        <div className={`w-1.5 h-1.5 rounded-full ${agoraJoined ? 'bg-green-500' : 'bg-amber-500 animate-pulse'}`}></div>
+                      {/* Advanced Jitsi Status */}
+                      <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-slate-900 border border-slate-800" title="Meeting Engine Status">
+                        <div className={`w-1.5 h-1.5 rounded-full ${isCalling ? 'bg-green-500' : 'bg-blue-500 animate-pulse'}`}></div>
                         <span className="text-[7px] font-black text-slate-500 uppercase tracking-tighter">
-                          {agoraJoined ? 'Engine Live' : 'Engine Ready'}
+                          {isCalling ? 'Session Live' : 'Engine Ready'}
                         </span>
                       </div>
                       
@@ -1581,92 +1496,43 @@ export default function ChatBubble() {
                 {isCalling && (
                   <motion.div
                     key="calling-overlay"
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: 20 }}
-                    className="absolute inset-0 z-50 bg-slate-950 flex flex-col items-center justify-center p-4 text-center"
+                    initial={{ opacity: 0, scale: 0.95 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    exit={{ opacity: 0, scale: 0.95 }}
+                    className="absolute inset-0 z-50 bg-slate-950 flex flex-col items-center justify-center text-center overflow-hidden"
                   >
-                    {/* Video Streams */}
-                    <div className="absolute inset-0 w-full h-full bg-slate-900 overflow-hidden">
-                      {remoteStream && (
-                        <video
-                          ref={(el) => {
-                            if (el && el.srcObject !== remoteStream) {
-                              el.srcObject = remoteStream;
-                            }
-                          }}
-                          autoPlay
-                          playsInline
-                          className="w-full h-full object-cover"
-                        />
-                      )}
-                      <div className="absolute bottom-4 right-4 w-32 h-48 bg-slate-800 rounded-2xl overflow-hidden border-2 border-purple-500/30 shadow-2xl z-20">
-                        {localStream && (
-                          <video
-                            ref={(el) => {
-                              if (el && el.srcObject !== localStream) {
-                                el.srcObject = localStream;
-                              }
-                            }}
-                            autoPlay
-                            playsInline
-                            muted
-                            className="w-full h-full object-cover"
-                          />
-                        )}
-                      </div>
-                    </div>
+                    {/* Jitsi Meeting Container */}
+                    <div 
+                      ref={jitsiContainerRef} 
+                      className="absolute inset-0 w-full h-full bg-slate-900 overflow-hidden"
+                    />
 
-                    <div className="relative z-10 flex flex-col items-center justify-center h-full w-full bg-slate-950/40 backdrop-blur-sm p-8">
-                      {!remoteStream && (
-                        <>
-                          <div className="relative mb-8">
-                            <div className="absolute inset-0 bg-purple-500 rounded-full animate-ping opacity-20"></div>
-                            <img 
-                              src={activeChat?.photoURL} 
-                              className="w-24 h-24 rounded-3xl object-cover ring-4 ring-purple-500/30 relative z-10" 
-                              referrerPolicy="no-referrer"
-                            />
-                          </div>
-                          <h3 className="text-xl font-black text-white mb-2">{activeChat?.displayName}</h3>
-                          <p className="text-purple-400 font-bold text-sm mb-4 animate-pulse">
-                            {isCalling === 'video' ? 'Starting Video Call...' : 'Calling...'}
-                          </p>
-                          <div className="flex flex-col gap-1 items-center mb-8 px-6 py-2 bg-purple-500/10 rounded-2xl border border-purple-500/20">
-                             <div className="flex items-center gap-2">
-                               <div className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse"></div>
-                               <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">
-                                 {remoteStream ? "Connected" : "Connecting to Secure Channel (Agora)..."}
-                               </span>
-                             </div>
-                             {!remoteStream && (
-                               <p className="text-[8px] text-slate-500 font-medium">
-                                 Optimizing network path...
-                               </p>
-                             )}
-                          </div>
-                        </>
-                      )}
-                      
-                      <div className="mt-auto flex gap-6">
-                        <button 
-                          onClick={endCall}
-                          className="w-16 h-16 bg-red-500 text-white rounded-full flex items-center justify-center shadow-lg shadow-red-500/20 hover:bg-red-600 transition-all active:scale-90"
-                        >
-                          <PhoneOff className="w-8 h-8" />
-                        </button>
-                        {!remoteStream && (
-                          <div className="w-16 h-16 bg-green-500 text-white rounded-full flex items-center justify-center shadow-lg shadow-green-500/20 animate-bounce">
-                            {isCalling === 'video' ? <Video className="w-8 h-8" /> : <Phone className="w-8 h-8" />}
-                          </div>
-                        )}
-                      </div>
-                      
-                      {!remoteStream && (
-                        <p className="mt-12 text-slate-500 text-xs font-bold">
-                          Waiting for {activeChat?.displayName} to join...
+                    {/* Pre-connection Loading State */}
+                    {!jitsiApiRef.current && (
+                      <div className="absolute inset-0 flex flex-col items-center justify-center bg-slate-900/90 backdrop-blur-xl z-[60]">
+                        <div className="relative mb-8">
+                          <div className="absolute inset-0 bg-purple-500 rounded-full animate-ping opacity-20"></div>
+                          <Loader2 className="w-16 h-16 text-purple-500 animate-spin relative z-10" />
+                        </div>
+                        <h3 className="text-xl font-black text-white mb-2">جاري تأمين الغرفة...</h3>
+                        <p className="text-purple-400 font-bold text-sm animate-pulse">
+                          {isCalling === 'video' ? 'تحضير مكالمة الفيديو' : 'تحضير المكالمة الصوتية'}
                         </p>
-                      )}
+                      </div>
+                    )}
+                    
+                    {/* Hangup Control */}
+                    <div className="absolute bottom-10 left-0 right-0 flex justify-center z-[70] pointer-events-none">
+                      <button 
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          endCall();
+                        }}
+                        className="p-5 bg-red-500 text-white rounded-full shadow-[0_0_30px_rgba(239,68,68,0.4)] hover:bg-red-600 transition-all active:scale-90 pointer-events-auto border-4 border-slate-900"
+                        title="إنهاء المكالمة"
+                      >
+                        <PhoneOff className="w-6 h-6" />
+                      </button>
                     </div>
                   </motion.div>
                 )}
