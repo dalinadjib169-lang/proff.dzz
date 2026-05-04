@@ -608,7 +608,7 @@ export default function ChatBubble() {
     setTimeout(() => {
       const domain = "meet.jit.si";
       const options = {
-        roomName: roomName,
+        roomName: roomName.replace(/[^a-zA-Z0-9]/g, "").substring(0, 20), // Sharper, shorter room name
         width: '100%',
         height: '100%',
         parentNode: jitsiContainerRef.current,
@@ -617,6 +617,11 @@ export default function ChatBubble() {
           startWithVideoMuted: type === 'audio',
           prejoinPageEnabled: false,
           disableDeepLinking: true,
+          enableLobby: false,
+          enableUserRolesBasedOnToken: false,
+          // Hide as much branding as possible to keep it clean
+          hideConferenceTimer: false,
+          p2p: { enabled: true }
         },
         interfaceConfigOverwrite: {
           TOOLBAR_BUTTONS: [
@@ -1054,7 +1059,7 @@ export default function ChatBubble() {
         ringtoneRef.current = playSound('ringtone', true);
       }
 
-      const channelName = `call_${profile.uid}_${Date.now()}`;
+      const channelName = `TeachDZ_Call_${Math.random().toString(36).substring(7)}_${Date.now()}`;
       const callDoc = await addDoc(collection(db, 'calls'), {
         senderId: profile.uid,
         senderName: profile.displayName,
@@ -1515,9 +1520,14 @@ export default function ChatBubble() {
                           <Loader2 className="w-16 h-16 text-purple-500 animate-spin relative z-10" />
                         </div>
                         <h3 className="text-xl font-black text-white mb-2">جاري تأمين الغرفة...</h3>
-                        <p className="text-purple-400 font-bold text-sm animate-pulse">
+                        <p className="text-purple-400 font-bold text-sm animate-pulse mb-4">
                           {isCalling === 'video' ? 'تحضير مكالمة الفيديو' : 'تحضير المكالمة الصوتية'}
                         </p>
+                        <div className="max-w-[250px] bg-slate-800/80 p-3 rounded-xl border border-slate-700">
+                          <p className="text-[10px] text-slate-300 leading-tight">
+                            إذا ظهرت رسالة "بانتظار المضيف"، يرجى من الأستاذ الضغط على "أنا المضيف" وتسجيل الدخول بـ Google لبدء المحاضرة.
+                          </p>
+                        </div>
                       </div>
                     )}
                     
