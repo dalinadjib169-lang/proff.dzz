@@ -11,6 +11,7 @@ import {
   Circle, 
   Check,
   GraduationCap, 
+  Award,
   Image as ImageIcon, 
   Smile, 
   Mic, 
@@ -61,7 +62,8 @@ import { Link } from 'react-router-dom';
 import { handleFirestoreError, OperationType } from '../lib/firestore-errors';
 import { playSound } from '../lib/sounds';
 import { useUpload } from '../hooks/useUpload';
-import Peer from 'peerjs';
+import DailyIframe from '@daily-co/daily-js';
+import axios from 'axios';
 
 import ImageLightbox from './ImageLightbox';
 import { useUnreadMessages } from '../hooks/useUnreadMessages';
@@ -237,9 +239,7 @@ export default function ChatBubble() {
   const [filterSameSubject, setFilterSameSubject] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [isCalling, setIsCalling] = useState<'video' | 'audio' | null>(null);
-  const peerRef = useRef<Peer | null>(null);
-  const currentCallRef = useRef<any>(null);
-  const [localStream, setLocalStream] = useState<MediaStream | null>(null);
+  const dailyCallRef = useRef<any>(null);
   const [remoteStream, setRemoteStream] = useState<MediaStream | null>(null);
   const [incomingCall, setIncomingCall] = useState<any>(null);
   const [currentCallId, setCurrentCallId] = useState<string | null>(null);
@@ -287,9 +287,9 @@ export default function ChatBubble() {
     const lastSeenDate = (user.lastSeen as any).toDate ? (user.lastSeen as any).toDate() : new Date(user.lastSeen);
     const diff = (Date.now() - lastSeenDate.getTime()) / 1000;
     
-    if (diff < 300) return 'bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.6)]'; // Online (5 mins)
-    if (diff < 3600) return 'bg-yellow-500 shadow-[0_0_8px_rgba(234,179,8,0.6)]'; // Recent (1 hour)
-    return 'bg-red-500'; // Offline
+    if (diff < 90) return 'bg-green-400 shadow-[0_0_12px_rgba(74,222,128,0.8)]'; // Online (90s threshold)
+    if (diff < 600) return 'bg-yellow-400 shadow-[0_0_10px_rgba(250,204,21,0.7)]'; // Recent (10 mins)
+    return 'bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.5)]'; // Offline
   };
 
   useEffect(() => {
@@ -595,191 +595,140 @@ export default function ChatBubble() {
     };
 
     updateStatus();
-    const interval = setInterval(updateStatus, 60000); // Pulse every minute
+    const interval = setInterval(updateStatus, 30000); // Pulse every 30 seconds for better real-time accuracy
     
-    // Initialize PeerJS for this user
-    const peer = new Peer(profile.uid, {
-      debug: 1,
-      config: {
-        iceServers: [
-          { urls: 'stun:stun.l.google.com:19302' },
-          { urls: 'stun:stun1.l.google.com:19302' }
-        ]
-      }
-    });
-
-    peerRef.current = peer;
-
-    let heartbeatInterval: any;
-
-    peer.on('open', (id) => {
-      console.log('PeerJS: Connected with ID:', id);
-      // More robust heartbeat to keep signaling server connection alive
-      heartbeatInterval = setInterval(() => {
-        if (peerRef.current && !peerRef.current.destroyed && !peerRef.current.disconnected) {
-            (peerRef.current as any).socket.send({ type: 'HEARTBEAT' });
-        }
-      }, 15000); // 15s pulse
-    });
-
-    peer.on('error', (err) => {
-      console.error('PeerJS Error:', err.type, err);
-      if (err.type === 'peer-unavailable') {
-        toast.error("المستخدم الآخر غير متاح حالياً.");
-        endCall();
-      } else if (err.type === 'disconnected' || err.type === 'network') {
-        console.warn('PeerJS: Signaling server connection lost. Attempting to reconnect...');
-        setTimeout(() => {
-          if (peerRef.current && !peerRef.current.destroyed) {
-            peerRef.current.reconnect();
-          }
-        }, 1000);
-      }
-    });
-
-    peer.on('disconnected', () => {
-      console.warn('PeerJS: Disconnected from signaling server. Reconnecting in 3s...');
-      if (heartbeatInterval) clearInterval(heartbeatInterval);
-      setTimeout(() => {
-        if (peerRef.current && !peerRef.current.destroyed && peerRef.current.disconnected) {
-          peerRef.current.reconnect();
-        }
-      }, 3000);
-    });
-
-    // Handle incoming WebRTC call
-    peer.on('call', async (call) => {
-      console.log('PeerJS: Incoming call from:', call.peer);
-      currentCallRef.current = call;
-    });
-
-    const handleVisibilityChange = () => {
-      if (document.visibilityState === 'visible' && profile?.uid) {
-        if (peerRef.current && peerRef.current.disconnected && !peerRef.current.destroyed) {
-          console.log('App visible & peer disconnected: Reconnecting...');
-          peerRef.current.reconnect();
-        }
-      }
-    };
-    document.addEventListener('visibilitychange', handleVisibilityChange);
-
     return () => {
       clearInterval(interval);
-      if (heartbeatInterval) clearInterval(heartbeatInterval);
-      document.removeEventListener('visibilitychange', handleVisibilityChange);
-      if (peerRef.current) {
-        peerRef.current.destroy();
-        peerRef.current = null;
+      if (dailyCallRef.current) {
+        dailyCallRef.current.destroy();
       }
     };
   }, [profile?.uid]);
 
-  const setupStreams = async (type: 'video' | 'audio') => {
-    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-      toast.error("هذا المتصفح لا يدعم الوصول المباشر للكاميرا والميكروفون أو الاتصال غير آمن.");
-      return null;
-    }
+  const setupDailyCall = (audioOnly = false) => {
+    if (dailyCallRef.current) return dailyCallRef.current;
+
+    const callFrame = DailyIframe.createFrame({
+      showLeaveButton: true,
+      iframeStyle: {
+        position: 'fixed',
+        top: '0',
+        left: '0',
+        width: '100%',
+        height: '100%',
+        zIndex: '1000',
+        border: '0',
+      },
+      userName: profile?.displayName || 'Teacher',
+    });
+
+    callFrame.on('left-meeting', () => {
+      endCall();
+    });
+
+    callFrame.on('error', (e) => {
+      console.error('Daily error:', e);
+      toast.error("حدث خطأ في الاتصال");
+      endCall();
+    });
+
+    dailyCallRef.current = callFrame;
+    return callFrame;
+  };
+
+  const handleStartCall = async (type: 'audio' | 'video') => {
+    if (!profile || !activeChat) return;
 
     try {
-      // Clean previous strictly
-      if (localStream) {
-        localStream.getTracks().forEach(t => t.stop());
-      }
+      setIsCalling(type);
       
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: type === 'video',
-        audio: true
+      // Ringtone
+      if (!ringtoneRef.current) {
+        ringtoneRef.current = playSound('ringtone', true);
+      }
+
+      // Create room server-side
+      const response = await axios.post('/api/create-room');
+      const roomUrl = response.data.url;
+
+      const callDoc = await addDoc(collection(db, 'calls'), {
+        senderId: profile.uid,
+        senderName: profile.displayName,
+        senderPhoto: profile.photoURL || null,
+        recipientId: activeChat.uid,
+        type,
+        status: 'ringing',
+        roomUrl, // URL for recipient to join
+        createdAt: serverTimestamp()
       });
-      setLocalStream(stream);
-      return stream;
+      setCurrentCallId(callDoc.id);
+
+      // Join room
+      const call = setupDailyCall(type === 'audio');
+      await call.join({ url: roomUrl, videoSource: type === 'video' });
+      
+      // Auto-timeout after 60 seconds if not answered
+      setTimeout(async () => {
+        try {
+          const docRef = doc(db, 'calls', callDoc.id);
+          const docSnap = await getDoc(docRef);
+          if (docSnap.exists() && docSnap.data().status === 'ringing') {
+            await updateDoc(docRef, { status: 'missed' });
+            toast.error("لم يتم الرد على الاتصال.");
+            endCall();
+          }
+        } catch (e) {
+          console.error("Call timeout error:", e);
+        }
+      }, 60000);
+
     } catch (err: any) {
-      console.error("Media error:", err);
-      // More descriptive messages based on the specific W3C error names
-      if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
-        toast.error("تم رفض الوصول للكاميرا/الميكروفون. يرجى تفعيل الأذونات من إعدادات المتصفح أو حاول فتح التطبيق في نافذة جديدة (Open in new tab).");
-      } else if (err.name === 'NotFoundError' || err.name === 'DevicesNotFoundError') {
-        toast.error("لم يتم العثور على كاميرا أو ميكروفون في جهازك.");
-      } else if (err.name === 'NotReadableError' || err.name === 'TrackStartError') {
-        toast.error("الكاميرا أو الميكروفون قيد الاستخدام من قبل تطبيق آخر.");
-      } else {
-        toast.error("فشل الوصول للوسائط: " + (err.message || "يرجى التحقق من إعدادات الجهاز"));
-      }
-      return null;
+      console.error("Call error:", err);
+      stopRingtone();
+      const errorMsg = err.response?.data?.error || "تعذر بدء المكالمة. يرجى التأكد من استقرار الإنترنت.";
+      toast.error(errorMsg);
+      endCall();
     }
   };
 
-  const startPeerCall = async (remoteId: string, type: 'video' | 'audio', existingStream?: MediaStream | null) => {
-    if (!peerRef.current) {
-      toast.error("محرك الاتصال غير جاهز.");
-      return;
-    }
 
-    const stream = existingStream || await setupStreams(type);
-    if (!stream) return;
-
-    console.log('PeerJS: Initiating call to', remoteId);
-    const call = peerRef.current.call(remoteId, stream);
-    currentCallRef.current = call;
-
-    call.on('stream', (rStream) => {
-      console.log('PeerJS: Received remote stream');
-      setRemoteStream(rStream);
-    });
-
-    call.on('close', () => {
-      console.log('PeerJS: Call closed by remote');
-      endCall();
-    });
+  const handleAcceptCall = async () => {
+    if (!incomingCall || !incomingCall.roomUrl) return;
     
-    call.on('error', (err) => {
-      console.error('PeerJS Call Error:', err);
-      endCall();
-    });
-  };
+    stopRingtone(); 
 
-  const acceptPeerCall = async (type: 'video' | 'audio', callObj?: any, existingStream?: MediaStream | null) => {
-    const stream = existingStream || await setupStreams(type);
-    if (!stream) return;
+    try {
+      setIsOpen(true);
+      setIsCalling(incomingCall.type);
 
-    const callToAnswer = callObj || currentCallRef.current;
-    if (callToAnswer) {
-      callToAnswer.answer(stream);
+      await updateDoc(doc(db, 'calls', incomingCall.id), { 
+        status: 'accepted'
+      });
+
+      const call = setupDailyCall(incomingCall.type === 'audio');
+      await call.join({ url: incomingCall.roomUrl, videoSource: incomingCall.type === 'video' });
+
+      await updateDoc(doc(db, 'calls', incomingCall.id), { 
+        status: 'connected'
+      });
       
-      callToAnswer.on('stream', (rStream: MediaStream) => {
-        console.log('PeerJS: Received remote stream (Incoming)');
-        setRemoteStream(rStream);
-      });
-
-      callToAnswer.on('close', () => {
-        endCall();
-      });
+    } catch (err: any) {
+      console.error("Accept call error:", err);
+      toast.error("حدث خطأ أثناء قبول المكالمة");
+      endCall();
     }
   };
 
-  const endCall = async () => {
-    if (currentCallId) {
-      await updateDoc(doc(db, 'calls', currentCallId), { status: 'ended' }).catch(console.error);
-      setCurrentCallId(null);
-    }
-    if (incomingCall?.id) {
-      await updateDoc(doc(db, 'calls', incomingCall.id), { status: 'ended' }).catch(console.error);
-    }
-    
+  const handleRejectCall = async () => {
+    if (!incomingCall) return;
     stopRingtone();
-
-    if (currentCallRef.current) {
-      currentCallRef.current.close();
-      currentCallRef.current = null;
+    try {
+      await updateDoc(doc(db, 'calls', incomingCall.id), { status: 'rejected' });
+      setIncomingCall(null);
+    } catch (e) {
+      console.error(e);
+      setIncomingCall(null);
     }
-
-    if (localStream) {
-      localStream.getTracks().forEach(track => track.stop());
-      setLocalStream(null);
-    }
-    
-    setRemoteStream(null);
-    setIsCalling(null);
-    setIncomingCall(null);
   };
 
   // Handle Incoming Calls
@@ -844,9 +793,6 @@ export default function ChatBubble() {
         
         if (call.status === 'accepted') {
           stopRingtone(); // Stop dial tone for caller
-          // Start the actual P2P connection now that they accepted
-          await startPeerCall(call.recipientId, call.type, localStream);
-          await updateDoc(doc(db, 'calls', call.id), { status: 'connected' });
         } else if (call.status === 'rejected' || call.status === 'ended' || call.status === 'failed') {
           stopRingtone();
           endCall();
@@ -1147,117 +1093,6 @@ export default function ChatBubble() {
     }
   };
 
-  const handleStartCall = async (type: 'audio' | 'video') => {
-    if (!profile || !activeChat) return;
-
-    // Check media permissions FIRST before starting anything
-    const stream = await setupStreams(type);
-    if (!stream) {
-      // setupStreams already showed the error toast
-      return;
-    }
-
-    try {
-      setIsCalling(type);
-      
-      // Stop checking and use the already acquired stream if needed, 
-      // but actually startPeerCall will be called when accepted.
-      // So we keep the stream in state.
-      setLocalStream(stream);
-
-      // Start ringing for caller (dial tone)
-      if (!ringtoneRef.current) {
-        ringtoneRef.current = playSound('ringtone', true);
-      }
-
-      const channelName = `TeachDZ_Call_${Math.random().toString(36).substring(7)}_${Date.now()}`;
-      const callDoc = await addDoc(collection(db, 'calls'), {
-        senderId: profile.uid,
-        senderName: profile.displayName,
-        senderPhoto: profile.photoURL || null,
-        recipientId: activeChat.uid,
-        type,
-        status: 'ringing',
-        channelName,
-        createdAt: serverTimestamp()
-      });
-      setCurrentCallId(callDoc.id);
-      
-      // Auto-timeout after 60 seconds if not answered
-      setTimeout(async () => {
-        try {
-          const docRef = doc(db, 'calls', callDoc.id);
-          const docSnap = await getDoc(docRef);
-          if (docSnap.exists() && docSnap.data().status === 'ringing') {
-            await updateDoc(docRef, { status: 'missed' });
-            toast.error("لم يتم الرد على الاتصال.");
-            endCall();
-          }
-        } catch (e) {
-          console.error("Call timeout error:", e);
-        }
-      }, 60000);
-      
-      console.log('Call document created:', callDoc.id, 'Waiting for recipient to accept...');
-
-    } catch (err: any) {
-      console.error("Call error:", err);
-      stopRingtone();
-      toast.error("تعذر بدء المكالمة. يرجى التأكد من استقرار الإنترنت.");
-      endCall();
-    }
-  };
-
-  const handleAcceptCall = async () => {
-    if (!incomingCall) return;
-    
-    // Check permissions first!
-    const stream = await setupStreams(incomingCall.type);
-    if (!stream) {
-      // If we can't get media, we should probably fail or reject
-      return;
-    }
-    
-    stopRingtone(); 
-
-    try {
-      // Ensure UI is open and showing the call overlay
-      setIsOpen(true);
-      setIsCalling(incomingCall.type);
-
-      // Setup streams and answer (it will use the already set localStream if we modify it)
-      await acceptPeerCall(incomingCall.type, null, stream);
-      
-      await updateDoc(doc(db, 'calls', incomingCall.id), { 
-        status: 'accepted'
-      });
-
-      // Mark as connected to keep showing overlay
-      await updateDoc(doc(db, 'calls', incomingCall.id), { 
-        status: 'connected'
-      });
-      
-    } catch (err: any) {
-      console.error("Accept call error:", err);
-      toast.error("فشل قبول المكالمة.");
-      endCall();
-    }
-  };
-
-  const handleRejectCall = async () => {
-    if (!incomingCall) return;
-    stopRingtone();
-    try {
-      await updateDoc(doc(db, 'calls', incomingCall.id), { status: 'rejected' });
-      setIncomingCall(null);
-    } catch (e) {
-      console.error(e);
-      setIncomingCall(null);
-    }
-  };
-
-
-
   const getSubjectIcon = (subject: string) => {
     const s = subject.toLowerCase();
     if (s.includes('رياضيات') || s.includes('math')) return <Compass className="w-3 h-3" />;
@@ -1274,6 +1109,30 @@ export default function ChatBubble() {
     if (s.includes('موسيقية') || s.includes('music')) return <Music className="w-3 h-3" />;
     return <GraduationCap className="w-3 h-3" />;
   };
+
+  const endCall = async () => {
+    if (currentCallId) {
+      await updateDoc(doc(db, 'calls', currentCallId), { status: 'ended' }).catch(console.error);
+      setCurrentCallId(null);
+    }
+    if (incomingCall?.id) {
+      await updateDoc(doc(db, 'calls', incomingCall.id), { status: 'ended' }).catch(console.error);
+    }
+    
+    stopRingtone();
+
+    if (dailyCallRef.current) {
+      dailyCallRef.current.leave();
+      dailyCallRef.current.destroy();
+      dailyCallRef.current = null;
+    }
+
+    setRemoteStream(null);
+    setIsCalling(null);
+    setIncomingCall(null);
+  };
+
+
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -1349,8 +1208,8 @@ export default function ChatBubble() {
     if (!lastSeen) return false;
     try {
       const lastSeenDate = lastSeen.toDate ? lastSeen.toDate() : new Date(lastSeen);
-      // Increased tolerance to 10 minutes for better stability
-      return Date.now() - lastSeenDate.getTime() < 600000;
+      // Increased tolerance to 3 minutes for better responsiveness
+      return Date.now() - lastSeenDate.getTime() < 180000;
     } catch (e) {
       return false;
     }
@@ -1385,16 +1244,18 @@ export default function ChatBubble() {
       'العلوم': 'SCI',
       'Science': 'SCI',
       'SVT': 'SVT',
-      'انجليزية': 'ENG',
+      'إنجليزية': 'ENG',
       'الإنجليزية': 'ENG',
       'English': 'ENG',
-      'عربية': 'ARA',
-      'اللغة العربية': 'ARA',
-      'Arabic': 'ARA',
-      'فلسفة': 'PHI',
-      'تاريخ': 'H-G',
+      'عربية': 'ARB',
+      'العربية': 'ARB',
+      'Arabic': 'ARB',
+      'تاريخ': 'HIS',
+      'جغرافيا': 'GEO',
       'إسلامية': 'ISL',
-      'رياضة': 'SPT'
+      'فلسفة': 'PHI',
+      'رياضة': 'SPT',
+      'اللغة العربية': 'ARB'
     };
 
     if (map[cleanText]) return map[cleanText];
@@ -1465,70 +1326,73 @@ export default function ChatBubble() {
                     </div>
                   </div>
 
-                  {/* Info Grid Section (Center) - Refined for visibility */}
-                  <div className="flex-1 grid grid-cols-2 gap-x-1 sm:gap-x-1.5 gap-y-0.5 px-1 pr-1.5 border-r border-white/5 min-w-0" dir="rtl">
-                    <div className="flex items-center gap-1 min-w-0">
-                      <div className="w-4 h-4 rounded bg-blue-500/20 flex items-center justify-center flex-shrink-0 border border-blue-500/20 shadow-inner">
-                        {activeChat.uid === 'global' ? <Globe className="w-2 h-2 text-blue-400" /> : getSubjectIcon(activeChat.subject || '')}
-                      </div>
-                      <p className="text-[10px] font-black text-blue-300 truncate tracking-tight">
-                        {activeChat.uid === 'global' ? 'Global' : getAbbreviated(activeChat.subject || 'مادة')}
-                      </p>
-                    </div>
-                    
-                    <div className="flex items-center gap-1 min-w-0">
-                      <div className="w-4 h-4 rounded bg-emerald-500/20 flex items-center justify-center flex-shrink-0 border border-emerald-500/20 shadow-inner">
-                        <GraduationCap className="w-2.5 h-2.5 text-emerald-400" />
-                      </div>
-                      <p className="text-[10px] font-black text-emerald-300 truncate tracking-tight">
-                        {activeChat.uid === 'global' ? 'Dz' : getAbbreviated(activeChat.level || 'تعليم')}
-                      </p>
-                    </div>
 
-                    <div className="flex items-center gap-1 min-w-0">
-                      <div className="w-4 h-4 rounded bg-purple-500/20 flex items-center justify-center flex-shrink-0 border border-purple-500/20 shadow-inner">
-                        <Clock className="w-2.5 h-2.5 text-purple-400" />
+                  {/* Info Section (Center) - Compact & High Visibility */}
+                  <div className="flex-1 flex flex-col justify-center gap-1 px-1.5 border-r border-white/5 min-w-0" dir="rtl">
+                    <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-1 min-w-0">
+                        <div className="w-3.5 h-3.5 rounded-sm bg-blue-500/20 flex items-center justify-center flex-shrink-0 border border-blue-500/20">
+                          {activeChat.uid === 'global' ? <Globe className="w-1.5 h-1.5 text-blue-400" /> : getSubjectIcon(activeChat.subject || '')}
                       </div>
-                      <p className="text-[10px] font-black text-purple-300 truncate tracking-tight">
-                        {activeChat.yearsOfExperience ? `${activeChat.yearsOfExperience}y` : 'جديد'}
+                      <p className="text-[10px] font-black text-blue-300 truncate max-w-[45px] uppercase tracking-tighter">
+                        {activeChat.uid === 'global' ? 'GLOBAL' : getAbbreviated(activeChat.subject || 'مادة')}
                       </p>
                     </div>
-
-                    <div className="flex items-center gap-1 min-w-0">
-                      <div className="w-4 h-4 rounded bg-amber-500/20 flex items-center justify-center flex-shrink-0 border border-amber-500/20 shadow-inner">
-                        <MapPin className="w-2.5 h-2.5 text-amber-400" />
+                    <div className="flex items-center gap-0.5 min-w-0">
+                      <div className="w-3.5 h-3.5 rounded-sm bg-emerald-500/20 flex items-center justify-center flex-shrink-0 border border-emerald-500/20">
+                        <GraduationCap className="w-2 h-2 text-emerald-400" />
                       </div>
-                      <p className="text-[10px] font-black text-amber-300 truncate tracking-tight">
+                      <p className="text-[10px] font-black text-emerald-300 truncate max-w-[45px] uppercase tracking-tighter">
+                        {activeChat.uid === 'global' ? 'DZ' : getAbbreviated(activeChat.level || 'تعليم')}
+                      </p>
+                    </div>
+                  </div>
+                  
+                  <div className="flex items-center gap-1.5">
+                    <div className="flex items-center gap-0.5 min-w-0">
+                      <div className="w-3.5 h-3.5 rounded-sm bg-purple-500/20 flex items-center justify-center flex-shrink-0 border border-purple-500/20">
+                        <Award className="w-2 h-2 text-purple-400" />
+                      </div>
+                      <p className="text-[10px] font-black text-purple-300 whitespace-nowrap uppercase tracking-tighter">
+                        {activeChat.yearsOfExperience ? `${activeChat.yearsOfExperience}Y` : 'NEW'}
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-0.5 min-w-0">
+                      <div className="w-3.5 h-3.5 rounded-sm bg-amber-500/20 flex items-center justify-center flex-shrink-0 border border-amber-500/20">
+                        <MapPin className="w-2 h-2 text-amber-400" />
+                      </div>
+                      <p className="text-[10px] font-black text-amber-300 truncate max-w-[35px] uppercase tracking-tighter">
                         {activeChat.uid === 'global' ? 'DZ' : (activeChat.wilaya?.split(' ')[0] || 'Wilaya')}
                       </p>
+                    </div>
                     </div>
                   </div>
 
                   {/* Actions Section (Left) */}
-                  <div className="flex items-center gap-1.5 sm:gap-2 flex-shrink-0 mr-auto">
+                  <div className="flex items-center gap-1 sm:gap-1.5 flex-shrink-0 mr-auto">
                     {activeChat.uid !== 'global' && (
-                      <div className="flex items-center gap-1.5 bg-white/5 p-1 rounded-xl border border-white/10">
+                      <div className="flex items-center gap-1 bg-white/5 p-0.5 rounded-lg border border-white/10">
                         <button 
                           onClick={() => handleStartCall('audio')}
-                          className="flex flex-col items-center gap-1 p-1 sm:p-1.5 rounded-lg bg-emerald-500 text-white shadow-lg active:scale-90 transition-all hover:bg-emerald-600"
+                          className="p-1 rounded-md bg-emerald-500 text-white shadow-sm active:scale-95 transition-all hover:bg-emerald-600 flex items-center justify-center transform scale-90"
                           title="صوتي"
                         >
-                          <Phone className="w-3.5 h-3.5" />
+                          <Phone className="w-3 h-3" />
                         </button>
                         <button 
                           onClick={() => handleStartCall('video')}
-                          className="flex flex-col items-center gap-1 p-1 sm:p-1.5 rounded-lg bg-indigo-500 text-white shadow-lg active:scale-90 transition-all hover:bg-indigo-600"
+                          className="p-1 rounded-md bg-indigo-500 text-white shadow-sm active:scale-95 transition-all hover:bg-indigo-600 flex items-center justify-center transform scale-90"
                           title="فيديو"
                         >
-                          <Video className="w-3.5 h-3.5" />
+                          <Video className="w-3 h-3" />
                         </button>
                       </div>
                     )}
                     
-                    <div className="flex flex-col gap-0.5">
+                    <div className="flex items-center gap-1">
                       <button 
                         onClick={() => setShowFriendsList(!showFriendsList)}
-                        className={`p-1 rounded-lg border transition-all active:scale-95 ${showFriendsList ? 'bg-purple-500 text-white border-purple-400 shadow-lg ring-2 ring-purple-500/20' : 'bg-white/5 text-purple-400 border-white/10 hover:bg-white/10'}`}
+                        className={`p-1 rounded-lg border transition-all active:scale-95 transform scale-90 ${showFriendsList ? 'bg-purple-600 text-white border-purple-400' : 'bg-slate-800 text-purple-400 border-white/10'}`}
                         title="الأصدقاء"
                       >
                         <Plus className="w-4 h-4" />
@@ -1538,10 +1402,10 @@ export default function ChatBubble() {
                         <button 
                           onClick={handleConnect}
                           disabled={isConnecting}
-                          className={`p-1 rounded-lg border transition-all active:scale-95 shadow-md ${profile?.following?.includes(activeChat.uid) ? 'bg-amber-500 text-white border-amber-400' : 'bg-white/10 text-white/40 border-white/5 hover:bg-white/20'}`}
+                          className={`p-1 rounded-lg border transition-all active:scale-95 transform scale-90 ${profile?.following?.includes(activeChat.uid) ? 'bg-amber-500 text-white border-amber-300' : 'bg-slate-800 text-white/40 border-white/5'}`}
                           title="اتصال"
                         >
-                          {profile?.following?.includes(activeChat.uid) ? <UserCheck className="w-3 h-3" /> : <UserPlus className="w-3 h-3" />}
+                          {profile?.following?.includes(activeChat.uid) ? <Check className="w-3.5 h-3.5" /> : <UserPlus className="w-3.5 h-3.5" />}
                         </button>
                       )}
                     </div>
@@ -1700,109 +1564,38 @@ export default function ChatBubble() {
 
               {/* Calling Overlay */}
               <AnimatePresence initial={false}>
+
                 {isCalling && (
-                  <motion.div
-                    key="calling-overlay"
-                    initial={{ opacity: 0, scale: 0.95 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    exit={{ opacity: 0, scale: 0.95 }}
-                    className="absolute inset-0 z-50 bg-slate-950 flex flex-col items-center justify-center text-center overflow-hidden"
+                  <motion.div 
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    className="absolute inset-0 z-[150] bg-slate-950 flex flex-col items-center justify-center text-center p-6"
                   >
-                    {/* In-App WebRTC Video UI */}
-                    <div className="absolute inset-0 w-full h-full bg-slate-950 overflow-hidden">
-                      {remoteStream ? (
-                        <motion.div 
-                          initial={{ opacity: 0 }}
-                          animate={{ opacity: 1 }}
-                          className="w-full h-full"
-                        >
-                          <video
-                            ref={(el) => {
-                              if (el && el.srcObject !== remoteStream) {
-                                el.srcObject = remoteStream;
-                              }
-                            }}
-                            autoPlay
-                            playsInline
-                            className="w-full h-full object-cover"
-                          />
-                        </motion.div>
-                      ) : (
-                        <div className="absolute inset-0 flex flex-col items-center justify-center bg-slate-900/60 backdrop-blur-3xl z-10">
-                          <div className="relative mb-8">
-                            <div className="absolute inset-0 bg-purple-500 rounded-full animate-ping opacity-20"></div>
-                            <img 
-                              src={activeChat?.photoURL} 
-                              className="w-32 h-32 rounded-[2.5rem] object-cover ring-4 ring-purple-500/30 relative z-10 shadow-2xl" 
-                              referrerPolicy="no-referrer"
-                            />
-                          </div>
-                          <h3 className="text-2xl font-black text-white mb-2">{activeChat?.displayName}</h3>
-                          <p className="text-purple-400 font-bold text-sm animate-pulse">
-                            {isCalling === 'video' ? 'جاري تجهيز الفيديو...' : 'جاري الاتصال...'}
-                          </p>
-                        </div>
-                      )}
-                      
-                      {/* Local Preview (PIP) */}
-                      <motion.div 
-                        initial={{ opacity: 0, scale: 0.8 }}
-                        animate={{ opacity: 1, scale: 1 }}
-                        className="absolute top-20 right-4 w-28 h-40 sm:w-32 sm:h-48 bg-slate-800 rounded-2xl overflow-hidden border-2 border-purple-500/50 shadow-2xl z-20"
-                      >
-                        {localStream ? (
-                          <video
-                            ref={(el) => {
-                              if (el && el.srcObject !== localStream) {
-                                el.srcObject = localStream;
-                              }
-                            }}
-                            autoPlay
-                            playsInline
-                            muted
-                            className="w-full h-full object-cover"
-                          />
-                        ) : (
-                          <div className="w-full h-full flex items-center justify-center bg-slate-800">
-                             <User className="w-8 h-8 text-slate-600" />
-                          </div>
-                        )}
-                      </motion.div>
+                    <div className="relative mb-8">
+                      <div className="absolute inset-0 bg-purple-500 rounded-full animate-ping opacity-20"></div>
+                      <img 
+                        src={activeChat?.photoURL} 
+                        className="w-32 h-32 rounded-[2.5rem] object-cover ring-4 ring-purple-500/30 relative z-10 shadow-2xl" 
+                        referrerPolicy="no-referrer"
+                      />
                     </div>
+                    <h3 className="text-2xl font-black text-white mb-2">{activeChat?.displayName}</h3>
+                    <p className="text-purple-400 font-bold text-sm animate-pulse mb-12">
+                      {isCalling === 'video' ? 'جاري الاتصال بالفيديو...' : 'جاري الاتصال الصوتي...'}
+                    </p>
                     
-                    {/* Controls Overlay */}
-                    <div className="absolute bottom-12 left-0 right-0 flex justify-center gap-6 z-[70]">
-                      <button 
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          // Toggle mute logic could be added here
-                        }}
-                        className="p-4 bg-slate-800/80 backdrop-blur-xl text-white rounded-full border border-white/10 hover:bg-slate-700 transition-all active:scale-95 shadow-xl"
-                      >
-                        <Mic className="w-5 h-5" />
-                      </button>
-
-                      <button 
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          endCall();
-                        }}
-                        className="p-6 bg-red-500 text-white rounded-full shadow-[0_0_40px_rgba(239,68,68,0.5)] hover:bg-red-600 transition-all active:scale-90 border-4 border-slate-950 flex items-center justify-center"
-                        title="إنهاء المكالمة"
-                      >
-                        <PhoneOff className="w-7 h-7" />
-                      </button>
-
-                      <button 
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          // Toggle camera logic could be added here
-                        }}
-                        className="p-4 bg-slate-800/80 backdrop-blur-xl text-white rounded-full border border-white/10 hover:bg-slate-700 transition-all active:scale-95 shadow-xl"
-                      >
-                        <Video className="w-5 h-5" />
-                      </button>
-                    </div>
+                    <button 
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        endCall();
+                      }}
+                      className="p-6 bg-red-500 text-white rounded-full shadow-[0_0_40px_rgba(239,68,68,0.5)] hover:bg-red-600 transition-all active:scale-90 border-4 border-slate-950 flex items-center justify-center pointer-events-auto"
+                      title="إنهاء المكالمة"
+                    >
+                      <PhoneOff className="w-7 h-7" />
+                    </button>
+                    <p className="text-white/20 text-[10px] font-black uppercase tracking-widest mt-8">Secure End-to-End Encryption</p>
                   </motion.div>
                 )}
               </AnimatePresence>
