@@ -12,6 +12,26 @@ async function startServer() {
 
   app.use(express.json());
 
+  // Proxy for Prayer Times to avoid CORS/Fetch issues in some environments
+  app.get('/api/prayer-times', async (req, res) => {
+    try {
+      const { city, country, method } = req.query;
+      if (!city) return res.status(400).json({ error: 'City is required' });
+      
+      const response = await axios.get('https://api.aladhan.com/v1/timingsByCity', {
+        params: {
+          city,
+          country: country || 'Algeria',
+          method: method || 3
+        }
+      });
+      res.json(response.data);
+    } catch (error: any) {
+      console.error('Error fetching prayer times through proxy:', error.message);
+      res.status(500).json({ error: 'Failed to fetch prayer times' });
+    }
+  });
+
   // Daily.co Room Creation API
   app.post('/api/create-room', async (req, res) => {
     try {

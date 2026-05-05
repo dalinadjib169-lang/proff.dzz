@@ -37,7 +37,7 @@ import { motion, AnimatePresence } from 'motion/react';
 
 import { UploadProvider } from './hooks/useUpload';
 import InstallPrompt from './components/InstallPrompt';
-import { Toaster } from 'react-hot-toast';
+import { Toaster, toast } from 'react-hot-toast';
 
 import { useTranslation } from './hooks/useTranslation';
 
@@ -122,13 +122,27 @@ export default function App() {
       }
       
       if (!snapshot.empty) {
-        const newNotif = snapshot.docs[0].data();
-        // Only play if it was created in the last 10 seconds (avoid processing old unread ones as "new")
-        const now = Date.now();
-        const createdAt = newNotif.createdAt?.toMillis?.() || 0;
-        if (now - createdAt < 10000) {
-          playSound('notification');
-        }
+        snapshot.docChanges().forEach(change => {
+          if (change.type === 'added') {
+            const newNotif = change.doc.data();
+            const now = Date.now();
+            const createdAt = newNotif.createdAt?.toMillis?.() || 0;
+            
+            // Only alert for very recent notifications
+            if (now - createdAt < 15000) {
+              playSound('notification');
+              toast(newNotif.text || 'لديك إشعار جديد', {
+                icon: '🔔',
+                style: {
+                  borderRadius: '1.5rem',
+                  background: '#1e293b',
+                  color: '#fff',
+                  border: '1px solid #334155'
+                }
+              });
+            }
+          }
+        });
       }
     });
 

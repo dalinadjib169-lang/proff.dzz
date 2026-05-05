@@ -148,8 +148,9 @@ const ChatTrigger = ({ isOpen, setIsOpen, emojiState, activeChat, profile, unrea
         {unreadCount > 0 && !isOpen && (
           <motion.div 
             initial={{ scale: 0 }}
-            animate={{ scale: 1 }}
-            className="absolute -top-1 -right-1 w-6 h-6 bg-red-500 text-white rounded-full flex items-center justify-center text-[10px] font-black border-2 border-slate-900 shadow-lg z-20"
+            animate={{ scale: [1.2, 1, 1.2] }}
+            transition={{ repeat: Infinity, duration: 2 }}
+            className="absolute -top-2 -right-2 w-7 h-7 bg-red-500 text-white rounded-full flex items-center justify-center text-xs font-black border-2 border-slate-900 shadow-[0_0_15px_rgba(239,68,68,0.6)] z-20"
           >
             {unreadCount}
           </motion.div>
@@ -164,12 +165,14 @@ export default function ChatBubble() {
   const { startUpload, activeUploads } = useUpload();
   const unreadCount = useUnreadMessages();
   const [isOpen, setIsOpen] = useState(() => {
-    const saved = localStorage.getItem('chat_bubble_open');
+    if (!profile?.uid) return false;
+    const saved = localStorage.getItem(`chat_bubble_open_${profile.uid}`);
     return saved === 'true';
   });
   const [isHidden, setIsHidden] = useState(false);
   const [activeChat, setActiveChat] = useState<UserProfile | null>(() => {
-    const saved = localStorage.getItem('active_chat_user');
+    if (!profile?.uid) return null;
+    const saved = localStorage.getItem(`active_chat_user_${profile.uid}`);
     try {
       return saved ? JSON.parse(saved) : null;
     } catch (e) {
@@ -291,8 +294,8 @@ export default function ChatBubble() {
     const lastSeenDate = (user.lastSeen as any).toDate ? (user.lastSeen as any).toDate() : new Date(user.lastSeen);
     const diff = (Date.now() - lastSeenDate.getTime()) / 1000;
     
-    if (diff < 60) return 'bg-green-400 shadow-[0_0_12px_rgba(74,222,128,0.8)]'; // Online (1 min threshold)
-    if (diff < 300) return 'bg-yellow-400 shadow-[0_0_10px_rgba(250,204,21,0.7)]'; // Recent (5 mins)
+    if (diff < 90) return 'bg-green-400 shadow-[0_0_12px_rgba(74,222,128,0.8)]'; // Online (90s threshold - safer for pulses)
+    if (diff < 600) return 'bg-yellow-400 shadow-[0_0_10px_rgba(250,204,21,0.7)]'; // Recent (10 mins)
     return 'bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.5)]'; // Offline
   };
 
@@ -361,8 +364,10 @@ export default function ChatBubble() {
   }, [messages.length, activeChat?.uid, isOpen]);
 
   useEffect(() => {
-    localStorage.setItem('chat_bubble_open', isOpen.toString());
-  }, [isOpen]);
+    if (profile?.uid) {
+      localStorage.setItem(`chat_bubble_open_${profile.uid}`, isOpen.toString());
+    }
+  }, [isOpen, profile?.uid]);
 
   useEffect(() => {
     const handleShowChat = async (e: any) => {
@@ -397,12 +402,26 @@ export default function ChatBubble() {
     );
 
     const unsubscribe = onSnapshot(q, { includeMetadataChanges: true }, (snapshot) => {
-      const hasNewMessage = snapshot.docChanges().some(
-        change => change.type === 'added' && change.doc.data().senderId !== profile.uid
-      );
-      if (hasNewMessage) {
-        playSound('message');
-      }
+      snapshot.docChanges().forEach(change => {
+        if (change.type === 'added') {
+          const msg = change.doc.data();
+          if (msg.senderId !== profile.uid) {
+            playSound('message');
+            
+            // Only show toast if chat is closed OR active chat is different
+            if (!isOpen || activeChat?.uid !== msg.senderId) {
+               toast(`${msg.senderName}: ${msg.text || 'صورة/صوت ✨'}`, {
+                 icon: '💬',
+                 style: {
+                   borderRadius: '1.2rem',
+                   background: '#15803d', // Green for messages
+                   color: '#fff',
+                 }
+               });
+            }
+          }
+        }
+      });
     }, (error) => {
       handleFirestoreError(error, OperationType.LIST, 'messages');
     });
@@ -470,12 +489,14 @@ export default function ChatBubble() {
   }, [isOpen]);
 
   useEffect(() => {
-    if (activeChat) {
-      localStorage.setItem('active_chat_user', JSON.stringify(activeChat));
-    } else {
-      localStorage.removeItem('active_chat_user');
+    if (profile?.uid) {
+      if (activeChat) {
+        localStorage.setItem(`active_chat_user_${profile.uid}`, JSON.stringify(activeChat));
+      } else {
+        localStorage.removeItem(`active_chat_user_${profile.uid}`);
+      }
     }
-  }, [activeChat]);
+  }, [activeChat, profile?.uid]);
 
   // Mark messages as seen (VU) - Optimized with writeBatch for real-time performance
   useEffect(() => {
@@ -622,10 +643,12 @@ export default function ChatBubble() {
       console.log('PeerJS: Incoming call from:', call.peer);
       currentCallRef.current = call;
       
-      // Automatic answer if the call is already accepted in Firestore
+      // Auto-answer if the user already clicked Accept OR if the call is already marked accepted in Firestore
+      // Use a slightly buffered check for incomingCallRef
       if (incomingCallRef.current?.status === 'accepted' || incomingCallRef.current?.status === 'connected') {
          const stream = await setupStreams(incomingCallRef.current.type);
          if (stream) {
+           console.log('PeerJS: Answering call automatically...');
            call.answer(stream);
            call.on('stream', (rStream: MediaStream) => setRemoteStream(rStream));
          }
@@ -654,7 +677,7 @@ export default function ChatBubble() {
       const call = { id: snapshot.id, ...snapshot.data() as any };
 
       if (call.status === 'rejected' || call.status === 'ended') {
-        toast.info(call.status === 'rejected' ? "تم رفض المكالمة" : "انتهت المكالمة");
+        toast(call.status === 'rejected' ? "تم رفض المكالمة" : "انتهت المكالمة");
         endCall();
       }
 
@@ -1194,7 +1217,7 @@ export default function ChatBubble() {
     
     setIsUploading(true);
     const fileToUpload = selectedImage;
-    
+
     try {
       const participants = [profile.uid, activeChat.uid].sort();
       const roomId = activeChat.uid === 'global' ? 'global' : participants.join('_');
@@ -1203,7 +1226,6 @@ export default function ChatBubble() {
         senderId: profile.uid,
         senderName: profile.displayName,
         recipientId: activeChat.uid,
-        participants,
         roomId,
         text: '',
         seen: false
@@ -1211,6 +1233,7 @@ export default function ChatBubble() {
       
       cancelImageSelection();
       playSound('message');
+      toast.success("تم إرسال الصورة بنجاح");
     } catch (err) {
       console.error(err);
       toast.error("فشل رفع الصورة.");
@@ -1306,8 +1329,8 @@ export default function ChatBubble() {
     if (!lastSeen) return false;
     try {
       const lastSeenDate = lastSeen.toDate ? lastSeen.toDate() : new Date(lastSeen);
-      // Friend updates status every 20s. 60s is 3 pulses.
-      return Date.now() - lastSeenDate.getTime() < 60000;
+      // Increased tolerance to 3 minutes for better responsiveness despite network jitters
+      return Date.now() - lastSeenDate.getTime() < 180000;
     } catch (e) {
       return false;
     }
@@ -1367,7 +1390,7 @@ export default function ChatBubble() {
     return cleanText;
   };
 
-  if (!profile) return null;
+  if (!profile || isHidden || !profile.isProfileComplete) return null;
 
   return (
     <div className={`fixed bottom-32 right-4 sm:bottom-8 sm:right-8 z-[150]`}>

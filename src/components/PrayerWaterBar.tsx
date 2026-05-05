@@ -20,6 +20,7 @@ import { db, isFirestoreConnected } from '../firebase';
 import { format } from 'date-fns';
 import { cn } from '../lib/utils';
 import { playSound } from '../lib/sounds';
+import { toast } from 'react-hot-toast';
 
 interface PrayerTimes {
   Fajr: string;
@@ -89,7 +90,7 @@ export const PrayerWaterBar: React.FC = () => {
       if (city.toLowerCase() === 'constantine') city = 'Constantine';
       
       const tryFetch = async (cityName: string) => {
-        const url = `https://api.aladhan.com/v1/timingsByCity?city=${encodeURIComponent(cityName)}&country=Algeria&method=3`;
+        const url = `/api/prayer-times?city=${encodeURIComponent(cityName)}&country=Algeria&method=3`;
         const response = await fetch(url);
         if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
         return await response.json();
@@ -107,10 +108,10 @@ export const PrayerWaterBar: React.FC = () => {
         setPrayerTimes(data.data.timings);
       }
     } catch (error) {
-      console.error("Error fetching prayer times:", error);
+      console.error("Error fetching prayer times through proxy:", error);
       // Last resort fallback to Algiers if everything fails
       try {
-        const response = await fetch(`https://api.aladhan.com/v1/timingsByCity?city=Algiers&country=Algeria&method=3`);
+        const response = await fetch(`/api/prayer-times?city=Algiers&country=Algeria&method=3`);
         const data = await response.json();
         if (data.code === 200) setPrayerTimes(data.data.timings);
       } catch (e) {
@@ -118,6 +119,8 @@ export const PrayerWaterBar: React.FC = () => {
       }
     }
   };
+
+  const [lastPlayedPrayer, setLastPlayedPrayer] = useState<string | null>(null);
 
   const calculateNextPrayer = () => {
     if (!prayerTimes) return;
@@ -140,9 +143,17 @@ export const PrayerWaterBar: React.FC = () => {
     // Adhan check - check against all prayer times
     if (isAdhanEnabled) {
       const currentPrayer = prayers.find(p => p.time === currentTime);
-      if (currentPrayer && (!adhanAudio.current || adhanAudio.current.paused)) {
+      // Play only if it's the exact time and we haven't played this specific prayer in this session yet
+      if (currentPrayer && lastPlayedPrayer !== `${currentPrayer.name}_${currentTime}`) {
         console.log(`Playing Adhan for ${currentPrayer.name} at ${currentTime}`);
+        setLastPlayedPrayer(`${currentPrayer.name}_${currentTime}`);
         adhanAudio.current = playSound(adhanVoice);
+        
+        // Notify user visually as well
+        toast(`حي على الصلاة: وقت أذان ${PRAYER_NAMES[currentPrayer.name]}`, {
+          icon: '🕌',
+          duration: 6000
+        });
       }
     }
   };

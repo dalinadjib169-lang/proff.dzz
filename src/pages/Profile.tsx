@@ -76,11 +76,12 @@ export default function Profile() {
 
   useEffect(() => {
     if (profile?.wilaya && profile?.reminders?.prayer) {
-      fetch(`https://api.aladhan.com/v1/timingsByCity?city=${profile.wilaya}&country=Algeria&method=3`)
+      fetch(`/api/prayer-times?city=${encodeURIComponent(profile.wilaya)}&country=Algeria&method=3`)
         .then(res => res.json())
         .then(data => {
           if (data.code === 200) setPrayerTimes(data.data.timings);
-        });
+        })
+        .catch(err => console.error("Profile prayer fetch error:", err));
     }
   }, [profile?.wilaya, profile?.reminders?.prayer]);
 

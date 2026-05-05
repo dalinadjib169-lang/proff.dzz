@@ -32,10 +32,23 @@ const RANKS = [
 ];
 
 export default function CompleteProfile() {
-  const { profile, completeProfile } = useAuth();
+  const { profile, completeProfile, skipProfile } = useAuth();
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
+  const [skipping, setSkipping] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const handleSkip = async () => {
+    setSkipping(true);
+    try {
+      await skipProfile();
+    } catch (err) {
+      console.error(err);
+      setError("Failed to skip. Please try again.");
+    } finally {
+      setSkipping(false);
+    }
+  };
   const [formData, setFormData] = useState({
     firstName: '',
     lastName: '',
@@ -104,12 +117,12 @@ export default function CompleteProfile() {
           <div className="w-16 h-16 bg-primary/20 rounded-2xl flex items-center justify-center mx-auto mb-4">
             <GraduationCap className="w-8 h-8 text-primary" />
           </div>
-          <h2 className="text-2xl font-black text-white mb-2">Complete Your Profile</h2>
-          <p className="text-slate-400 text-sm">Help other teachers find and connect with you.</p>
+          <h2 className="text-2xl font-black text-white mb-2">إكمال الملف الشخصي</h2>
+          <p className="text-slate-400 text-sm">ساعد زملائك الأساتذة في العثور عليك والتواصل معك.</p>
         </div>
 
         {error && (
-          <div className="mb-6 p-4 bg-red-500/10 border border-red-500/20 rounded-2xl text-red-400 text-xs font-bold">
+          <div className="mb-6 p-4 bg-red-500/10 border border-red-500/20 rounded-2xl text-red-400 text-xs font-bold text-center">
             {error}
           </div>
         )}
@@ -132,40 +145,40 @@ export default function CompleteProfile() {
             >
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="text-xs font-black text-slate-500 uppercase tracking-wider mb-2 block">First Name</label>
+                  <label className="text-xs font-black text-slate-500 uppercase tracking-wider mb-2 block">الاسم</label>
                   <input
                     required
                     type="text"
                     value={formData.firstName}
                     onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
-                    className="w-full bg-slate-950 border border-slate-800 rounded-xl py-3 px-4 text-white outline-none focus:ring-2 focus:ring-primary/50 transition-all"
-                    placeholder="First Name"
+                    className="w-full bg-slate-950 border border-slate-800 rounded-xl py-3 px-4 text-white text-right outline-none focus:ring-2 focus:ring-primary/50 transition-all"
+                    placeholder="الاسم"
                   />
                 </div>
                 <div>
-                  <label className="text-xs font-black text-slate-500 uppercase tracking-wider mb-2 block">Last Name</label>
+                  <label className="text-xs font-black text-slate-500 uppercase tracking-wider mb-2 block">اللقب</label>
                   <input
                     required
                     type="text"
                     value={formData.lastName}
                     onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
-                    className="w-full bg-slate-950 border border-slate-800 rounded-xl py-3 px-4 text-white outline-none focus:ring-2 focus:ring-primary/50 transition-all"
-                    placeholder="Last Name"
+                    className="w-full bg-slate-950 border border-slate-800 rounded-xl py-3 px-4 text-white text-right outline-none focus:ring-2 focus:ring-primary/50 transition-all"
+                    placeholder="اللقب"
                   />
                 </div>
               </div>
 
               <div>
-                <label className="text-xs font-black text-slate-500 uppercase tracking-wider mb-2 block">Wilaya (State)</label>
+                <label className="text-xs font-black text-slate-500 uppercase tracking-wider mb-2 block">الولاية</label>
                 <div className="relative">
                   <MapPin className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
                   <select
                     required
                     value={formData.wilaya}
                     onChange={(e) => setFormData({ ...formData, wilaya: e.target.value })}
-                    className="w-full bg-slate-950 border border-slate-800 rounded-xl py-3 pl-12 pr-4 text-white outline-none focus:ring-2 focus:ring-primary/50 transition-all appearance-none"
+                    className="w-full bg-slate-950 border border-slate-800 rounded-xl py-3 pl-12 pr-4 text-white text-right outline-none focus:ring-2 focus:ring-primary/50 transition-all appearance-none"
                   >
-                    <option value="">Select your wilaya</option>
+                    <option value="">اختر ولايتك</option>
                     {WILAYAS.map(w => <option key={w} value={w}>{w}</option>)}
                   </select>
                 </div>
@@ -178,16 +191,16 @@ export default function CompleteProfile() {
               className="space-y-4"
             >
               <div>
-                <label className="text-xs font-black text-slate-500 uppercase tracking-wider mb-2 block">Subject</label>
+                <label className="text-xs font-black text-slate-500 uppercase tracking-wider mb-2 block">المادة الممارسة</label>
                 <div className="relative">
                   <BookOpen className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
                   <select
                     required
                     value={formData.subject}
                     onChange={(e) => setFormData({ ...formData, subject: e.target.value })}
-                    className="w-full bg-slate-950 border border-slate-800 rounded-xl py-3 pl-12 pr-4 text-white outline-none focus:ring-2 focus:ring-primary/50 transition-all appearance-none"
+                    className="w-full bg-slate-950 border border-slate-800 rounded-xl py-3 pl-12 pr-4 text-white text-right outline-none focus:ring-2 focus:ring-primary/50 transition-all appearance-none"
                   >
-                    <option value="">Select your subject</option>
+                    <option value="">اختر المادة</option>
                     {SUBJECTS.map(s => <option key={s} value={s}>{s}</option>)}
                   </select>
                 </div>
@@ -234,23 +247,23 @@ export default function CompleteProfile() {
               </div>
 
               <div>
-                <label className="text-xs font-black text-slate-500 uppercase tracking-wider mb-2 block">Teaching Level</label>
+                <label className="text-xs font-black text-slate-500 uppercase tracking-wider mb-2 block">المرحلة التعليمية</label>
                 <div className="relative">
                   <GraduationCap className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
                   <select
                     required
                     value={formData.level}
                     onChange={(e) => setFormData({ ...formData, level: e.target.value })}
-                    className="w-full bg-slate-950 border border-slate-800 rounded-xl py-3 pl-12 pr-4 text-white outline-none focus:ring-2 focus:ring-primary/50 transition-all appearance-none"
+                    className="w-full bg-slate-950 border border-slate-800 rounded-xl py-3 pl-12 pr-4 text-white text-right outline-none focus:ring-2 focus:ring-primary/50 transition-all appearance-none"
                   >
-                    <option value="">Select level</option>
+                    <option value="">اختر الطور</option>
                     {LEVELS.map(l => <option key={l} value={l}>{l}</option>)}
                   </select>
                 </div>
               </div>
 
               <div>
-                <label className="text-xs font-black text-slate-500 uppercase tracking-wider mb-2 block">Years of Experience</label>
+                <label className="text-xs font-black text-slate-500 uppercase tracking-wider mb-2 block">عدد سنوات الخبرة</label>
                 <div className="relative">
                   <Clock className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
                   <input
@@ -260,7 +273,7 @@ export default function CompleteProfile() {
                     max="50"
                     value={isNaN(formData.yearsOfExperience) ? '' : formData.yearsOfExperience}
                     onChange={(e) => setFormData({ ...formData, yearsOfExperience: e.target.value === '' ? 0 : parseInt(e.target.value) })}
-                    className="w-full bg-slate-950 border border-slate-800 rounded-xl py-3 pl-12 pr-4 text-white outline-none focus:ring-2 focus:ring-primary/50 transition-all"
+                    className="w-full bg-slate-950 border border-slate-800 rounded-xl py-3 pl-12 pr-4 text-white text-right outline-none focus:ring-2 focus:ring-primary/50 transition-all"
                   />
                 </div>
               </div>
@@ -272,24 +285,24 @@ export default function CompleteProfile() {
               className="space-y-4"
             >
               <div>
-                <label className="text-xs font-black text-slate-500 uppercase tracking-wider mb-2 block">Phone Number</label>
+                <label className="text-xs font-black text-slate-500 uppercase tracking-wider mb-2 block">رقم الهاتف</label>
                 <input
                   required
                   type="tel"
                   value={formData.phoneNumber}
                   onChange={(e) => setFormData({ ...formData, phoneNumber: e.target.value })}
-                  className="w-full bg-slate-950 border border-slate-800 rounded-xl py-3 px-4 text-white outline-none focus:ring-2 focus:ring-primary/50 transition-all"
+                  className="w-full bg-slate-950 border border-slate-800 rounded-xl py-3 px-4 text-white text-right outline-none focus:ring-2 focus:ring-primary/50 transition-all"
                   placeholder="0X XX XX XX XX"
                 />
               </div>
               <div>
-                <label className="text-xs font-black text-slate-500 uppercase tracking-wider mb-2 block">Birth Date</label>
+                <label className="text-xs font-black text-slate-500 uppercase tracking-wider mb-2 block">تاريخ الميلاد</label>
                 <input
                   required
                   type="date"
                   value={formData.birthDate}
                   onChange={(e) => setFormData({ ...formData, birthDate: e.target.value })}
-                  className="w-full bg-slate-950 border border-slate-800 rounded-xl py-3 px-4 text-white outline-none focus:ring-2 focus:ring-primary/50 transition-all"
+                  className="w-full bg-slate-950 border border-slate-800 rounded-xl py-3 px-4 text-white text-right outline-none focus:ring-2 focus:ring-primary/50 transition-all"
                 />
               </div>
             </motion.div>
@@ -302,7 +315,7 @@ export default function CompleteProfile() {
                 onClick={() => setStep(step - 1)}
                 className="flex-1 bg-slate-800 hover:bg-slate-700 text-white font-black py-4 rounded-2xl transition-all"
               >
-                Back
+                رجوع
               </button>
             )}
             <button
@@ -314,12 +327,21 @@ export default function CompleteProfile() {
                 <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
               ) : (
                 <>
-                  {step < 3 ? 'Next Step' : 'Finish Setup'}
+                  {step < 3 ? 'الخطوة التالية' : 'إنهاء الإعداد'}
                   <CheckCircle2 className="w-5 h-5 group-hover:scale-110 transition-transform" />
                 </>
               )}
             </button>
           </div>
+          
+          <button
+            type="button"
+            onClick={handleSkip}
+            disabled={loading || skipping}
+            className="w-full mt-4 py-2 text-slate-500 hover:text-slate-300 text-sm font-bold transition-colors disabled:opacity-50"
+          >
+            {skipping ? 'Skipping...' : 'Skip for now (إكمال لاحقاً)'}
+          </button>
         </form>
       </motion.div>
     </div>
