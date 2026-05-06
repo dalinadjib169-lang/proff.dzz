@@ -11,7 +11,6 @@ import {
   Circle, 
   Check,
   GraduationCap, 
-  Award,
   Image as ImageIcon, 
   Smile, 
   Mic, 
@@ -50,7 +49,8 @@ import {
   Users,
   Globe,
   TrendingUp,
-  ShieldAlert
+  ShieldAlert,
+  Heart
 } from 'lucide-react';
 import { db, storage, onConnectionChange } from '../firebase';
 import { collection, query, orderBy, onSnapshot, addDoc, serverTimestamp, where, limit, Timestamp, updateDoc, doc, arrayUnion, arrayRemove, setDoc, writeBatch, getDoc, deleteDoc, getDocs } from 'firebase/firestore';
@@ -62,16 +62,10 @@ import { Link } from 'react-router-dom';
 import { handleFirestoreError, OperationType } from '../lib/firestore-errors';
 import { playSound } from '../lib/sounds';
 import { useUpload } from '../hooks/useUpload';
-import Peer from 'peerjs';
+import AgoraRTC, { IAgoraRTCClient, ICameraVideoTrack, IMicrophoneAudioTrack, IAgoraRTCRemoteUser } from 'agora-rtc-sdk-ng';
 
 import ImageLightbox from './ImageLightbox';
 import { useUnreadMessages } from '../hooks/useUnreadMessages';
-
-declare global {
-  interface Window {
-    JitsiMeetExternalAPI: any;
-  }
-}
 
 interface Message {
   id: string;
@@ -148,9 +142,8 @@ const ChatTrigger = ({ isOpen, setIsOpen, emojiState, activeChat, profile, unrea
         {unreadCount > 0 && !isOpen && (
           <motion.div 
             initial={{ scale: 0 }}
-            animate={{ scale: [1.2, 1, 1.2] }}
-            transition={{ repeat: Infinity, duration: 2 }}
-            className="absolute -top-2 -right-2 w-7 h-7 bg-red-500 text-white rounded-full flex items-center justify-center text-xs font-black border-2 border-slate-900 shadow-[0_0_15px_rgba(239,68,68,0.6)] z-20"
+            animate={{ scale: 1 }}
+            className="absolute -top-1 -right-1 w-6 h-6 bg-red-500 text-white rounded-full flex items-center justify-center text-[10px] font-black border-2 border-slate-900 shadow-lg z-20"
           >
             {unreadCount}
           </motion.div>
@@ -165,14 +158,13 @@ export default function ChatBubble() {
   const { startUpload, activeUploads } = useUpload();
   const unreadCount = useUnreadMessages();
   const [isOpen, setIsOpen] = useState(() => {
-    if (!profile?.uid) return false;
-    const saved = localStorage.getItem(`chat_bubble_open_${profile.uid}`);
+    const saved = localStorage.getItem('chat_bubble_open');
     return saved === 'true';
   });
+
   const [isHidden, setIsHidden] = useState(false);
   const [activeChat, setActiveChat] = useState<UserProfile | null>(() => {
-    if (!profile?.uid) return null;
-    const saved = localStorage.getItem(`active_chat_user_${profile.uid}`);
+    const saved = localStorage.getItem('active_chat_user');
     try {
       return saved ? JSON.parse(saved) : null;
     } catch (e) {
@@ -241,12 +233,16 @@ export default function ChatBubble() {
   const [filterSameSubject, setFilterSameSubject] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [isCalling, setIsCalling] = useState<'video' | 'audio' | null>(null);
-  const peerRef = useRef<Peer | null>(null);
-  const currentCallRef = useRef<any>(null);
+  const [agoraJoined, setAgoraJoined] = useState(false);
+  const agoraJoinedRef = useRef(false);
+  const isJoiningRef = useRef(false);
+  const agoraClientRef = useRef<IAgoraRTCClient | null>(null);
+  const localAudioTrackRef = useRef<IMicrophoneAudioTrack | null>(null);
+  const localVideoTrackRef = useRef<ICameraVideoTrack | null>(null);
+  const remoteUsersRef = useRef<{ [uid: string]: IAgoraRTCRemoteUser }>({});
+  const [incomingCall, setIncomingCall] = useState<any>(null);
   const [localStream, setLocalStream] = useState<MediaStream | null>(null);
   const [remoteStream, setRemoteStream] = useState<MediaStream | null>(null);
-  const incomingCallRef = useRef<any>(null);
-  const [incomingCall, setIncomingCall] = useState<any>(null);
   const [currentCallId, setCurrentCallId] = useState<string | null>(null);
   const localVideoRef = useRef<HTMLVideoElement>(null);
   const remoteVideoRef = useRef<HTMLVideoElement>(null);
@@ -284,20 +280,7 @@ export default function ChatBubble() {
   const [lightboxSrc, setLightboxSrc] = useState<string | null>(null);
   const [selectedMessageId, setSelectedMessageId] = useState<string | null>(null);
   const [replyMessage, setReplyMessage] = useState<any | null>(null);
-  const [showFriendsList, setShowFriendsList] = useState(false);
-  const [selectedImage, setSelectedImage] = useState<File | null>(null);
-  const [imagePreview, setImagePreview] = useState<string | null>(null);
   const pressTimer = useRef<any>(null);
-
-  const getStatusColor = (user: UserProfile) => {
-    if (!user.lastSeen) return 'bg-slate-500';
-    const lastSeenDate = (user.lastSeen as any).toDate ? (user.lastSeen as any).toDate() : new Date(user.lastSeen);
-    const diff = (Date.now() - lastSeenDate.getTime()) / 1000;
-    
-    if (diff < 90) return 'bg-green-400 shadow-[0_0_12px_rgba(74,222,128,0.8)]'; // Online (90s threshold - safer for pulses)
-    if (diff < 600) return 'bg-yellow-400 shadow-[0_0_10px_rgba(250,204,21,0.7)]'; // Recent (10 mins)
-    return 'bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.5)]'; // Offline
-  };
 
   useEffect(() => {
     const handleConnection = (status: boolean) => setIsConnected(status);
@@ -364,10 +347,8 @@ export default function ChatBubble() {
   }, [messages.length, activeChat?.uid, isOpen]);
 
   useEffect(() => {
-    if (profile?.uid) {
-      localStorage.setItem(`chat_bubble_open_${profile.uid}`, isOpen.toString());
-    }
-  }, [isOpen, profile?.uid]);
+    localStorage.setItem('chat_bubble_open', isOpen.toString());
+  }, [isOpen]);
 
   useEffect(() => {
     const handleShowChat = async (e: any) => {
@@ -402,26 +383,12 @@ export default function ChatBubble() {
     );
 
     const unsubscribe = onSnapshot(q, { includeMetadataChanges: true }, (snapshot) => {
-      snapshot.docChanges().forEach(change => {
-        if (change.type === 'added') {
-          const msg = change.doc.data();
-          if (msg.senderId !== profile.uid) {
-            playSound('message');
-            
-            // Only show toast if chat is closed OR active chat is different
-            if (!isOpen || activeChat?.uid !== msg.senderId) {
-               toast(`${msg.senderName}: ${msg.text || 'صورة/صوت ✨'}`, {
-                 icon: '💬',
-                 style: {
-                   borderRadius: '1.2rem',
-                   background: '#15803d', // Green for messages
-                   color: '#fff',
-                 }
-               });
-            }
-          }
-        }
-      });
+      const hasNewMessage = snapshot.docChanges().some(
+        change => change.type === 'added' && change.doc.data().senderId !== profile.uid
+      );
+      if (hasNewMessage) {
+        playSound('message');
+      }
     }, (error) => {
       handleFirestoreError(error, OperationType.LIST, 'messages');
     });
@@ -489,14 +456,12 @@ export default function ChatBubble() {
   }, [isOpen]);
 
   useEffect(() => {
-    if (profile?.uid) {
-      if (activeChat) {
-        localStorage.setItem(`active_chat_user_${profile.uid}`, JSON.stringify(activeChat));
-      } else {
-        localStorage.removeItem(`active_chat_user_${profile.uid}`);
-      }
+    if (activeChat) {
+      localStorage.setItem('active_chat_user', JSON.stringify(activeChat));
+    } else {
+      localStorage.removeItem('active_chat_user');
     }
-  }, [activeChat, profile?.uid]);
+  }, [activeChat]);
 
   // Mark messages as seen (VU) - Optimized with writeBatch for real-time performance
   useEffect(() => {
@@ -603,6 +568,7 @@ export default function ChatBubble() {
     // Reminders are now handled via system events or triggers rather than polling
   }, [profile]);
 
+  // Update lastSeen periodically when using the chat
   useEffect(() => {
     if (!profile?.uid) return;
     
@@ -611,7 +577,8 @@ export default function ChatBubble() {
       try {
         if (profile?.uid) {
           await updateDoc(doc(db, 'users', profile.uid), {
-            lastSeen: serverTimestamp()
+            lastSeen: serverTimestamp(),
+            // No more peerId needed for Agora
           });
         }
       } catch (err) {
@@ -620,177 +587,181 @@ export default function ChatBubble() {
     };
 
     updateStatus();
-    const interval = setInterval(updateStatus, 20000); // Pulse every 20 seconds for high accuracy
+    const interval = setInterval(updateStatus, 60000); // Pulse every minute
     
-    const peer = new Peer(profile.uid, {
-      debug: 1,
-      config: {
-        iceServers: [
-          { urls: 'stun:stun.l.google.com:19302' },
-          { urls: 'stun:stun1.l.google.com:19302' },
-          { urls: 'stun:stun2.l.google.com:19302' }
-        ]
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible' && profile?.uid) {
+        console.log('App visible, checking signaling connection...');
       }
-    });
-
-    peerRef.current = peer;
-
-    peer.on('open', (id) => {
-      console.log('PeerJS: Connected with ID:', id);
-    });
-
-    peer.on('call', async (call) => {
-      console.log('PeerJS: Incoming call from:', call.peer);
-      currentCallRef.current = call;
-      
-      // Auto-answer if the user already clicked Accept OR if the call is already marked accepted in Firestore
-      // Use a slightly buffered check for incomingCallRef
-      if (incomingCallRef.current?.status === 'accepted' || incomingCallRef.current?.status === 'connected') {
-         const stream = await setupStreams(incomingCallRef.current.type);
-         if (stream) {
-           console.log('PeerJS: Answering call automatically...');
-           call.answer(stream);
-           call.on('stream', (rStream: MediaStream) => setRemoteStream(rStream));
-         }
-      }
-    });
+    };
+    document.addEventListener('visibilitychange', handleVisibilityChange);
 
     return () => {
       clearInterval(interval);
-      if (peerRef.current) {
-        peerRef.current.destroy();
-        peerRef.current = null;
-      }
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
   }, [profile?.uid]);
 
-  // Monitor Outgoing Calls
-  useEffect(() => {
-    if (!currentCallId || !profile?.uid) return;
+  const leaveAgora = async () => {
+    if (isJoiningRef.current) {
+       console.warn("Agora: Attempted to leave while joining, waiting...");
+       // Busy wait or just flag it? Better to prevent.
+    }
+    
+    if (localAudioTrackRef.current) {
+      localAudioTrackRef.current.stop();
+      localAudioTrackRef.current.close();
+      localAudioTrackRef.current = null;
+    }
+    if (localVideoTrackRef.current) {
+      localVideoTrackRef.current.stop();
+      localVideoTrackRef.current.close();
+      localVideoTrackRef.current = null;
+    }
+    if (agoraClientRef.current) {
+      try {
+        await agoraClientRef.current.leave();
+      } catch(e) {}
+      agoraClientRef.current = null;
+    }
+    setAgoraJoined(false);
+    agoraJoinedRef.current = false;
+    remoteUsersRef.current = {};
+    setRemoteStream(null);
+  };
 
-    const unsubscribe = onSnapshot(doc(db, 'calls', currentCallId), async (snapshot) => {
-      if (!snapshot.exists()) {
-        endCall();
-        return;
-      }
+   const joinAgoraChannel = async (channelName: string, uid: string, type: 'video' | 'audio') => {
+    // Priority: hardcoded new ID if env is missing or default
+    const HARDCODED_ID = 'bf4c0915140644f1a0e6396f3ee59e83';
+    const envAppId = (import.meta as any).env.VITE_AGORA_APP_ID;
+    const appId = (envAppId && envAppId !== 'MY_AGORA_APP_ID' ? envAppId.trim() : HARDCODED_ID);
+    
+    const envToken = (import.meta as any).env.VITE_AGORA_TOKEN;
+    const token = (envToken && typeof envToken === 'string' && envToken.trim() !== '' && envToken !== 'MY_AGORA_TOKEN') ? envToken.trim() : null;
+    
+    if (!appId || appId === 'MY_AGORA_APP_ID') {
+      toast.error("Agora App ID missing or invalid");
+      return;
+    }
 
-      const call = { id: snapshot.id, ...snapshot.data() as any };
+    if (agoraJoinedRef.current || isJoiningRef.current) {
+      return;
+    }
 
-      if (call.status === 'rejected' || call.status === 'ended') {
-        toast(call.status === 'rejected' ? "تم رفض المكالمة" : "انتهت المكالمة");
-        endCall();
-      }
-
-      if (call.status === 'accepted' && peerRef.current) {
-        stopRingtone();
-        if (localStream) {
-          console.log('PeerJS: Calling recipient...', call.recipientId);
-          const outCall = peerRef.current.call(call.recipientId, localStream);
-          currentCallRef.current = outCall;
-          outCall.on('stream', (rStream) => {
-            console.log('PeerJS: Received remote stream');
-            setRemoteStream(rStream);
-          });
-          
-          await updateDoc(doc(db, 'calls', call.id), { status: 'connected' });
-        }
-      }
+    console.log("Agora: JOIN CONFIG", { 
+      appId, 
+      channel: channelName, 
+      uid, 
+      hasToken: !!token
     });
 
-    return () => unsubscribe();
-  }, [currentCallId, localStream, profile?.uid]);
-
-  const setupStreams = async (type: 'video' | 'audio') => {
+    isJoiningRef.current = true;
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: type === 'video',
-        audio: true
-      });
-      setLocalStream(stream);
-      return stream;
-    } catch (err) {
-      toast.error("يرجى تفعيل أذونات الكاميرا والميكروفون.");
-      return null;
-    }
-  };
+      const client = AgoraRTC.createClient({ mode: 'rtc', codec: 'vp8' });
+      agoraClientRef.current = client;
 
-  const handleStartCall = async (type: 'audio' | 'video') => {
-    if (!profile || !activeChat) return;
-
-    const stream = await setupStreams(type);
-    if (!stream) return;
-
-    try {
-      setIsCalling(type);
-      
-      if (!ringtoneRef.current) {
-        ringtoneRef.current = playSound('ringtone', true);
-      }
-
-      const callDoc = await addDoc(collection(db, 'calls'), {
-        senderId: profile.uid,
-        senderName: profile.displayName,
-        senderPhoto: profile.photoURL || null,
-        recipientId: activeChat.uid,
-        type,
-        status: 'ringing',
-        createdAt: serverTimestamp()
-      });
-      setCurrentCallId(callDoc.id);
-
-      // Timeout for no answer
-      setTimeout(async () => {
-        const docSnap = await getDoc(doc(db, 'calls', callDoc.id));
-        if (docSnap.exists() && docSnap.data().status === 'ringing') {
-          await updateDoc(doc(db, 'calls', callDoc.id), { status: 'missed' });
-          endCall();
+      client.on('user-published', async (user, mediaType) => {
+        await client.subscribe(user, mediaType);
+        if (mediaType === 'video') {
+          const remoteVideoTrack = user.videoTrack;
+          if (remoteVideoTrack) {
+            const ms = new MediaStream([remoteVideoTrack.getMediaStreamTrack()]);
+            setRemoteStream(ms);
+          }
         }
-      }, 45000);
+        if (mediaType === 'audio') {
+          user.audioTrack?.play();
+        }
+      });
 
-    } catch (err: any) {
-      toast.error("فشل بدء المكالمة.");
-      endCall();
-    }
-  };
+      client.on('user-unpublished', (user) => {
+        setRemoteStream(null);
+      });
 
-  const handleAcceptCall = async () => {
-    if (!incomingCall) return;
-    
-    const stream = await setupStreams(incomingCall.type);
-    if (!stream) return;
-
-    stopRingtone(); 
-
-    try {
-      setIsOpen(true);
-      setIsCalling(incomingCall.type);
-
-      await updateDoc(doc(db, 'calls', incomingCall.id), { status: 'accepted' });
-
-      if (currentCallRef.current) {
-        currentCallRef.current.answer(stream);
-        currentCallRef.current.on('stream', (rStream: MediaStream) => {
-          setRemoteStream(rStream);
-        });
+      // Passing token if available, otherwise null (requires project to be in 'App ID' only mode)
+      await client.join(appId, channelName, token, uid);
+      console.log("Agora: JOINED SUCCESSFULLY");
+      
+      const audioTrack = await AgoraRTC.createMicrophoneAudioTrack().catch(e => {
+        console.error("Agora: Mic track failed", e);
+        return null;
+      });
+      
+      if (audioTrack) {
+        localAudioTrackRef.current = audioTrack;
+        await client.publish([audioTrack]);
       }
       
+      if (type === 'video') {
+        const videoTrack = await AgoraRTC.createCameraVideoTrack().catch(e => {
+          console.error("Agora: Cam track failed", e);
+          return null;
+        });
+        if (videoTrack) {
+          localVideoTrackRef.current = videoTrack;
+          await client.publish([videoTrack]);
+          const tracks = [videoTrack.getMediaStreamTrack()];
+          if (audioTrack) tracks.push(audioTrack.getMediaStreamTrack());
+          setLocalStream(new MediaStream(tracks));
+        }
+      } else if (audioTrack) {
+        setLocalStream(new MediaStream([audioTrack.getMediaStreamTrack()]));
+      }
+      
+      setAgoraJoined(true);
+      agoraJoinedRef.current = true;
+      console.log("Agora joined and published successfully");
     } catch (err: any) {
-      console.error("Accept call error:", err);
-      toast.error("حدث خطأ أثناء قبول المكالمة");
-      endCall();
+      if (err.code === 'OPERATION_ABORTED' || err.message?.includes('OPERATION_ABORTED') || err.message?.includes('cancel token canceled')) {
+        console.warn("Agora: Join process interrupted/aborted.");
+        return;
+      }
+      
+      console.error("Agora join ERROR details:", JSON.stringify(err, null, 2));
+      console.error("Agora full error message:", err.message);
+      
+      const isDynamicError = err.message?.includes('dynamic use static key') || err.code === 'CAN_NOT_GET_GATEWAY_SERVER' || err.message?.includes('4096');
+      
+      if (isDynamicError) {
+        const truncatedId = appId.substring(0, 6) + "...";
+        toast.error(`خطأ Security: مشروع Agora (${truncatedId}) يتطلب Token. يرجى الضغط على زر الحذف بجانب "Primary Certificate" في موقع Agora أو إنشاء مشروع جديد بنمط Testing Mode.`);
+        console.warn("SOLUTION: Go to Agora Console -> Project -> Disable (Delete) Primary Certificate. Currently using ID:", appId);
+      } else {
+        toast.error(`خطأ في Agora: ${err.message || 'تعذر الاتصال'}`);
+      }
+      
+      // Clean up if join failed partially
+      await leaveAgora();
+    } finally {
+      isJoiningRef.current = false;
     }
   };
 
-  const handleRejectCall = async () => {
-    if (!incomingCall) return;
-    stopRingtone();
-    try {
-      await updateDoc(doc(db, 'calls', incomingCall.id), { status: 'rejected' });
-      setIncomingCall(null);
-    } catch (e) {
-      console.error(e);
-      setIncomingCall(null);
+  useEffect(() => {
+    if (!profile) return;
+
+    return () => {
+      leaveAgora();
+    };
+  }, [profile?.uid]);
+
+  const endCall = async () => {
+    if (currentCallId) {
+      await updateDoc(doc(db, 'calls', currentCallId), { status: 'ended' }).catch(console.error);
+      setCurrentCallId(null);
     }
+    if (incomingCall?.id) {
+      await updateDoc(doc(db, 'calls', incomingCall.id), { status: 'ended' }).catch(console.error);
+    }
+    
+    stopRingtone();
+
+    setIsCalling(null);
+    setIncomingCall(null);
+    setLocalStream(null);
+    setRemoteStream(null);
+    
+    await leaveAgora();
   };
 
   // Handle Incoming Calls
@@ -799,7 +770,7 @@ export default function ChatBubble() {
     const q = query(
       collection(db, 'calls'),
       where('recipientId', '==', profile.uid),
-      where('status', 'in', ['ringing', 'accepted', 'connected']),
+      where('status', 'in', ['ringing', 'accepted']),
       limit(1)
     );
 
@@ -807,7 +778,6 @@ export default function ChatBubble() {
       if (!snapshot.empty) {
         const callData = { id: snapshot.docs[0].id, ...snapshot.docs[0].data() as any };
         setIncomingCall(callData);
-        incomingCallRef.current = callData;
         
         // Handle ringtone based on status
         if (callData.status === 'ringing' && !isCalling) {
@@ -854,16 +824,15 @@ export default function ChatBubble() {
       if (!snapshot.empty) {
         const call = { id: snapshot.docs[0].id, ...snapshot.docs[0].data() as any };
         
-        if (call.status === 'accepted' && peerRef.current) {
-          stopRingtone(); 
-          if (localStream) {
-            const outCall = peerRef.current.call(call.recipientId, localStream);
-            currentCallRef.current = outCall;
-            outCall.on('stream', (rStream) => setRemoteStream(rStream));
-          }
+        if (call.status === 'accepted' && !agoraJoined) {
+          stopRingtone(); // Stop dial tone for caller
+          await joinAgoraChannel(call.channelName, profile.uid, call.type);
           await updateDoc(doc(db, 'calls', call.id), { status: 'connected' });
         } else if (call.status === 'rejected' || call.status === 'ended' || call.status === 'failed') {
           stopRingtone();
+          if (call.status === 'failed') {
+            toast.error("فشل تأسيس الاتصال المشفر بين الجهازين.");
+          }
           endCall();
         } else if (call.status === 'connected') {
           stopRingtone();
@@ -874,7 +843,7 @@ export default function ChatBubble() {
     });
 
     return unsubscribe;
-  }, [profile, isCalling]);
+  }, [profile, isCalling, localStream]);
 
   useEffect(() => {
     if (!profile?.uid || !activeChat?.uid) {
@@ -1015,12 +984,15 @@ export default function ChatBubble() {
 
   const handleAcceptRequest = async () => {
     if (!friendRequest) return;
+    setIsAccepting(true);
     try {
       await updateDoc(doc(db, 'invitations', friendRequest.id), { status: 'accepted' });
-      setIsFriend(true);
+      // Optimization: No need to manually setIsFriend(true), the onSnapshot listener will handle it.
       playSound('notification');
     } catch (e) {
       console.error("Error accepting request:", e);
+    } finally {
+      setIsAccepting(false);
     }
   };
 
@@ -1162,6 +1134,96 @@ export default function ChatBubble() {
     }
   };
 
+  const handleStartCall = async (type: 'audio' | 'video') => {
+    if (!profile || !activeChat) return;
+
+    try {
+      setIsCalling(type);
+
+      // Start ringing for caller (dial tone)
+      if (!ringtoneRef.current) {
+        ringtoneRef.current = playSound('ringtone', true);
+      }
+
+      const channelName = `call_${profile.uid}_${Date.now()}`;
+      const callDoc = await addDoc(collection(db, 'calls'), {
+        senderId: profile.uid,
+        senderName: profile.displayName,
+        senderPhoto: profile.photoURL || null,
+        recipientId: activeChat.uid,
+        type,
+        status: 'ringing',
+        channelName,
+        createdAt: serverTimestamp()
+      });
+      setCurrentCallId(callDoc.id);
+      
+      // Auto-timeout after 60 seconds if not answered
+      setTimeout(async () => {
+        try {
+          const docRef = doc(db, 'calls', callDoc.id);
+          const docSnap = await getDoc(docRef);
+          if (docSnap.exists() && docSnap.data().status === 'ringing') {
+            await updateDoc(docRef, { status: 'missed' });
+            toast.error("لم يتم الرد على الاتصال.");
+            endCall();
+          }
+        } catch (e) {
+          console.error("Call timeout error:", e);
+        }
+      }, 60000);
+      
+      console.log('Call document created:', callDoc.id, 'Waiting for recipient to accept...');
+
+    } catch (err: any) {
+      console.error("Call error:", err);
+      stopRingtone();
+      toast.error("تعذر بدء المكالمة. يرجى التأكد من استقرار الإنترنت.");
+      endCall();
+    }
+  };
+
+  const handleAcceptCall = async () => {
+    if (!incomingCall) return;
+    
+    stopRingtone(); 
+
+    try {
+      setIsCalling(incomingCall.type);
+      await updateDoc(doc(db, 'calls', incomingCall.id), { 
+        status: 'accepted'
+      });
+
+      toast.loading("جاري تأسيس الاتصال الآمن...", { id: 'call-negotiating' });
+      await joinAgoraChannel(incomingCall.channelName, profile.uid, incomingCall.type);
+      toast.dismiss('call-negotiating');
+
+      // Mark as connected once Agora is joined
+      await updateDoc(doc(db, 'calls', incomingCall.id), { 
+        status: 'connected'
+      });
+
+    } catch (err: any) {
+      console.error("Accept call error:", err);
+      toast.error("فشل قبول المكالمة.");
+      endCall();
+    }
+  };
+
+  const handleRejectCall = async () => {
+    if (!incomingCall) return;
+    stopRingtone();
+    try {
+      await updateDoc(doc(db, 'calls', incomingCall.id), { status: 'rejected' });
+      setIncomingCall(null);
+    } catch (e) {
+      console.error(e);
+      setIncomingCall(null);
+    }
+  };
+
+
+
   const getSubjectIcon = (subject: string) => {
     const s = subject.toLowerCase();
     if (s.includes('رياضيات') || s.includes('math')) return <Compass className="w-3 h-3" />;
@@ -1179,86 +1241,10 @@ export default function ChatBubble() {
     return <GraduationCap className="w-3 h-3" />;
   };
 
-  const endCall = async () => {
-    if (currentCallId) {
-      await updateDoc(doc(db, 'calls', currentCallId), { status: 'ended' }).catch(console.error);
-      setCurrentCallId(null);
-    }
-    if (incomingCall?.id) {
-      await updateDoc(doc(db, 'calls', incomingCall.id), { status: 'ended' }).catch(console.error);
-    }
-    
-    stopRingtone();
-
-    if (currentCallRef.current) {
-      currentCallRef.current.close();
-    }
-
-    if (localStream) {
-      localStream.getTracks().forEach(t => t.stop());
-      setLocalStream(null);
-    }
-
-    setRemoteStream(null);
-    setIsCalling(null);
-    setIncomingCall(null);
-  };
-
-
-
-  const cancelImageSelection = () => {
-    setSelectedImage(null);
-    setImagePreview(null);
-    if (fileInputRef.current) fileInputRef.current.value = '';
-  };
-
-  const uploadSelectedImage = async () => {
-    if (!selectedImage || !activeChat || !profile) return;
-    
-    setIsUploading(true);
-    const fileToUpload = selectedImage;
-
-    try {
-      const participants = [profile.uid, activeChat.uid].sort();
-      const roomId = activeChat.uid === 'global' ? 'global' : participants.join('_');
-
-      await startUpload(fileToUpload, 'message', {
-        senderId: profile.uid,
-        senderName: profile.displayName,
-        recipientId: activeChat.uid,
-        roomId,
-        text: '',
-        seen: false
-      });
-      
-      cancelImageSelection();
-      playSound('message');
-      toast.success("تم إرسال الصورة بنجاح");
-    } catch (err) {
-      console.error(err);
-      toast.error("فشل رفع الصورة.");
-    } finally {
-      setIsUploading(false);
-    }
-  };
-
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      if (!file.type.startsWith('image/')) {
-        toast.error("يرجى اختيار ملف صورة فقط.");
-        return;
-      }
-      if (file.size > 5 * 1024 * 1024) {
-        toast.error("حجم الملف كبير جداً (الأقصى 5MB)");
-        return;
-      }
-      setSelectedImage(file);
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setImagePreview(reader.result as string);
-      };
-      reader.readAsDataURL(file);
+      handleSendMessage(null as any, file.type.startsWith('image') ? 'image' : 'text', file);
     }
   };
 
@@ -1329,8 +1315,8 @@ export default function ChatBubble() {
     if (!lastSeen) return false;
     try {
       const lastSeenDate = lastSeen.toDate ? lastSeen.toDate() : new Date(lastSeen);
-      // Increased tolerance to 3 minutes for better responsiveness despite network jitters
-      return Date.now() - lastSeenDate.getTime() < 180000;
+      // Increased tolerance to 10 minutes for better stability
+      return Date.now() - lastSeenDate.getTime() < 600000;
     } catch (e) {
       return false;
     }
@@ -1340,8 +1326,8 @@ export default function ChatBubble() {
     if (!text) return '';
     const cleanText = text.trim();
     const map: Record<string, string> = {
-      'رياضيات': 'MATH',
-      'Mathematics': 'MATH',
+      'رياضيات': 'Math',
+      'Mathematics': 'Math',
       'فرنسية': 'FRE',
       'الفرنسية': 'FRE',
       'French': 'FRE',
@@ -1349,34 +1335,29 @@ export default function ChatBubble() {
       'Physics': 'PHY',
       'متوسط': 'CEM',
       'CEM': 'CEM',
-      'التعليم المتوسط': 'CEM',
       'Middle School': 'CEM',
       'الطور المتوسط': 'CEM',
       'ثانوي': 'SEC',
       'SEC': 'SEC',
-      'التعليم الثانوي': 'SEC',
       'Secondary School': 'SEC',
       'الطور الثانوي': 'SEC',
       'ابتدائي': 'PRI',
       'Primary School': 'PRI',
       'الطور الابتدائي': 'PRI',
-      'التعليم الابتدائي': 'PRI',
       'علوم الطبيعة': 'SVT',
       'العلوم': 'SCI',
       'Science': 'SCI',
       'SVT': 'SVT',
-      'إنجليزية': 'ENG',
+      'انجليزية': 'ENG',
       'الإنجليزية': 'ENG',
       'English': 'ENG',
-      'عربية': 'ARB',
-      'العربية': 'ARB',
-      'Arabic': 'ARB',
-      'تاريخ': 'HIS',
-      'جغرافيا': 'GEO',
-      'إسلامية': 'ISL',
+      'عربية': 'ARA',
+      'اللغة العربية': 'ARA',
+      'Arabic': 'ARA',
       'فلسفة': 'PHI',
-      'رياضة': 'SPT',
-      'اللغة العربية': 'ARB'
+      'تاريخ': 'H-G',
+      'إسلامية': 'ISL',
+      'رياضة': 'SPT'
     };
 
     if (map[cleanText]) return map[cleanText];
@@ -1390,7 +1371,62 @@ export default function ChatBubble() {
     return cleanText;
   };
 
-  if (!profile || isHidden || !profile.isProfileComplete) return null;
+  const [isFriendsListOpen, setIsFriendsListOpen] = useState(false);
+  const [friends, setFriends] = useState<any[]>([]);
+  const [isAccepting, setIsAccepting] = useState(false);
+
+  useEffect(() => {
+    if (!profile?.uid) return;
+    
+    // In a real app, you'd fetch your following/friends
+    // For this context, we'll listen to the last 20 active users
+    const q = query(
+      collection(db, 'users'),
+      orderBy('lastSeen', 'desc'),
+      limit(20)
+    );
+
+    const unsubscribe = onSnapshot(q, (snap) => {
+      const activeUsers = snap.docs
+        .map(doc => ({ uid: doc.id, ...doc.data() }))
+        .filter(u => u.uid !== profile.uid);
+      setFriends(activeUsers);
+    });
+
+    return unsubscribe;
+  }, [profile?.uid]);
+
+  const getStatus = (lastSeen: any) => {
+    if (!lastSeen) return 'offline';
+    const lastSeenDate = lastSeen.toDate ? lastSeen.toDate() : new Date(lastSeen);
+    const diff = Date.now() - lastSeenDate.getTime();
+    if (diff < 300000) return 'online'; // 5 mins
+    if (diff < 3600000) return 'idle';   // 1 hour
+    return 'offline';
+  };
+
+  const getStatusColor = (lastSeen: any) => {
+    const status = getStatus(lastSeen);
+    switch (status) {
+      case 'online': return 'bg-green-500';
+      case 'idle': return 'bg-yellow-500'; 
+      default: return 'bg-red-500';
+    }
+  };
+
+  const formatLastSeenTime = (lastSeen: any) => {
+    if (!lastSeen) return 'غير معلوم';
+    const date = lastSeen.toDate ? lastSeen.toDate() : new Date(lastSeen);
+    const diff = Math.floor((Date.now() - date.getTime()) / 60000);
+    if (diff < 1) return 'الآن';
+    if (diff < 60) return `${diff}د`;
+    if (diff < 1440) return `${Math.floor(diff / 60)}سا`;
+    return `${Math.floor(diff / 1440)}ي`;
+  };
+
+  const isImageModalOpen = false; // Placeholder if needed
+
+  if (!profile) return null;
 
   return (
     <div className={`fixed bottom-32 right-4 sm:bottom-8 sm:right-8 z-[150]`}>
@@ -1415,30 +1451,33 @@ export default function ChatBubble() {
             <div className={`shrink-0 bg-slate-900/60 backdrop-blur-xl border-b border-white/10 transition-all ${isMobile && isKeyboardOpen ? 'p-1' : 'p-2 sm:p-3'}`}>
               {activeChat ? (
                 <div className="flex items-center gap-2 sm:gap-4 h-14 sm:h-16" dir="rtl">
-                  {/* Identity Section (Right) - Click to close */}
+                  {/* Identity Section (Right) */}
                   <div 
                     onClick={() => setIsOpen(false)}
-                    className={`flex items-center gap-1.5 sm:gap-2 min-w-0 bg-white/5 hover:bg-white/10 cursor-pointer rounded-2xl p-1 sm:p-1.5 pr-2 border border-white/10 shadow-lg flex-shrink-0 transition-all active:scale-95 ${isMobile && isKeyboardOpen ? 'max-w-[120px]' : ''}`}
+                    className={`flex items-center gap-1.5 sm:gap-2 min-w-0 bg-white/5 hover:bg-red-500/10 rounded-2xl p-1 sm:p-1.5 pr-2 border border-white/10 hover:border-red-500/30 shadow-lg flex-shrink-0 cursor-pointer transition-all active:scale-95 group/profile ${isMobile && isKeyboardOpen ? 'max-w-[120px]' : ''}`}
                   >
                     <div className="relative flex-shrink-0">
                       <img 
                         src={activeChat.photoURL} 
-                        className={`rounded-xl object-cover border border-white/20 shadow-xl ${isMobile && isKeyboardOpen ? 'w-8 h-8' : 'w-10 h-10 sm:w-11 sm:h-11'}`} 
+                        className={`rounded-xl object-cover border border-white/20 shadow-xl group-hover/profile:border-red-500/50 ${isMobile && isKeyboardOpen ? 'w-8 h-8' : 'w-10 h-10 sm:w-11 sm:h-11'}`} 
                         referrerPolicy="no-referrer"
                         alt={activeChat.displayName}
                       />
-                      <div className={`absolute -bottom-0.5 -right-0.5 rounded-full border-2 border-slate-900 ${getStatusColor(activeChat)} ${isMobile && isKeyboardOpen ? 'w-2.5 h-2.5' : 'w-3 h-3'}`}></div>
+                      <div className={`absolute -bottom-0.5 -right-0.5 rounded-full border-2 border-slate-900 ${isOnline(activeChat.uid === 'global' ? null : activeChat.lastSeen) ? 'bg-green-500' : 'bg-slate-500'} ${isMobile && isKeyboardOpen ? 'w-2.5 h-2.5' : 'w-3 h-3'}`}></div>
+                      <div className="absolute inset-0 bg-red-500/0 group-hover/profile:bg-red-500/10 rounded-xl transition-all flex items-center justify-center">
+                        <X className="w-5 h-5 text-white opacity-0 group-hover/profile:opacity-100 transition-opacity" />
+                      </div>
                     </div>
                     <div className="min-w-0 flex flex-col justify-center text-right">
                       <div className="flex items-center gap-1 min-w-0">
-                        <h4 className={`font-black text-white truncate leading-tight ${isMobile && isKeyboardOpen ? 'text-[9px]' : 'text-[11px] sm:text-sm max-w-[100px]'}`}>
+                        <h4 className={`font-black text-white truncate leading-tight group-hover/profile:text-red-400 ${isMobile && isKeyboardOpen ? 'text-[9px]' : 'text-[11px] sm:text-sm max-w-[100px]'}`}>
                           {activeChat.displayName}
                         </h4>
                         {!isConnected && <span className="w-1.5 h-1.5 bg-yellow-400 rounded-full animate-pulse"></span>}
                       </div>
                       {!isKeyboardOpen && (
                         <div className="flex items-center gap-1 mt-0.5 opacity-60">
-                           <span className={`w-1.5 h-1.5 rounded-full ${getStatusColor(activeChat)}`}></span>
+                           <span className={`w-1.5 h-1.5 rounded-full ${isOnline(activeChat.uid === 'global' ? true : activeChat.lastSeen) ? 'bg-green-400' : 'bg-slate-500'}`}></span>
                            <p className="text-[8px] sm:text-[9px] font-black text-white uppercase tracking-tighter">
                              {activeChat.uid === 'global' ? 'بث مباشر' : (isOnline(activeChat.lastSeen) ? 'متصل' : 'أوفلاين')}
                            </p>
@@ -1447,203 +1486,211 @@ export default function ChatBubble() {
                     </div>
                   </div>
 
-
-                  {/* Info Section (Center) - Compact & High Visibility */}
-                  <div className="flex-1 flex flex-col justify-center gap-1 px-1.5 border-r border-white/5 min-w-0" dir="rtl">
-                    <div className="flex items-center gap-2">
-                      <div className="flex items-center gap-1 min-w-0">
-                        <div className="w-3.5 h-3.5 rounded-sm bg-blue-500/20 flex items-center justify-center flex-shrink-0 border border-blue-500/20">
-                          {activeChat.uid === 'global' ? <Globe className="w-1.5 h-1.5 text-blue-400" /> : getSubjectIcon(activeChat.subject || '')}
-                      </div>
-                      <p className="text-[10px] font-black text-blue-300 truncate max-w-[45px] uppercase tracking-tighter">
-                        {activeChat.uid === 'global' ? 'GLOBAL' : getAbbreviated(activeChat.subject || 'مادة')}
-                      </p>
-                    </div>
-                    <div className="flex items-center gap-0.5 min-w-0">
-                      <div className="w-3.5 h-3.5 rounded-sm bg-emerald-500/20 flex items-center justify-center flex-shrink-0 border border-emerald-500/20">
+                  {/* Info Grid Section (Center) */}
+                  <div className="flex-1 grid grid-cols-2 gap-x-2 gap-y-1 px-1 border-r border-white/5 min-w-0" dir="rtl">
+                    <div className="flex items-center gap-1 min-w-0">
+                      <div className="w-3.5 h-3.5 rounded bg-emerald-500/20 flex items-center justify-center flex-shrink-0">
                         <GraduationCap className="w-2 h-2 text-emerald-400" />
                       </div>
-                      <p className="text-[10px] font-black text-emerald-300 truncate max-w-[45px] uppercase tracking-tighter">
-                        {activeChat.uid === 'global' ? 'DZ' : getAbbreviated(activeChat.level || 'تعليم')}
-                      </p>
+                      <span className="text-[10px] font-black text-emerald-300/80 leading-none h-3 whitespace-nowrap">
+                        {activeChat.uid === 'global' ? 'Dz' : getAbbreviated(activeChat.level || 'CEM')}
+                      </span>
                     </div>
-                  </div>
-                  
-                  <div className="flex items-center gap-1.5">
-                    <div className="flex items-center gap-0.5 min-w-0">
-                      <div className="w-3.5 h-3.5 rounded-sm bg-purple-500/20 flex items-center justify-center flex-shrink-0 border border-purple-500/20">
-                        <Award className="w-2 h-2 text-purple-400" />
+
+                    <div className="flex items-center gap-1 min-w-0">
+                      <div className="w-3.5 h-3.5 rounded bg-blue-500/20 flex items-center justify-center flex-shrink-0">
+                        {activeChat.uid === 'global' ? <Globe className="w-1.5 h-1.5 text-blue-400" /> : getSubjectIcon(activeChat.subject || '')}
                       </div>
-                      <p className="text-[10px] font-black text-purple-300 whitespace-nowrap uppercase tracking-tighter">
-                        {activeChat.yearsOfExperience ? `${activeChat.yearsOfExperience}Y` : 'NEW'}
-                      </p>
+                      <span className="text-[10px] font-black text-blue-300/80 leading-none h-3 whitespace-nowrap">
+                        {activeChat.uid === 'global' ? 'Math' : getAbbreviated(activeChat.subject || 'Math')}
+                      </span>
                     </div>
-                    <div className="flex items-center gap-0.5 min-w-0">
-                      <div className="w-3.5 h-3.5 rounded-sm bg-amber-500/20 flex items-center justify-center flex-shrink-0 border border-amber-500/20">
+
+                    <div className="flex items-center gap-1 min-w-0">
+                      <div className="w-3.5 h-3.5 rounded bg-amber-500/20 flex items-center justify-center flex-shrink-0">
                         <MapPin className="w-2 h-2 text-amber-400" />
                       </div>
-                      <p className="text-[10px] font-black text-amber-300 truncate max-w-[35px] uppercase tracking-tighter">
-                        {activeChat.uid === 'global' ? 'DZ' : (activeChat.wilaya?.split(' ')[0] || 'Wilaya')}
-                      </p>
+                      <span className="text-[10px] font-black text-amber-300/80 leading-none h-3 whitespace-nowrap">
+                        {activeChat.uid === 'global' ? '16' : (activeChat.wilaya?.split(' ')[0] || '16')}
+                      </span>
                     </div>
+
+                    <div className="flex items-center gap-1 min-w-0">
+                      <div className="w-3.5 h-3.5 rounded bg-purple-500/20 flex items-center justify-center flex-shrink-0">
+                        <Clock className="w-2 h-2 text-purple-400" />
+                      </div>
+                      <span className="text-[9px] font-black text-purple-300/80 leading-none h-3 whitespace-nowrap font-bold">
+                        {activeChat.uid === 'global' ? '1 Exp' : `${activeChat.yearsOfExperience || 1} Exp`}
+                      </span>
                     </div>
                   </div>
 
                   {/* Actions Section (Left) */}
-                  <div className="flex items-center gap-1 sm:gap-1.5 flex-shrink-0 mr-auto">
+                  <div className="flex items-center gap-1.5 sm:gap-2 flex-shrink-0 mr-auto">
                     {activeChat.uid !== 'global' && (
-                      <div className="flex items-center gap-1 bg-white/5 p-0.5 rounded-lg border border-white/10">
+                      <div className="flex items-center gap-1.5 bg-white/5 p-1 rounded-xl border border-white/10">
                         <button 
                           onClick={() => handleStartCall('audio')}
-                          className="p-1 rounded-md bg-emerald-500 text-white shadow-sm active:scale-95 transition-all hover:bg-emerald-600 flex items-center justify-center transform scale-90"
+                          className="flex flex-col items-center gap-1 p-1 sm:p-1.5 rounded-lg bg-emerald-500 text-white shadow-lg active:scale-90 transition-all hover:bg-emerald-600"
                           title="صوتي"
                         >
-                          <Phone className="w-3 h-3" />
+                          <Phone className="w-3.5 h-3.5" />
                         </button>
                         <button 
                           onClick={() => handleStartCall('video')}
-                          className="p-1 rounded-md bg-indigo-500 text-white shadow-sm active:scale-95 transition-all hover:bg-indigo-600 flex items-center justify-center transform scale-90"
+                          className="flex flex-col items-center gap-1 p-1 sm:p-1.5 rounded-lg bg-indigo-500 text-white shadow-lg active:scale-90 transition-all hover:bg-indigo-600"
                           title="فيديو"
                         >
-                          <Video className="w-3 h-3" />
+                          <Video className="w-3.5 h-3.5" />
                         </button>
                       </div>
                     )}
                     
-                    <div className="flex items-center gap-1">
-                      <button 
-                        onClick={() => setShowFriendsList(!showFriendsList)}
-                        className={`p-1 rounded-lg border transition-all active:scale-95 transform scale-90 ${showFriendsList ? 'bg-purple-600 text-white border-purple-400' : 'bg-slate-800 text-purple-400 border-white/10'}`}
-                        title="الأصدقاء"
+                    <div className="flex flex-col gap-1 items-center">
+                      <button
+                        onClick={() => window.dispatchEvent(new CustomEvent('show-soul-medicine'))}
+                        className="p-1.5 rounded-lg bg-emerald-500/10 text-emerald-500 hover:bg-emerald-500 hover:text-white transition-all active:scale-95 border border-emerald-500/20 shadow-lg shadow-emerald-500/5 group/soul"
+                        title="دواء الروح - الآيات والأذكار"
                       >
-                        <Plus className="w-4 h-4" />
+                        <Heart className="w-3.5 h-3.5 group-hover/soul:animate-pulse" />
                       </button>
+
+                      <button
+                        onClick={() => setIsFriendsListOpen(!isFriendsListOpen)}
+                        className="p-1 rounded-md bg-blue-500/10 text-blue-400 hover:bg-blue-500/20 transition-all active:scale-95 border border-blue-500/20"
+                        title="Friends List"
+                      >
+                        <Plus className="w-3 h-3" />
+                      </button>
+
+                      <div className="flex items-center gap-1.5 px-1.5 py-0.5 rounded-full bg-slate-900 border border-slate-800" title="Stream Engine Status">
+                        <div className={`w-1 h-1 rounded-full ${agoraJoined ? 'bg-green-500' : 'bg-amber-500 animate-pulse'}`}></div>
+                        <span className="text-[6px] font-black text-slate-500 uppercase tracking-tighter">
+                          {agoraJoined ? 'Live' : 'Ready'}
+                        </span>
+                      </div>
                       
                       {activeChat.uid !== 'global' && (
                         <button 
                           onClick={handleConnect}
                           disabled={isConnecting}
-                          className={`p-1 rounded-lg border transition-all active:scale-95 transform scale-90 ${profile?.following?.includes(activeChat.uid) ? 'bg-amber-500 text-white border-amber-300' : 'bg-slate-800 text-white/40 border-white/5'}`}
-                          title="اتصال"
+                          className={`p-1 rounded-md transition-all active:scale-95 ${profile?.following?.includes(activeChat.uid) ? 'bg-amber-500 text-white' : 'bg-amber-500/10 text-amber-500/60 hover:bg-amber-500/20'}`}
+                          title="Connect / متابعة"
                         >
-                          {profile?.following?.includes(activeChat.uid) ? <Check className="w-3.5 h-3.5" /> : <UserPlus className="w-3.5 h-3.5" />}
+                          {profile?.following?.includes(activeChat.uid) ? <UserCheck className="w-3 h-3" /> : <UserPlus className="w-3 h-3" />}
                         </button>
                       )}
                     </div>
                   </div>
                 </div>
               ) : (
-                <div 
-                  onClick={() => setIsOpen(false)}
-                  className="flex items-center justify-between w-full h-12 cursor-pointer hover:bg-white/5 transition-all rounded-2xl px-2"
-                >
+                <div className="flex items-center justify-between w-full h-12">
                    <div className="flex items-center gap-3">
                       <div className="bg-purple-500/20 p-2 rounded-xl border border-purple-500/30">
                         <MessageSquare className="w-5 h-5 text-purple-400" />
                       </div>
                       <div className="text-right" dir="rtl">
                         <h4 className="font-black text-white text-sm sm:text-base tracking-tight">قاعة الأساتذة المباشرة 🇩🇿</h4>
-                        <Link 
-                          to="/discussions" 
-                          className="text-[10px] text-purple-400 hover:text-purple-300 flex items-center gap-1 transition-all font-bold"
-                          onClick={(e) => e.stopPropagation()} // Prevent close on link click
-                        >
+                        <Link to="/discussions" className="text-[10px] text-purple-400 hover:text-purple-300 flex items-center gap-1 transition-all font-bold">
                           <TrendingUp className="w-2.5 h-2.5" />
                           <span>تصفح منتدى المذكرات</span>
                         </Link>
                       </div>
                    </div>
                    <div className="flex items-center gap-2">
-                     <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse shadow-[0_0_8px_rgba(34,197,94,0.5)]" />
-                     <span className="text-[10px] font-black text-white/40 uppercase">LIVE</span>
+                     <button
+                        onClick={() => window.dispatchEvent(new CustomEvent('show-soul-medicine'))}
+                        className="p-2 rounded-xl bg-emerald-500/10 text-emerald-500 hover:bg-emerald-500 hover:text-white transition-all border border-emerald-500/10 active:scale-95"
+                        title="دواء الروح"
+                      >
+                        <Heart className="w-5 h-5" />
+                      </button>
+                     <button
+                        onClick={() => setIsFriendsListOpen(!isFriendsListOpen)}
+                        className="p-2 rounded-xl bg-blue-500/10 text-blue-400 hover:bg-blue-500 hover:text-white transition-all border border-blue-500/10 active:scale-95"
+                        title="Friends"
+                      >
+                        <Plus className="w-5 h-5" />
+                      </button>
+                      <button 
+                        onClick={() => setIsOpen(false)} 
+                        className="p-2 rounded-xl bg-white/5 text-white/50 hover:bg-red-500 hover:text-white transition-all border border-white/10 active:scale-95"
+                        title="Close"
+                      >
+                        <X className="w-5 h-5" />
+                      </button>
                    </div>
                 </div>
               )}
-            </div>
 
-            {/* Content */}
-            <div className="flex-1 flex flex-col bg-slate-950/50 overflow-hidden relative">
-              {/* Friends List Overlay */}
+              {/* Friends List Dropdown */}
               <AnimatePresence>
-                {showFriendsList && (
-                  <motion.div
-                    initial={{ opacity: 0, x: 50 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    exit={{ opacity: 0, x: 50 }}
-                    className="absolute inset-0 z-[100] bg-slate-950/95 backdrop-blur-xl flex flex-col"
-                    dir="rtl"
+                {isFriendsListOpen && (
+                  <motion.div 
+                    initial={{ opacity: 0, y: -10, scale: 0.95 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    exit={{ opacity: 0, y: -10, scale: 0.95 }}
+                    className="absolute top-full mt-2 right-2 w-64 bg-slate-900/95 backdrop-blur-3xl border border-white/10 rounded-2xl p-3 shadow-2xl z-[250] shadow-black/50"
+                    onClick={(e) => e.stopPropagation()}
                   >
-                    <div className="p-4 border-b border-white/10 flex items-center justify-between">
-                      <h3 className="text-white font-black text-sm flex items-center gap-2">
-                        <Users className="w-4 h-4 text-purple-400" />
-                        قائمة الزملاء
+                    <div className="flex items-center justify-between mb-3 px-1">
+                      <h3 className="text-[10px] font-black text-white flex items-center gap-2">
+                        <Users className="w-3.5 h-3.5 text-blue-400" />
+                        الزملاء والنشاط
                       </h3>
                       <button 
-                        onClick={() => setShowFriendsList(false)}
-                        className="p-1 px-2 rounded-lg bg-white/5 text-white/40 hover:bg-white/10 text-[10px] font-black"
+                        onClick={() => setIsFriendsListOpen(false)}
+                        className="p-1 rounded-lg bg-white/5 text-slate-500 hover:text-white transition-colors"
                       >
-                        إغلاق
+                        <X className="w-3 h-3" />
                       </button>
                     </div>
-
-                    <div className="flex-1 overflow-y-auto p-2 space-y-1 custom-scrollbar">
-                      <div className="px-2 py-1">
-                        <div className="relative">
-                          <Search className="absolute right-3 top-1/2 -translate-y-1/2 w-3 h-3 text-white/30" />
-                          <input 
-                            type="text"
-                            placeholder="بحث عن زميل..."
-                            value={searchTerm}
-                            onChange={(e) => setSearchTerm(e.target.value)}
-                            className="w-full bg-white/5 border border-white/10 rounded-xl py-2 pr-9 pl-3 text-xs text-white focus:outline-none focus:border-purple-500/50 placeholder:text-white/20 font-black"
-                          />
-                        </div>
-                      </div>
-
-                      {filteredUsers.length > 0 ? (
-                        filteredUsers.map((user) => (
-                          <motion.div
-                            whileHover={{ backgroundColor: 'rgba(255,255,255,0.05)' }}
-                            key={user.uid}
-                            onClick={() => {
-                              setActiveChat(user);
-                              setShowFriendsList(false);
-                            }}
-                            className="flex items-center gap-3 p-2 rounded-2xl cursor-pointer transition-all border border-transparent hover:border-white/5"
-                          >
-                            <div className="relative">
-                              <img 
-                                src={user.photoURL} 
-                                className="w-10 h-10 rounded-xl object-cover border border-white/10" 
-                                alt=""
-                                referrerPolicy="no-referrer"
-                              />
-                              <div className={`absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full border-2 border-slate-950 ${getStatusColor(user)}`} />
-                            </div>
-                            <div className="min-w-0 flex-1">
-                              <h4 className="text-xs font-black text-white truncate">{user.displayName}</h4>
-                              <p className="text-[9px] text-white/40 font-bold truncate">
-                                {user.subject || 'مادة'} - {user.level || 'تعليم'}
-                              </p>
-                            </div>
-                            <div className="flex-shrink-0">
-                               <div className={`text-[8px] font-black px-1.5 py-0.5 rounded-md ${isOnline(user.lastSeen) ? 'text-green-400 bg-green-400/10' : 'text-slate-500 bg-slate-500/10'}`}>
-                                 {isOnline(user.lastSeen) ? 'متصل' : 'تلقائي'}
-                               </div>
-                            </div>
-                          </motion.div>
-                        ))
-                      ) : (
-                        <div className="flex flex-col items-center justify-center p-10 opacity-30">
-                          <Users className="w-10 h-10 mb-2" />
-                          <p className="text-[10px] font-black">لا يوجد زملاء متصلين حالياً</p>
+                    <div className="space-y-2 max-h-[350px] overflow-y-auto no-scrollbar" dir="rtl">
+                      {friends.length === 0 && (
+                        <div className="text-center py-8 opacity-40">
+                          <Users className="w-8 h-8 mx-auto mb-2 opacity-20" />
+                          <p className="text-[10px] font-bold">لا يوجد زملاء نشطون حالياً</p>
                         </div>
                       )}
+                      {friends.map((friend) => (
+                        <div 
+                          key={friend.uid} 
+                          onClick={() => {
+                            setActiveChat(friend);
+                            setIsFriendsListOpen(false);
+                          }}
+                          className="flex items-center gap-3 p-2 rounded-xl hover:bg-white/5 transition-all group/friend cursor-pointer active:scale-[0.98]"
+                        >
+                          <div className="relative shrink-0">
+                            <img src={friend.photoURL || `https://ui-avatars.com/api/?name=${encodeURIComponent(friend.displayName || 'U')}&background=random`} className="w-9 h-9 rounded-lg object-cover border border-white/10" alt="" />
+                            <div className={`absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full border-2 border-slate-900 ${getStatusColor(friend.lastSeen)} ${getStatus(friend.lastSeen) === 'online' ? 'animate-pulse' : ''}`}></div>
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center justify-between gap-1">
+                              <h4 className="text-[11px] font-black text-white truncate">{friend.displayName || 'زميل جديد'}</h4>
+                              {friend.subject && (
+                                <span className="text-[8px] px-1.5 py-0.5 rounded bg-blue-500/10 text-blue-400 font-bold">
+                                  {getAbbreviated(friend.subject)}
+                                </span>
+                              )}
+                            </div>
+                            <div className="flex items-center gap-1.5 mt-0.5 opacity-60 group-hover/friend:opacity-100 transition-opacity">
+                              <Clock className="w-2.5 h-2.5 text-slate-500" />
+                              <span className="text-[9px] text-slate-400 font-bold">
+                                {getStatus(friend.lastSeen) === 'online' ? 'متصل الآن' : `أغلق منذ ${formatLastSeenTime(friend.lastSeen)}`}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
                     </div>
                   </motion.div>
                 )}
               </AnimatePresence>
+            </div>
 
+            {/* Content */}
+            <div className="flex-1 flex flex-col bg-slate-950/50 overflow-hidden relative">
               {/* Incoming Call Overlay */}
               <AnimatePresence>
                 {incomingCall && !isCalling && (
@@ -1685,66 +1732,95 @@ export default function ChatBubble() {
 
               {/* Calling Overlay */}
               <AnimatePresence initial={false}>
-
                 {isCalling && (
-                  <motion.div 
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    exit={{ opacity: 0 }}
-                    className="absolute inset-0 z-[150] bg-slate-950 flex flex-col items-center justify-center text-center overflow-hidden"
+                  <motion.div
+                    key="calling-overlay"
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: 20 }}
+                    className="absolute inset-0 z-50 bg-slate-950 flex flex-col items-center justify-center p-4 text-center"
                   >
-                    {/* Background Visual */}
-                    <div className="absolute inset-0 z-0">
-                      {remoteStream ? (
-                         <video 
-                           ref={el => { if(el && el.srcObject !== remoteStream) el.srcObject = remoteStream; }}
-                           autoPlay playsInline className="w-full h-full object-cover opacity-80"
-                         />
-                      ) : (
-                        <div className="w-full h-full bg-gradient-to-br from-slate-900 to-purple-950/30" />
+                    {/* Video Streams */}
+                    <div className="absolute inset-0 w-full h-full bg-slate-900 overflow-hidden">
+                      {remoteStream && (
+                        <video
+                          ref={(el) => {
+                            if (el && el.srcObject !== remoteStream) {
+                              el.srcObject = remoteStream;
+                            }
+                          }}
+                          autoPlay
+                          playsInline
+                          className="w-full h-full object-cover"
+                        />
                       )}
+                      <div className="absolute bottom-4 right-4 w-32 h-48 bg-slate-800 rounded-2xl overflow-hidden border-2 border-purple-500/30 shadow-2xl z-20">
+                        {localStream && (
+                          <video
+                            ref={(el) => {
+                              if (el && el.srcObject !== localStream) {
+                                el.srcObject = localStream;
+                              }
+                            }}
+                            autoPlay
+                            playsInline
+                            muted
+                            className="w-full h-full object-cover"
+                          />
+                        )}
+                      </div>
                     </div>
 
-                    {/* Content UI */}
-                    <div className="relative z-10 flex flex-col items-center p-6">
-                      <div className="relative mb-8">
-                        <div className="absolute inset-0 bg-purple-500 rounded-full animate-ping opacity-20"></div>
-                        <img 
-                          src={incomingCall ? incomingCall.senderPhoto : activeChat?.photoURL} 
-                          className="w-32 h-32 rounded-[2.5rem] object-cover ring-4 ring-purple-500/30 relative z-10 shadow-2xl" 
-                          referrerPolicy="no-referrer"
-                        />
-                      </div>
-                      <h3 className="text-2xl font-black text-white mb-2">
-                        {incomingCall ? incomingCall.senderName : activeChat?.displayName}
-                      </h3>
-                      <p className="text-purple-400 font-bold text-sm animate-pulse mb-12">
-                        {remoteStream ? 'متصل' : (isCalling === 'video' ? 'جاري الاتصال بالفيديو...' : 'جاري الاتصال الصوتي...')}
-                      </p>
-                      
-                      <div className="flex items-center gap-6">
-                        {/* Local PIP for video calls */}
-                        {isCalling === 'video' && localStream && (
-                          <div className="w-24 h-32 rounded-xl overflow-hidden border border-white/20 shadow-2xl bg-black">
-                            <video 
-                              ref={el => { if(el && el.srcObject !== localStream) el.srcObject = localStream; }}
-                              autoPlay playsInline muted className="w-full h-full object-cover scale-x-[-1]"
+                    <div className="relative z-10 flex flex-col items-center justify-center h-full w-full bg-slate-950/40 backdrop-blur-sm p-8">
+                      {!remoteStream && (
+                        <>
+                          <div className="relative mb-8">
+                            <div className="absolute inset-0 bg-purple-500 rounded-full animate-ping opacity-20"></div>
+                            <img 
+                              src={activeChat?.photoURL} 
+                              className="w-24 h-24 rounded-3xl object-cover ring-4 ring-purple-500/30 relative z-10" 
+                              referrerPolicy="no-referrer"
                             />
                           </div>
-                        )}
-
+                          <h3 className="text-xl font-black text-white mb-2">{activeChat?.displayName}</h3>
+                          <p className="text-purple-400 font-bold text-sm mb-4 animate-pulse">
+                            {isCalling === 'video' ? 'Starting Video Call...' : 'Calling...'}
+                          </p>
+                          <div className="flex flex-col gap-1 items-center mb-8 px-6 py-2 bg-purple-500/10 rounded-2xl border border-purple-500/20">
+                             <div className="flex items-center gap-2">
+                               <div className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse"></div>
+                               <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">
+                                 {remoteStream ? "Connected" : "Connecting to Secure Channel (Agora)..."}
+                               </span>
+                             </div>
+                             {!remoteStream && (
+                               <p className="text-[8px] text-slate-500 font-medium">
+                                 Optimizing network path...
+                               </p>
+                             )}
+                          </div>
+                        </>
+                      )}
+                      
+                      <div className="mt-auto flex gap-6">
                         <button 
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            endCall();
-                          }}
-                          className="p-6 bg-red-500 text-white rounded-full shadow-[0_0_40px_rgba(239,68,68,0.5)] hover:bg-red-600 transition-all active:scale-90 border-4 border-slate-950 flex items-center justify-center pointer-events-auto"
-                          title="إنهاء المكالمة"
+                          onClick={endCall}
+                          className="w-16 h-16 bg-red-500 text-white rounded-full flex items-center justify-center shadow-lg shadow-red-500/20 hover:bg-red-600 transition-all active:scale-90"
                         >
-                          <PhoneOff className="w-7 h-7" />
+                          <PhoneOff className="w-8 h-8" />
                         </button>
+                        {!remoteStream && (
+                          <div className="w-16 h-16 bg-green-500 text-white rounded-full flex items-center justify-center shadow-lg shadow-green-500/20 animate-bounce">
+                            {isCalling === 'video' ? <Video className="w-8 h-8" /> : <Phone className="w-8 h-8" />}
+                          </div>
+                        )}
                       </div>
-                      <p className="text-white/20 text-[10px] font-black uppercase tracking-widest mt-8">Secure End-to-End Encryption</p>
+                      
+                      {!remoteStream && (
+                        <p className="mt-12 text-slate-500 text-xs font-bold">
+                          Waiting for {activeChat?.displayName} to join...
+                        </p>
+                      )}
                     </div>
                   </motion.div>
                 )}
@@ -1928,55 +2004,14 @@ export default function ChatBubble() {
                 </>
               ) : (
                 <>
-                  <div ref={scrollRef} className="flex-1 overflow-y-auto p-4 space-y-4 custom-scrollbar style-scrollbar relative">
-                    {/* Image Selection Preview Layer */}
-                    <AnimatePresence>
-                      {imagePreview && (
-                        <motion.div 
-                          initial={{ opacity: 0, scale: 0.9 }}
-                          animate={{ opacity: 1, scale: 1 }}
-                          exit={{ opacity: 0 }}
-                          className="absolute inset-0 z-[110] bg-slate-950/95 p-4 flex flex-col items-center justify-center gap-4"
-                        >
-                          <div className="relative w-full max-w-[280px]">
-                            <img 
-                              src={imagePreview} 
-                              className="w-full h-auto max-h-[300px] object-contain rounded-2xl border border-white/10 shadow-2xl" 
-                              alt="Selection"
-                            />
-                            <button 
-                              onClick={cancelImageSelection}
-                              className="absolute -top-3 -right-3 p-2 bg-red-500 text-white rounded-full shadow-lg pointer-events-auto"
-                            >
-                              <X className="w-4 h-4" />
-                            </button>
-                          </div>
-                          <div className="flex gap-4 w-full max-w-[280px]">
-                             <button 
-                               onClick={cancelImageSelection}
-                               className="flex-1 py-3 px-4 bg-white/5 text-white/60 rounded-xl font-black text-xs pointer-events-auto"
-                             >
-                               إلغاء
-                             </button>
-                             <button 
-                               onClick={uploadSelectedImage}
-                               disabled={isUploading}
-                               className="flex-1 py-3 px-4 bg-purple-600 text-white rounded-xl font-black text-xs flex items-center justify-center gap-2 pointer-events-auto"
-                             >
-                               {isUploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4 rotate-180" />}
-                               {isUploading ? 'جاري الرفع...' : 'إرسال الصورة'}
-                             </button>
-                          </div>
-                        </motion.div>
-                      )}
-                    </AnimatePresence>
+                  <div ref={scrollRef} className="flex-1 overflow-y-auto p-4 space-y-4 custom-scrollbar overscroll-contain">
                     {/* Message Request UI */}
                     {!isFriend && activeChat.uid !== 'global' && (
                       <div className="bg-slate-900/80 border border-slate-700 rounded-3xl p-6 text-center shadow-xl mb-6">
                         <div className="w-16 h-16 bg-purple-600/10 rounded-full flex items-center justify-center mx-auto mb-4 border border-purple-500/20">
                           <UserPlus className="w-8 h-8 text-purple-500" />
                         </div>
-                        <h4 className="text-white font-black mb-2">طلب مراسلة - Message Request</h4>
+                        <h4 className="text-white font-black mb-2 font-amiri text-lg">طلب مراسلة - Message Request</h4>
                         <p className="text-slate-400 text-xs font-bold mb-6">
                           {friendRequest?.senderId === profile.uid 
                             ? 'لقد ارسلت طلب صداقة، انتظر قبول الزميل لكي تتمكنا من التحدث.'
@@ -1989,20 +2024,21 @@ export default function ChatBubble() {
                                 if (friendRequest) deleteDoc(doc(db, 'invitations', friendRequest.id));
                                 setActiveChat(null);
                               }}
-                              className="flex-1 py-3 bg-slate-800 text-slate-400 rounded-2xl font-black text-xs hover:bg-slate-700 hover:text-white transition-all"
+                              className="flex-1 py-3 bg-red-500/10 text-red-500 rounded-2xl font-black text-xs hover:bg-red-500 hover:text-white transition-all border border-red-500/20"
                             >
                               رفض (Decline)
                             </button>
                             <button 
                               onClick={handleAcceptRequest}
-                              className="flex-1 py-3 bg-purple-600 text-white rounded-2xl font-black text-xs hover:bg-purple-700 transition-all shadow-lg shadow-purple-500/20"
+                              disabled={isAccepting}
+                              className="flex-1 py-3 bg-emerald-600 text-white rounded-2xl font-black text-xs hover:bg-emerald-700 transition-all shadow-lg shadow-emerald-500/30 flex items-center justify-center gap-2 disabled:opacity-50"
                             >
-                              قبول (Accept)
+                              {isAccepting ? <Loader2 className="w-4 h-4 animate-spin" /> : 'قبول (Accept)'}
                             </button>
                           </div>
                         ) : (
                           <div className="py-3 bg-slate-900 border border-slate-800 rounded-2xl text-slate-500 text-[10px] font-black uppercase tracking-widest">
-                            Pending Approval...
+                            انتظار الموافقة... Pending Approval
                           </div>
                         )}
                       </div>

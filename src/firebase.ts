@@ -4,8 +4,7 @@ import {
   initializeFirestore, 
   doc, 
   getDocFromServer, 
-  enableMultiTabIndexedDbPersistence,
-  CACHE_SIZE_UNLIMITED
+  getDocFromCache
 } from "firebase/firestore";
 import { getStorage } from "firebase/storage";
 
@@ -22,8 +21,6 @@ export const db = initializeFirestore(app, {
   ignoreUndefinedProperties: true
 }, databaseId);
 
-// Add a reachability check logic if needed via standard getDoc
-import { getDocFromCache } from "firebase/firestore";
 export const checkFirestoreConnection = async () => {
   try {
     // Try a simple server-side fetch to warm up connection

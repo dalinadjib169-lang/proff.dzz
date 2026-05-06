@@ -265,18 +265,6 @@ export function useAuth() {
     }
   };
 
-  const skipProfile = async () => {
-    if (!auth.currentUser) return;
-    try {
-      await updateDoc(doc(db, 'users', auth.currentUser.uid), {
-        isProfileComplete: true,
-        onboardingSkipped: true
-      });
-    } catch (error) {
-      handleFirestoreError(error, OperationType.UPDATE, `users/${auth.currentUser.uid}`);
-    }
-  };
-
   const retry = () => {
     // With onSnapshot, retry is less critical, but we can re-trigger if needed
     setLoading(true);
@@ -288,5 +276,5 @@ export function useAuth() {
 
   const statusInterval = null;
 
-  return { user, profile, loading, error, retry, completeProfile, skipProfile, statusInterval };
+  return { user, profile, loading, error, retry, completeProfile, statusInterval };
 }

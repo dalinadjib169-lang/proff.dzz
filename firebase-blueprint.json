@@ -268,6 +268,27 @@
         "createdAt": { "type": "string", "format": "date-time" }
       },
       "required": ["groupId", "authorId", "authorName", "authorPhoto", "content", "likes", "commentCount", "createdAt"]
+    },
+    "Story": {
+      "title": "Story",
+      "description": "A temporary status update (24h)",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "userId": { "type": "string" },
+        "userDisplayName": { "type": "string" },
+        "userPhotoURL": { "type": "string" },
+        "type": { "type": "string", "enum": ["image", "video", "text"] },
+        "contentUrl": { "type": "string" },
+        "text": { "type": "string" },
+        "background": { "type": "string" },
+        "duaAttached": { "type": "string" },
+        "audioUrl": { "type": "string" },
+        "seenBy": { "type": "array", "items": { "type": "string" } },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "expiresAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "userDisplayName", "userPhotoURL", "type", "createdAt", "expiresAt"]
     }
   },
   "firestore": {
@@ -282,6 +303,10 @@
     "/posts/{postId}": {
       "schema": "Post",
       "description": "Feed posts"
+    },
+    "/stories/{storyId}": {
+      "schema": "Story",
+      "description": "User stories"
     },
     "/comments/{commentId}": {
       "schema": "Comment",

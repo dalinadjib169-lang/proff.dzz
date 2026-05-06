@@ -177,6 +177,22 @@ export interface GroupPost extends Post {
   isLocked?: boolean;
 }
 
+export interface Story {
+  id: string;
+  userId: string;
+  userDisplayName: string;
+  userPhotoURL: string;
+  type: 'image' | 'video' | 'text';
+  contentUrl?: string;
+  text?: string;
+  background?: string;
+  duaAttached?: string;
+  audioUrl?: string;
+  seenBy: string[];
+  createdAt: Timestamp | any;
+  expiresAt: Timestamp | any;
+}
+
 export interface SavedPreferences {
   teacherFirstName?: string;
   teacherLastName?: string;

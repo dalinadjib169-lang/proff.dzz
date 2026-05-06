@@ -9,6 +9,7 @@ import { handleFirestoreError, OperationType } from '../lib/firestore-errors';
 import { playSound } from '../lib/sounds';
 import { useUpload } from '../hooks/useUpload';
 import { PrayerWaterBar } from '../components/PrayerWaterBar';
+import { StoriesSection } from '../components/StoriesSection';
 
 export default function Home() {
   const { profile } = useAuth();
@@ -118,17 +119,18 @@ export default function Home() {
   return (
     <div className="space-y-6">
       <PrayerWaterBar />
+      <StoriesSection />
 
       <div className="bg-slate-900/20 backdrop-blur-3xl border border-slate-800/50 rounded-2xl p-4 shadow-lg overflow-hidden relative">
         {selectedBg && !selectedImage && (
-          <div className="absolute inset-0 pointer-events-none" style={{ backgroundImage: selectedBg, backgroundSize: 'cover', backgroundPosition: 'center' }}>
+          <div className="absolute inset-0 pointer-events-none" style={{ background: selectedBg, backgroundSize: 'cover', backgroundPosition: 'center' }}>
              <div className="absolute inset-0 bg-black/40"></div>
           </div>
         )}
         <div className="flex gap-3 relative z-10">
           <img src={profile?.photoURL} className="w-12 h-12 rounded-xl object-cover ring-2 ring-primary/20" alt="" referrerPolicy="no-referrer" />
           <div className="flex-1 space-y-3">
-            <div className={`relative rounded-3xl overflow-hidden transition-all shadow-2xl group/preview ${selectedBg && !selectedImage ? 'min-h-[220px] flex items-center justify-center p-8' : ''}`} style={{ backgroundImage: !selectedImage ? selectedBg || 'none' : 'none', backgroundSize: 'cover', backgroundPosition: 'center' }}>
+            <div className={`relative rounded-3xl overflow-hidden transition-all shadow-2xl group/preview ${selectedBg && !selectedImage ? 'min-h-[220px] flex items-center justify-center p-8' : ''}`} style={{ background: !selectedImage ? selectedBg || 'transparent' : 'transparent', backgroundSize: 'cover', backgroundPosition: 'center' }}>
               <textarea
                 value={content}
                 onChange={(e) => setContent(e.target.value)}
@@ -163,7 +165,7 @@ export default function Home() {
                       key={bg.value}
                       onClick={() => setSelectedBg(bg.value)}
                       className={`w-8 h-8 rounded-lg border-2 transition-all relative group ${selectedBg === bg.value ? 'border-white scale-110 shadow-lg' : 'border-transparent hover:scale-105'}`}
-                      style={{ backgroundImage: bg.value, backgroundSize: 'cover', backgroundPosition: 'center' }}
+                      style={{ background: bg.value, backgroundSize: 'cover', backgroundPosition: 'center' }}
                       title={bg.label}
                     >
                       {bg.type === 'image' && (

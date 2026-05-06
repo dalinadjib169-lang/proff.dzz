@@ -14,6 +14,19 @@
     0% { transform: translateX(-100%); }
     100% { transform: translateX(100%); }
   }
+
+  @keyframes neon-orbit {
+    0% { background: linear-gradient(0deg, #10b981, #2dd4bf, #6366f1); }
+    33% { background: linear-gradient(120deg, #6366f1, #10b981, #2dd4bf); }
+    66% { background: linear-gradient(240deg, #2dd4bf, #6366f1, #10b981); }
+    100% { background: linear-gradient(360deg, #10b981, #2dd4bf, #6366f1); }
+  }
+}
+
+.animate-neon-orbit {
+  background: linear-gradient(0deg, #10b981, #2dd4bf, #6366f1);
+  background-size: 200% 200%;
+  animation: neon-orbit 3s linear infinite;
 }
 
 .animate-marquee-slow {

@@ -1,10 +1,9 @@
 import React, { useState } from 'react';
-import { signInWithPopup, GoogleAuthProvider, signInWithEmailAndPassword, createUserWithEmailAndPassword, setPersistence, browserLocalPersistence, browserSessionPersistence, signOut, sendPasswordResetEmail, signInAnonymously } from 'firebase/auth';
+import { signInWithPopup, GoogleAuthProvider, signInWithEmailAndPassword, createUserWithEmailAndPassword, setPersistence, browserLocalPersistence, browserSessionPersistence, signOut, sendPasswordResetEmail } from 'firebase/auth';
 import { auth } from '../firebase';
 import { motion } from 'motion/react';
-import { BookOpen, GraduationCap, Mail, Lock, User, LogIn, RefreshCw, AlertCircle, Sparkles, UserCircle, KeyRound, CheckCircle2, UserPlus, Ghost } from 'lucide-react';
+import { BookOpen, GraduationCap, Mail, Lock, User, LogIn, RefreshCw, AlertCircle, Sparkles, UserCircle, KeyRound, CheckCircle2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { toast } from 'react-hot-toast';
 
 export default function Login() {
   const [loading, setLoading] = useState(false);
@@ -21,21 +20,6 @@ export default function Login() {
   const [networkStatus, setNetworkStatus] = useState<{ google: boolean | null; firebase: boolean | null }>({ google: null, firebase: null });
 
   const navigate = useNavigate();
-
-  const handleAnonymousLogin = async () => {
-    if (loading) return;
-    setLoading(true);
-    setError('');
-    try {
-      await signInAnonymously(auth);
-      toast.success("تم الدخول كزائر بنجاح ! يمكنك استكشاف المنصة");
-    } catch (err: any) {
-      console.error(err);
-      setError("فشل الدخول كزائر. يرجى المحاولة مرة أخرى.");
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const handleForgotPassword = async () => {
     if (!email) {
@@ -429,20 +413,11 @@ export default function Login() {
           )}
         </form>
 
-        <div className="my-4 flex items-center gap-4">
+        <div className="my-6 flex items-center gap-4">
           <div className="h-px flex-1 bg-slate-800/50"></div>
-          <span className="text-slate-600 text-xs font-bold uppercase tracking-widest">أو جرب كزائر</span>
+          <span className="text-slate-600 text-sm font-medium uppercase tracking-wider">or</span>
           <div className="h-px flex-1 bg-slate-800/50"></div>
         </div>
-
-        <button
-          onClick={handleAnonymousLogin}
-          disabled={loading}
-          className={`w-full py-3 bg-indigo-600/10 border border-indigo-500/30 hover:bg-indigo-600/20 text-indigo-400 font-black rounded-xl transition-all flex items-center justify-center gap-3 mb-4 ${loading ? 'opacity-50 cursor-not-allowed' : 'active:scale-[0.98]'}`}
-        >
-          <Ghost className="w-5 h-5" />
-          دخول سريع كزائر (بدون إيميل)
-        </button>
 
         <button
           onClick={handleGoogleLogin}

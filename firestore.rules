@@ -252,9 +252,32 @@ service cloud.firestore {
              (!('createdAt' in data) || (request.method == 'create' ? data.createdAt == request.time : true));
     }
 
+    function isValidStory(data) {
+      return (request.method == 'create' ? data.keys().hasAll(['userId', 'userDisplayName', 'userPhotoURL', 'type', 'seenBy', 'createdAt', 'expiresAt']) : true) &&
+             (!('userId' in data) || (data.userId == request.auth.uid && data.userId is string)) &&
+             (!('userDisplayName' in data) || (data.userDisplayName is string)) &&
+             (!('userPhotoURL' in data) || (data.userPhotoURL is string)) &&
+             (!('type' in data) || data.type in ['image', 'video', 'text']) &&
+             (!('contentUrl' in data) || (data.contentUrl is string)) &&
+             (!('text' in data) || (data.text is string && data.text.size() <= 2000)) &&
+             (!('background' in data) || (data.background is string)) &&
+             (!('duaAttached' in data) || (data.duaAttached is string)) &&
+             (!('audioUrl' in data) || (data.audioUrl is string)) &&
+             (!('seenBy' in data) || (data.seenBy is list && data.seenBy.size() <= 10000)) &&
+             (!('createdAt' in data) || (request.method == 'create' ? data.createdAt == request.time : data.createdAt == existing().createdAt)) &&
+             (!('expiresAt' in data) || (data.expiresAt is timestamp));
+    }
+
     // ===============================================================
     // Collection Rules
     // ===============================================================
+
+    match /stories/{storyId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn() && isValidStory(incoming());
+      allow update: if (isOwner(existing().userId) && isValidStory(incoming())) || (isSignedIn() && incoming().diff(existing()).affectedKeys().hasOnly(['seenBy'])) || isAdmin();
+      allow delete: if isOwner(existing().userId) || isAdmin();
+    }
 
     match /users/{userId} {
       allow get: if isSignedIn();

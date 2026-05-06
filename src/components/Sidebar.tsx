@@ -1,7 +1,7 @@
 import React, { useState, useEffect, memo } from 'react';
 import { NavLink, Link } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
-import { Home, User, Bell, Bookmark, Settings, Users, BookOpen, MessageSquare, TrendingUp, UserPlus, Sparkles, Wand2, CheckSquare, FileText, Image, Share2, ExternalLink, Zap, Car, ShoppingBag } from 'lucide-react';
+import { Home, User, Bell, Bookmark, Settings, Users, BookOpen, MessageSquare, TrendingUp, UserPlus, Sparkles, Wand2, CheckSquare, FileText, Image, Share2, ExternalLink, Zap, Car, ShoppingBag, Heart } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { db } from '../firebase';
 import { collection, query, where, onSnapshot, limit, orderBy } from 'firebase/firestore';
@@ -136,6 +136,23 @@ function Sidebar() {
           </div>
         </div>
       </Link>
+      
+      {/* Soul Medicine Prominent Button */}
+      <button
+        onClick={() => window.dispatchEvent(new CustomEvent('show-soul-medicine'))}
+        className="w-full relative group overflow-hidden bg-gradient-to-br from-emerald-600 to-teal-700 p-4 rounded-3xl shadow-xl shadow-emerald-500/20 border border-emerald-400/30 transition-all hover:scale-[1.02] active:scale-95"
+      >
+        <div className="absolute top-0 left-0 w-full h-full bg-[radial-gradient(circle_at_center,_white_0%,transparent_70%)] opacity-0 group-hover:opacity-10 transition-opacity duration-500" />
+        <div className="flex items-center gap-4 relative z-10">
+          <div className="w-12 h-12 bg-white/20 rounded-2xl flex items-center justify-center backdrop-blur-md border border-white/20 group-hover:rotate-12 transition-transform">
+            <Heart className="w-6 h-6 text-white animate-pulse" />
+          </div>
+          <div className="text-right flex-1">
+            <h3 className="text-lg font-black text-white font-amiri leading-tight">دواء الروح</h3>
+            <p className="text-[10px] font-bold text-emerald-100 uppercase tracking-widest opacity-80">نور وطمأنينة</p>
+          </div>
+        </div>
+      </button>
 
       <nav className="space-y-1">
         {navItems.map((item) => (

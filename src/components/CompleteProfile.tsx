@@ -32,23 +32,10 @@ const RANKS = [
 ];
 
 export default function CompleteProfile() {
-  const { profile, completeProfile, skipProfile } = useAuth();
+  const { profile, completeProfile } = useAuth();
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
-  const [skipping, setSkipping] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
-  const handleSkip = async () => {
-    setSkipping(true);
-    try {
-      await skipProfile();
-    } catch (err) {
-      console.error(err);
-      setError("Failed to skip. Please try again.");
-    } finally {
-      setSkipping(false);
-    }
-  };
   const [formData, setFormData] = useState({
     firstName: '',
     lastName: '',
@@ -64,38 +51,12 @@ export default function CompleteProfile() {
     birthDate: ''
   });
 
-  const [verificationCode, setVerificationCode] = useState('');
-  const [isVerifying, setIsVerifying] = useState(false);
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
-    // Step 1 -> Step 2 (Verification)
-    if (step === 1) {
-      if (!formData.firstName || !formData.lastName || !formData.phoneNumber) {
-        setError("يرجى ملء الاسم واللقب ورقم الهاتف للمتابعة");
-        return;
-      }
-      setStep(2);
-      return;
-    }
-
-    // Step 2 (Verification) -> Step 3
-    if (step === 2) {
-      if (verificationCode !== '123456' && verificationCode !== '') { // Demo code or empty for auto-pass
-        setError("رمز التحقق غير صحيح. جرب 123456");
-        return;
-      }
-      setStep(3);
-      return;
-    }
-
-    // After essential info is done (Step 3 or 4), we can save
-    if (step < 4) {
+    if (step < 3) {
       setStep(step + 1);
       return;
     }
-
     setLoading(true);
     setError(null);
     try {
@@ -116,8 +77,7 @@ export default function CompleteProfile() {
 
       const finalData = {
         ...formData,
-        displayName: `${formData.firstName} ${formData.lastName}`.trim() || formData.displayName,
-        phoneVerified: true // Mark as verified
+        displayName: `${formData.firstName} ${formData.lastName}`.trim() || formData.displayName
       };
       await completeProfile(finalData);
     } catch (err: any) {
@@ -134,7 +94,7 @@ export default function CompleteProfile() {
   };
 
   return (
-    <div className="fixed inset-0 bg-slate-950/90 backdrop-blur-xl z-[200] flex items-center justify-center p-4 overflow-y-auto">
+    <div className="fixed inset-0 bg-slate-950/90 backdrop-blur-xl z-50 flex items-center justify-center p-4 overflow-y-auto">
       <motion.div 
         initial={{ opacity: 0, scale: 0.9, y: 20 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
@@ -144,18 +104,18 @@ export default function CompleteProfile() {
           <div className="w-16 h-16 bg-primary/20 rounded-2xl flex items-center justify-center mx-auto mb-4">
             <GraduationCap className="w-8 h-8 text-primary" />
           </div>
-          <h2 className="text-2xl font-black text-white mb-2">إكمال الملف الشخصي</h2>
-          <p className="text-slate-400 text-sm">ساعد زملائك الأساتذة في العثور عليك والتواصل معك.</p>
+          <h2 className="text-2xl font-black text-white mb-2">Complete Your Profile</h2>
+          <p className="text-slate-400 text-sm">Help other teachers find and connect with you.</p>
         </div>
 
         {error && (
-          <div className="mb-6 p-4 bg-red-500/10 border border-red-500/20 rounded-2xl text-red-400 text-xs font-bold text-center">
+          <div className="mb-6 p-4 bg-red-500/10 border border-red-500/20 rounded-2xl text-red-400 text-xs font-bold">
             {error}
           </div>
         )}
 
         <div className="flex gap-2 mb-8">
-          {[1, 2, 3, 4].map((s) => (
+          {[1, 2, 3].map((s) => (
             <div 
               key={s} 
               className={`h-1 flex-1 rounded-full transition-all duration-500 ${s <= step ? 'bg-primary' : 'bg-slate-800'}`}
@@ -170,132 +130,138 @@ export default function CompleteProfile() {
               animate={{ opacity: 1, x: 0 }}
               className="space-y-4"
             >
-              <div className="p-4 bg-primary/5 border border-primary/10 rounded-2xl text-center mb-4">
-                <p className="text-primary text-xs font-bold">المعلومات الأساسية (إلزامي)</p>
-              </div>
-
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="text-xs font-black text-slate-500 uppercase tracking-wider mb-2 block">الاسم</label>
+                  <label className="text-xs font-black text-slate-500 uppercase tracking-wider mb-2 block">First Name</label>
                   <input
                     required
                     type="text"
                     value={formData.firstName}
                     onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
-                    className="w-full bg-slate-950 border border-slate-800 rounded-xl py-3 px-4 text-white text-right outline-none focus:ring-2 focus:ring-primary/50 transition-all"
-                    placeholder="الاسم"
+                    className="w-full bg-slate-950 border border-slate-800 rounded-xl py-3 px-4 text-white outline-none focus:ring-2 focus:ring-primary/50 transition-all"
+                    placeholder="First Name"
                   />
                 </div>
                 <div>
-                  <label className="text-xs font-black text-slate-500 uppercase tracking-wider mb-2 block">اللقب</label>
+                  <label className="text-xs font-black text-slate-500 uppercase tracking-wider mb-2 block">Last Name</label>
                   <input
                     required
                     type="text"
                     value={formData.lastName}
                     onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
-                    className="w-full bg-slate-950 border border-slate-800 rounded-xl py-3 px-4 text-white text-right outline-none focus:ring-2 focus:ring-primary/50 transition-all"
-                    placeholder="اللقب"
+                    className="w-full bg-slate-950 border border-slate-800 rounded-xl py-3 px-4 text-white outline-none focus:ring-2 focus:ring-primary/50 transition-all"
+                    placeholder="Last Name"
                   />
                 </div>
               </div>
 
               <div>
-                <label className="text-xs font-black text-slate-500 uppercase tracking-wider mb-2 block">رقم الهاتف (للأمان)</label>
+                <label className="text-xs font-black text-slate-500 uppercase tracking-wider mb-2 block">Wilaya (State)</label>
                 <div className="relative">
-                  <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 font-bold">+213</span>
-                  <input
+                  <MapPin className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
+                  <select
                     required
-                    type="tel"
-                    value={formData.phoneNumber}
-                    onChange={(e) => setFormData({ ...formData, phoneNumber: e.target.value })}
-                    className="w-full bg-slate-950 border border-slate-800 rounded-xl py-3 pl-16 pr-4 text-white outline-none focus:ring-2 focus:ring-primary/50 transition-all"
-                    placeholder="0X XX XX XX XX"
-                  />
+                    value={formData.wilaya}
+                    onChange={(e) => setFormData({ ...formData, wilaya: e.target.value })}
+                    className="w-full bg-slate-950 border border-slate-800 rounded-xl py-3 pl-12 pr-4 text-white outline-none focus:ring-2 focus:ring-primary/50 transition-all appearance-none"
+                  >
+                    <option value="">Select your wilaya</option>
+                    {WILAYAS.map(w => <option key={w} value={w}>{w}</option>)}
+                  </select>
                 </div>
-                <p className="mt-2 text-[10px] text-slate-500 text-center">سنرسل رمز تحقق للحفاظ على أمان حسابك.</p>
               </div>
             </motion.div>
           ) : step === 2 ? (
             <motion.div 
               initial={{ opacity: 0, x: 20 }}
               animate={{ opacity: 1, x: 0 }}
-              className="space-y-4 text-center"
-            >
-              <div className="w-12 h-12 bg-green-500/20 text-green-400 rounded-full flex items-center justify-center mx-auto mb-2">
-                <CheckCircle2 className="w-6 h-6" />
-              </div>
-              <p className="text-white font-bold">تأكيد رقم الهاتف</p>
-              <p className="text-slate-500 text-xs">أدخل الرمز المرسل إلى {formData.phoneNumber}</p>
-              
-              <input
-                type="text"
-                maxLength={6}
-                value={verificationCode}
-                onChange={(e) => setVerificationCode(e.target.value)}
-                placeholder="000000"
-                className="w-full bg-slate-950 border border-slate-800 rounded-2xl py-4 text-center text-2xl font-black tracking-[1em] text-primary outline-none focus:ring-2 focus:ring-primary/50 transition-all"
-              />
-              
-              <button 
-                type="button"
-                className="text-primary text-xs font-bold hover:underline"
-                onClick={() => toast.success("تم إعادة إرسال الرمز")}
-              >
-                إعادة إرسال الرمز
-              </button>
-            </motion.div>
-          ) : step === 3 ? (
-            <motion.div 
-              initial={{ opacity: 0, x: 20 }}
-              animate={{ opacity: 1, x: 0 }}
               className="space-y-4"
             >
-              <div className="p-4 bg-slate-800/50 rounded-2xl text-center mb-4">
-                <p className="text-slate-300 text-xs font-bold">معلومات مهنية (يمكن إكمالها لاحقاً)</p>
-              </div>
-
               <div>
-                <label className="text-xs font-black text-slate-500 uppercase tracking-wider mb-2 block">الولاية</label>
-                <div className="relative">
-                  <MapPin className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
-                  <select
-                    value={formData.wilaya}
-                    onChange={(e) => setFormData({ ...formData, wilaya: e.target.value })}
-                    className="w-full bg-slate-950 border border-slate-800 rounded-xl py-3 pl-12 pr-4 text-white text-right outline-none focus:ring-2 focus:ring-primary/50 transition-all appearance-none"
-                  >
-                    <option value="">اختر ولايتك</option>
-                    {WILAYAS.map(w => <option key={w} value={w}>{w}</option>)}
-                  </select>
-                </div>
-              </div>
-
-              <div>
-                <label className="text-xs font-black text-slate-500 uppercase tracking-wider mb-2 block">المادة الممارسة</label>
+                <label className="text-xs font-black text-slate-500 uppercase tracking-wider mb-2 block">Subject</label>
                 <div className="relative">
                   <BookOpen className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
                   <select
+                    required
                     value={formData.subject}
                     onChange={(e) => setFormData({ ...formData, subject: e.target.value })}
-                    className="w-full bg-slate-950 border border-slate-800 rounded-xl py-3 pl-12 pr-4 text-white text-right outline-none focus:ring-2 focus:ring-primary/50 transition-all appearance-none"
+                    className="w-full bg-slate-950 border border-slate-800 rounded-xl py-3 pl-12 pr-4 text-white outline-none focus:ring-2 focus:ring-primary/50 transition-all appearance-none"
                   >
-                    <option value="">اختر المادة</option>
+                    <option value="">Select your subject</option>
                     {SUBJECTS.map(s => <option key={s} value={s}>{s}</option>)}
                   </select>
                 </div>
               </div>
 
               <div>
-                <label className="text-xs font-black text-slate-500 uppercase tracking-wider mb-2 block">المرحلة التعليمية</label>
+                <label className="text-xs font-black text-slate-500 uppercase tracking-wider mb-2 block">Gender (الجنس)</label>
+                <div className="flex gap-4">
+                  {['ذكر (Male)', 'أنثى (Female)'].map((g) => (
+                    <button
+                      key={g}
+                      type="button"
+                      onClick={() => setFormData({ ...formData, gender: g })}
+                      className={`flex-1 py-3 rounded-xl border-2 transition-all font-bold text-sm ${formData.gender === g ? 'border-primary bg-primary/10 text-primary' : 'border-slate-800 bg-slate-950 text-slate-500'}`}
+                    >
+                      {g}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <label className="text-xs font-black text-slate-500 uppercase tracking-wider mb-2 block">Role (الصفة)</label>
+                <select
+                  required
+                  value={formData.role}
+                  onChange={(e) => setFormData({ ...formData, role: e.target.value })}
+                  className="w-full bg-slate-950 border border-slate-800 rounded-xl py-3 px-4 text-white outline-none focus:ring-2 focus:ring-primary/50 transition-all appearance-none"
+                >
+                  {ROLES.map(r => <option key={r} value={r}>{r}</option>)}
+                </select>
+              </div>
+
+              <div>
+                <label className="text-xs font-black text-slate-500 uppercase tracking-wider mb-2 block">Rank (الرتبة)</label>
+                <select
+                  required
+                  value={formData.rank}
+                  onChange={(e) => setFormData({ ...formData, rank: e.target.value })}
+                  className="w-full bg-slate-950 border border-slate-800 rounded-xl py-3 px-4 text-white outline-none focus:ring-2 focus:ring-primary/50 transition-all appearance-none"
+                >
+                  {RANKS.map(r => <option key={r} value={r}>{r}</option>)}
+                </select>
+              </div>
+
+              <div>
+                <label className="text-xs font-black text-slate-500 uppercase tracking-wider mb-2 block">Teaching Level</label>
                 <div className="relative">
                   <GraduationCap className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
                   <select
+                    required
                     value={formData.level}
                     onChange={(e) => setFormData({ ...formData, level: e.target.value })}
-                    className="w-full bg-slate-950 border border-slate-800 rounded-xl py-3 pl-12 pr-4 text-white text-right outline-none focus:ring-2 focus:ring-primary/50 transition-all appearance-none"
+                    className="w-full bg-slate-950 border border-slate-800 rounded-xl py-3 pl-12 pr-4 text-white outline-none focus:ring-2 focus:ring-primary/50 transition-all appearance-none"
                   >
-                    <option value="">اختر الطور</option>
+                    <option value="">Select level</option>
                     {LEVELS.map(l => <option key={l} value={l}>{l}</option>)}
                   </select>
+                </div>
+              </div>
+
+              <div>
+                <label className="text-xs font-black text-slate-500 uppercase tracking-wider mb-2 block">Years of Experience</label>
+                <div className="relative">
+                  <Clock className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
+                  <input
+                    required
+                    type="number"
+                    min="0"
+                    max="50"
+                    value={isNaN(formData.yearsOfExperience) ? '' : formData.yearsOfExperience}
+                    onChange={(e) => setFormData({ ...formData, yearsOfExperience: e.target.value === '' ? 0 : parseInt(e.target.value) })}
+                    className="w-full bg-slate-950 border border-slate-800 rounded-xl py-3 pl-12 pr-4 text-white outline-none focus:ring-2 focus:ring-primary/50 transition-all"
+                  />
                 </div>
               </div>
             </motion.div>
@@ -306,32 +272,24 @@ export default function CompleteProfile() {
               className="space-y-4"
             >
               <div>
-                <label className="text-xs font-black text-slate-500 uppercase tracking-wider mb-2 block">الرتبة والخبرة</label>
-                <div className="grid grid-cols-2 gap-4">
-                  <select
-                    value={formData.rank}
-                    onChange={(e) => setFormData({ ...formData, rank: e.target.value })}
-                    className="w-full bg-slate-950 border border-slate-800 rounded-xl py-3 px-4 text-white outline-none focus:ring-2 focus:ring-primary/50 transition-all"
-                  >
-                    {RANKS.map(r => <option key={r} value={r}>{r}</option>)}
-                  </select>
-                  <input
-                    type="number"
-                    placeholder="سنوات الخبرة"
-                    value={formData.yearsOfExperience || ''}
-                    onChange={(e) => setFormData({ ...formData, yearsOfExperience: parseInt(e.target.value) || 0 })}
-                    className="w-full bg-slate-950 border border-slate-800 rounded-xl py-3 px-4 text-white text-right outline-none"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="text-xs font-black text-slate-500 uppercase tracking-wider mb-2 block">تاريخ الميلاد</label>
+                <label className="text-xs font-black text-slate-500 uppercase tracking-wider mb-2 block">Phone Number</label>
                 <input
+                  required
+                  type="tel"
+                  value={formData.phoneNumber}
+                  onChange={(e) => setFormData({ ...formData, phoneNumber: e.target.value })}
+                  className="w-full bg-slate-950 border border-slate-800 rounded-xl py-3 px-4 text-white outline-none focus:ring-2 focus:ring-primary/50 transition-all"
+                  placeholder="0X XX XX XX XX"
+                />
+              </div>
+              <div>
+                <label className="text-xs font-black text-slate-500 uppercase tracking-wider mb-2 block">Birth Date</label>
+                <input
+                  required
                   type="date"
                   value={formData.birthDate}
                   onChange={(e) => setFormData({ ...formData, birthDate: e.target.value })}
-                  className="w-full bg-slate-950 border border-slate-800 rounded-xl py-3 px-4 text-white text-right outline-none"
+                  className="w-full bg-slate-950 border border-slate-800 rounded-xl py-3 px-4 text-white outline-none focus:ring-2 focus:ring-primary/50 transition-all"
                 />
               </div>
             </motion.div>
@@ -344,7 +302,7 @@ export default function CompleteProfile() {
                 onClick={() => setStep(step - 1)}
                 className="flex-1 bg-slate-800 hover:bg-slate-700 text-white font-black py-4 rounded-2xl transition-all"
               >
-                رجوع
+                Back
               </button>
             )}
             <button
@@ -356,23 +314,12 @@ export default function CompleteProfile() {
                 <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
               ) : (
                 <>
-                  {step < 4 ? 'الخطوة التالية' : 'إنهاء وحفظ'}
+                  {step < 3 ? 'Next Step' : 'Finish Setup'}
                   <CheckCircle2 className="w-5 h-5 group-hover:scale-110 transition-transform" />
                 </>
               )}
             </button>
           </div>
-          
-          {step >= 3 && (
-            <button
-              type="button"
-              onClick={handleSkip}
-              disabled={loading || skipping}
-              className="w-full mt-4 py-2 text-slate-500 hover:text-slate-300 text-sm font-bold border border-slate-800 rounded-xl transition-colors disabled:opacity-50"
-            >
-              {skipping ? 'جاري الحفظ...' : 'تجاوز وإكمال لاحقاً (Skip)'}
-            </button>
-          )}
         </form>
       </motion.div>
     </div>

@@ -25,19 +25,21 @@ import Navbar from './components/Navbar';
 import Sidebar from './components/Sidebar';
 import BottomNav from './components/BottomNav';
 import ChatBubble from './components/ChatBubble';
+import { SoulMedicine } from './components/SoulMedicine';
 import FriendSuggestions from './components/FriendSuggestions';
 import CompleteProfile from './components/CompleteProfile';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { GraduationCap, LogOut, AlertCircle, Lock, Unlock, ChevronRight, ChevronLeft } from 'lucide-react';
-import { auth, db } from './firebase';
+import { auth, db, onConnectionChange } from './firebase';
 import { signOut } from 'firebase/auth';
 import { collection, query, where, orderBy, limit, onSnapshot } from 'firebase/firestore';
 import { playSound } from './lib/sounds';
 import { motion, AnimatePresence } from 'motion/react';
+import { WifiOff, X } from 'lucide-react';
 
 import { UploadProvider } from './hooks/useUpload';
 import InstallPrompt from './components/InstallPrompt';
-import { Toaster, toast } from 'react-hot-toast';
+import { Toaster } from 'react-hot-toast';
 
 import { useTranslation } from './hooks/useTranslation';
 
@@ -45,11 +47,22 @@ export default function App() {
   const { user, profile, loading, error, retry } = useAuth();
   const { t } = useTranslation();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [isSoulMedOpen, setIsSoulMedOpen] = useState(false);
+  const [isOnline, setIsOnline] = useState(true);
+
+  useEffect(() => {
+    return onConnectionChange(setIsOnline);
+  }, []);
 
   useEffect(() => {
     const handleToggle = () => setIsSidebarOpen(prev => !prev);
+    const handleSoulMed = () => setIsSoulMedOpen(prev => !prev);
     window.addEventListener('toggle-sidebar', handleToggle);
-    return () => window.removeEventListener('toggle-sidebar', handleToggle);
+    window.addEventListener('show-soul-medicine', handleSoulMed);
+    return () => {
+      window.removeEventListener('toggle-sidebar', handleToggle);
+      window.removeEventListener('show-soul-medicine', handleSoulMed);
+    };
   }, []);
 
   useEffect(() => {
@@ -122,27 +135,13 @@ export default function App() {
       }
       
       if (!snapshot.empty) {
-        snapshot.docChanges().forEach(change => {
-          if (change.type === 'added') {
-            const newNotif = change.doc.data();
-            const now = Date.now();
-            const createdAt = newNotif.createdAt?.toMillis?.() || 0;
-            
-            // Only alert for very recent notifications
-            if (now - createdAt < 15000) {
-              playSound('notification');
-              toast(newNotif.text || 'لديك إشعار جديد', {
-                icon: '🔔',
-                style: {
-                  borderRadius: '1.5rem',
-                  background: '#1e293b',
-                  color: '#fff',
-                  border: '1px solid #334155'
-                }
-              });
-            }
-          }
-        });
+        const newNotif = snapshot.docs[0].data();
+        // Only play if it was created in the last 10 seconds (avoid processing old unread ones as "new")
+        const now = Date.now();
+        const createdAt = newNotif.createdAt?.toMillis?.() || 0;
+        if (now - createdAt < 10000) {
+          playSound('notification');
+        }
       }
     });
 
@@ -164,6 +163,20 @@ export default function App() {
               />
             )}
             <div className="relative z-10 w-full h-full">
+              <AnimatePresence>
+                {!isOnline && (
+                  <motion.div
+                    initial={{ height: 0, opacity: 0 }}
+                    animate={{ height: 'auto', opacity: 1 }}
+                    exit={{ height: 0, opacity: 0 }}
+                    className="bg-amber-500 text-slate-950 px-4 py-2 text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-2 sticky top-0 z-[100]"
+                  >
+                    <WifiOff className="w-3 h-3" />
+                    البحث عن اتصال... (Offline Mode)
+                    <button onClick={() => window.location.reload()} className="underline ml-2">Reload</button>
+                  </motion.div>
+                )}
+              </AnimatePresence>
               <InstallPrompt />
               {loading ? (
               <div className="min-h-screen flex flex-col items-center justify-center bg-slate-950 p-8">
@@ -348,6 +361,7 @@ export default function App() {
                 </div>
 
                 {user && <ChatBubble />}
+                <SoulMedicine isOpen={isSoulMedOpen} onClose={() => setIsSoulMedOpen(false)} />
               </>
             )}
             </div>
