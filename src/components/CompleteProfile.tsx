@@ -1,9 +1,8 @@
 import React, { useState } from 'react';
 import { useAuth } from '../hooks/useAuth';
 import { motion } from 'motion/react';
-import { GraduationCap, MapPin, BookOpen, Clock, User, CheckCircle2, LogOut, ChevronDown } from 'lucide-react';
-import { auth, db } from '../firebase';
-import { signOut } from 'firebase/auth';
+import { GraduationCap, MapPin, BookOpen, Clock, User, CheckCircle2 } from 'lucide-react';
+import { db } from '../firebase';
 import { collection, query, where, getDocs } from 'firebase/firestore';
 
 const WILAYAS = [
@@ -52,29 +51,6 @@ export default function CompleteProfile() {
     birthDate: ''
   });
 
-  const handleLogout = async () => {
-    try {
-      await signOut(auth);
-      window.location.reload();
-    } catch (err) {
-      console.error("Logout error:", err);
-    }
-  };
-
-  const handleSkip = async () => {
-    setLoading(true);
-    try {
-      await completeProfile({ 
-        isProfileComplete: true,
-        displayName: profile?.displayName || 'الاستاذ(ة)'
-      });
-    } catch (err) {
-      console.error("Profile skip error:", err);
-    } finally {
-      setLoading(false);
-    }
-  };
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (step < 3) {
@@ -101,7 +77,6 @@ export default function CompleteProfile() {
 
       const finalData = {
         ...formData,
-        isProfileComplete: true,
         displayName: `${formData.firstName} ${formData.lastName}`.trim() || formData.displayName
       };
       await completeProfile(finalData);
@@ -119,35 +94,18 @@ export default function CompleteProfile() {
   };
 
   return (
-    <div className="fixed inset-0 bg-slate-950/95 backdrop-blur-2xl z-50 overflow-y-auto px-4 py-8 flex flex-col items-center">
+    <div className="fixed inset-0 bg-slate-950/90 backdrop-blur-xl z-50 flex items-center justify-center p-4 overflow-y-auto">
       <motion.div 
         initial={{ opacity: 0, scale: 0.9, y: 20 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
-        className="bg-slate-900 w-full max-w-md rounded-3xl p-6 sm:p-8 border border-slate-800 shadow-[0_0_50px_rgba(0,0,0,0.5)] my-auto relative"
+        className="bg-slate-900 w-full max-w-md rounded-3xl p-8 border border-slate-800 shadow-2xl my-auto"
       >
-        <div className="flex justify-between items-center mb-6">
-          <button 
-            type="button"
-            onClick={handleLogout}
-            className="flex items-center gap-1.5 text-[10px] font-black text-red-500 uppercase tracking-widest hover:text-red-400 transition-colors bg-red-500/5 px-3 py-1.5 rounded-lg border border-red-500/10"
-          >
-            <LogOut className="w-3 h-3" />
-            Logout / خروج
-          </button>
-          <button 
-            type="button"
-            onClick={handleSkip}
-            className="text-[10px] font-black text-slate-500 uppercase tracking-widest hover:text-white transition-colors"
-          >
-            Finish Later / إكمال لاحقاً
-          </button>
-        </div>
         <div className="text-center mb-8">
-          <div className="w-16 h-16 bg-primary/20 rounded-2xl flex items-center justify-center mx-auto mb-4 border border-primary/20 shadow-lg shadow-primary/10">
+          <div className="w-16 h-16 bg-primary/20 rounded-2xl flex items-center justify-center mx-auto mb-4">
             <GraduationCap className="w-8 h-8 text-primary" />
           </div>
-          <h2 className="text-2xl font-black text-white mb-2">إكمال الملف الشخصي</h2>
-          <p className="text-slate-400 text-sm font-bold">Complete Your Profile</p>
+          <h2 className="text-2xl font-black text-white mb-2">Complete Your Profile</h2>
+          <p className="text-slate-400 text-sm">Help other teachers find and connect with you.</p>
         </div>
 
         {error && (
@@ -174,47 +132,42 @@ export default function CompleteProfile() {
             >
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="text-xs font-black text-slate-500 uppercase tracking-wider mb-2 block">الاسم (First Name)</label>
+                  <label className="text-xs font-black text-slate-500 uppercase tracking-wider mb-2 block">First Name</label>
                   <input
                     required
                     type="text"
                     value={formData.firstName}
                     onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
-                    className="w-full bg-slate-950 border border-slate-800 rounded-xl py-3.5 px-4 text-white outline-none focus:ring-2 focus:ring-primary/50 transition-all text-sm font-bold"
+                    className="w-full bg-slate-950 border border-slate-800 rounded-xl py-3 px-4 text-white outline-none focus:ring-2 focus:ring-primary/50 transition-all"
                     placeholder="First Name"
                   />
                 </div>
                 <div>
-                  <label className="text-xs font-black text-slate-500 uppercase tracking-wider mb-2 block">اللقب (Last Name)</label>
+                  <label className="text-xs font-black text-slate-500 uppercase tracking-wider mb-2 block">Last Name</label>
                   <input
                     required
                     type="text"
                     value={formData.lastName}
                     onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
-                    className="w-full bg-slate-950 border border-slate-800 rounded-xl py-3.5 px-4 text-white outline-none focus:ring-2 focus:ring-primary/50 transition-all text-sm font-bold"
+                    className="w-full bg-slate-950 border border-slate-800 rounded-xl py-3 px-4 text-white outline-none focus:ring-2 focus:ring-primary/50 transition-all"
                     placeholder="Last Name"
                   />
                 </div>
               </div>
 
               <div>
-                <label className="text-xs font-black text-slate-500 uppercase tracking-wider mb-2 block font-bold">الولاية (Wilaya / State)</label>
-                <div className="relative group">
-                  <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none group-focus-within:text-primary transition-colors">
-                    <MapPin className="w-5 h-5" />
-                  </div>
+                <label className="text-xs font-black text-slate-500 uppercase tracking-wider mb-2 block">Wilaya (State)</label>
+                <div className="relative">
+                  <MapPin className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
                   <select
                     required
                     value={formData.wilaya}
                     onChange={(e) => setFormData({ ...formData, wilaya: e.target.value })}
-                    className="w-full bg-slate-950 border border-slate-800 rounded-xl py-4 pl-12 pr-10 text-white outline-none focus:ring-2 focus:ring-primary/50 transition-all text-sm font-black appearance-none cursor-pointer"
+                    className="w-full bg-slate-950 border border-slate-800 rounded-xl py-3 pl-12 pr-4 text-white outline-none focus:ring-2 focus:ring-primary/50 transition-all appearance-none"
                   >
-                    <option value="">Select your wilaya / اختر الولاية</option>
+                    <option value="">Select your wilaya</option>
                     {WILAYAS.map(w => <option key={w} value={w}>{w}</option>)}
                   </select>
-                  <div className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none">
-                    <ChevronDown className="w-5 h-5" />
-                  </div>
                 </div>
               </div>
             </motion.div>
@@ -361,7 +314,7 @@ export default function CompleteProfile() {
                 <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
               ) : (
                 <>
-                  {step < 3 ? 'Next Step / الخطوة التالية' : 'Finish Setup / إنهاء'}
+                  {step < 3 ? 'Next Step' : 'Finish Setup'}
                   <CheckCircle2 className="w-5 h-5 group-hover:scale-110 transition-transform" />
                 </>
               )}

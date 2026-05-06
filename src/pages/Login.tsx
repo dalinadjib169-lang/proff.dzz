@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { signInWithPopup, GoogleAuthProvider, signInWithEmailAndPassword, createUserWithEmailAndPassword, setPersistence, browserLocalPersistence, browserSessionPersistence, signOut, sendPasswordResetEmail } from 'firebase/auth';
 import { auth } from '../firebase';
 import { motion } from 'motion/react';
-import { BookOpen, GraduationCap, Mail, Lock, User, LogIn, RefreshCw, AlertCircle, Sparkles, UserCircle, KeyRound, CheckCircle2, Eye, EyeOff, ChevronRight } from 'lucide-react';
+import { BookOpen, GraduationCap, Mail, Lock, User, LogIn, RefreshCw, AlertCircle, Sparkles, UserCircle, KeyRound, CheckCircle2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
 export default function Login() {
@@ -17,7 +17,6 @@ export default function Login() {
   const [rememberMe, setRememberMe] = useState(true);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
-  const [showPassword, setShowPassword] = useState(false);
   const [networkStatus, setNetworkStatus] = useState<{ google: boolean | null; firebase: boolean | null }>({ google: null, firebase: null });
 
   const navigate = useNavigate();
@@ -163,18 +162,7 @@ export default function Login() {
       }
     } catch (err: any) {
       console.error("Email Auth Error:", err);
-      if (err.code === 'auth/email-already-in-use') {
-        setError('هذا الحساب موجود بالفعل. يرجى تسجيل الدخول بدلاً من فتح حساب جديد.');
-        setIsRegister(false); // Automatically switch to login if they try to register an existing account
-      } else if (err.code === 'auth/invalid-email') {
-        setError('البريد الإلكتروني أو رقم الهاتف غير صالح');
-      } else if (err.code === 'auth/weak-password') {
-        setError('كلمة السر ضعيفة جداً. يجب أن تتكون من 6 أحرف على الأقل.');
-      } else if (err.code === 'auth/user-not-found' || err.code === 'auth/wrong-password') {
-        setError('خطأ في البريد الإلكتروني أو كلمة السر');
-      } else {
-        setError(err.message || 'Authentication failed');
-      }
+      setError(err.message || 'Authentication failed');
     } finally {
       setLoading(false);
     }
@@ -200,13 +188,13 @@ export default function Login() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center relative overflow-y-auto p-4 md:p-8">
+    <div className="min-h-[calc(100vh-4rem)] flex items-center justify-center relative overflow-hidden rounded-3xl p-4">
       {/* Background Image with Overlay */}
       <div 
-        className="fixed inset-0 z-0 bg-cover bg-center"
+        className="absolute inset-0 z-0 bg-cover bg-center"
         style={{ backgroundImage: 'url("/user_uploads/input_file_0.png")' }}
       >
-        <div className="absolute inset-0 bg-slate-950/80 backdrop-blur-[4px]"></div>
+        <div className="absolute inset-0 bg-slate-950/70 backdrop-blur-[3px]"></div>
       </div>
 
       <div className="relative z-10 w-full max-w-md">
@@ -262,11 +250,7 @@ export default function Login() {
           </div>
 
         {error && (
-          <motion.div 
-            initial={{ opacity: 0, y: -10 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="bg-red-500/10 text-red-500 p-4 rounded-2xl text-sm font-medium border border-red-500/20 shadow-lg space-y-3"
-          >
+          <div className="bg-red-500/10 text-red-500 p-4 rounded-2xl text-sm font-medium border border-red-500/20 shadow-lg">
             <div className="flex items-start gap-3">
               <AlertCircle className="w-5 h-5 shrink-0 mt-0.5" />
               <div>
@@ -274,16 +258,7 @@ export default function Login() {
                 <p className="text-xs opacity-90 whitespace-pre-wrap">{error}</p>
               </div>
             </div>
-            {isRegister && error.includes('بالفعل') && (
-              <button 
-                type="button"
-                onClick={() => { setIsRegister(false); setError(null); }}
-                className="w-full py-2 bg-red-500 text-white rounded-xl text-xs font-black uppercase tracking-widest hover:bg-red-600 transition-all shadow-lg shadow-red-500/20"
-              >
-                Go to Login / تسجيل الدخول
-              </button>
-            )}
-          </motion.div>
+          </div>
         )}
 
         {success && (
@@ -316,18 +291,6 @@ export default function Login() {
         </div>
 
         <form onSubmit={handleEmailAuth} className="space-y-4">
-          {isRegister && (
-            <div className="flex items-center justify-start mb-2">
-              <button 
-                type="button" 
-                onClick={() => setIsRegister(false)}
-                className="flex items-center gap-2 px-4 py-2 rounded-xl bg-slate-950/50 text-slate-400 hover:text-white transition-all border border-slate-800/50 group hover:border-primary/50"
-              >
-                <ChevronRight className="w-4 h-4 group-hover:-translate-x-1 transition-transform" />
-                <span className="text-xs font-black uppercase tracking-widest">Back / رجوع</span>
-              </button>
-            </div>
-          )}
           {isRegister && (
             <div className="grid grid-cols-2 gap-3">
               <div className="relative">
@@ -384,20 +347,13 @@ export default function Login() {
           <div className="relative">
             <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-500" />
             <input
-              type={showPassword ? "text" : "password"}
+              type="password"
               placeholder="كلمة السر"
-              className="w-full pl-12 pr-12 py-3.5 bg-slate-950/30 border border-slate-800/50 rounded-2xl focus:ring-2 focus:ring-purple-500 focus:border-purple-500 outline-none transition-all text-white placeholder:text-slate-600 text-sm font-bold"
+              className="w-full pl-12 pr-4 py-3.5 bg-slate-950/30 border border-slate-800/50 rounded-2xl focus:ring-2 focus:ring-purple-500 focus:border-purple-500 outline-none transition-all text-white placeholder:text-slate-600 text-sm font-bold"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               required
             />
-            <button
-              type="button"
-              onClick={() => setShowPassword(!showPassword)}
-              className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300 transition-colors p-1"
-            >
-              {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
-            </button>
           </div>
 
           <div className="flex items-center justify-between px-2">

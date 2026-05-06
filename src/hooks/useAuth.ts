@@ -79,17 +79,14 @@ export function useAuth() {
               return merged;
             });
             
-            // Check if profile is complete (either manually or by filling all fields)
-            const allFieldsFilled = !!(
-              publicData.firstName &&
-              publicData.lastName &&
+            // Check if profile is complete
+            const isComplete = !!(
+              publicData.displayName && 
               publicData.wilaya && 
               publicData.subject && 
               publicData.level && 
               publicData.yearsOfExperience !== undefined
             );
-            
-            const isComplete = publicData.isProfileComplete || allFieldsFilled;
             
             const updates: any = {};
             if (publicData.isProfileComplete !== isComplete) {

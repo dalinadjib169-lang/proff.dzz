@@ -18,9 +18,8 @@ export const auth = getAuth(app);
 const databaseId = (firebaseConfig as any).firestoreDatabaseId || "(default)";
 export const db = initializeFirestore(app, {
   experimentalForceLongPolling: true,
-  ignoreUndefinedProperties: true,
-  useFetchStreams: false
-} as any, databaseId);
+  ignoreUndefinedProperties: true
+}, databaseId);
 
 export const checkFirestoreConnection = async () => {
   try {
