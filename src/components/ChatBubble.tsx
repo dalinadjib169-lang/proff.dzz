@@ -49,8 +49,9 @@ import {
   Users,
   Globe,
   TrendingUp,
+  Heart,
+  ChevronRight,
   ShieldAlert,
-  Heart
 } from 'lucide-react';
 import { db, storage, onConnectionChange } from '../firebase';
 import { collection, query, orderBy, onSnapshot, addDoc, serverTimestamp, where, limit, Timestamp, updateDoc, doc, arrayUnion, arrayRemove, setDoc, writeBatch, getDoc, deleteDoc, getDocs } from 'firebase/firestore';
@@ -953,6 +954,7 @@ export default function ChatBubble() {
   const [isFriend, setIsFriend] = useState(false);
   const [localIsFriendOverride, setLocalIsFriendOverride] = useState(false);
   const [friendRequest, setFriendRequest] = useState<any>(null);
+  const [isSelectingFriend, setIsSelectingFriend] = useState(false);
 
   // Check friendship status for activeChat
   useEffect(() => {
@@ -1013,18 +1015,20 @@ export default function ChatBubble() {
       });
 
       // Try to find and mark related notification as read
-      const q = query(
+      const notifQ = query(
         collection(db, 'notifications'),
         where('recipientId', '==', profile.uid),
         where('senderId', '==', activeChat!.uid),
-        where('type', '==', 'follow'),
         where('read', '==', false),
-        limit(1)
+        limit(10)
       );
-      const notifSnap = await getDocs(q);
-      if (!notifSnap.empty) {
-        batch.update(doc(db, 'notifications', notifSnap.docs[0].id), { read: true });
-      }
+      const notifSnap = await getDocs(notifQ);
+      notifSnap.forEach(d => {
+        const type = d.data().type;
+        if (type === 'follow' || type === 'message_request' || type === 'friend_request') {
+          batch.update(doc(db, 'notifications', d.id), { read: true });
+        }
+      });
       
       await batch.commit();
       setLocalIsFriendOverride(true);
@@ -1047,18 +1051,20 @@ export default function ChatBubble() {
       batch.delete(doc(db, 'invitations', friendRequest.id));
       
       // Try to find and mark related notification as read
-      const q = query(
+      const notifQ = query(
         collection(db, 'notifications'),
         where('recipientId', '==', profile.uid),
         where('senderId', '==', activeChat!.uid),
-        where('type', '==', 'follow'),
         where('read', '==', false),
-        limit(1)
+        limit(10)
       );
-      const notifSnap = await getDocs(q);
-      if (!notifSnap.empty) {
-        batch.update(doc(db, 'notifications', notifSnap.docs[0].id), { read: true });
-      }
+      const notifSnap = await getDocs(notifQ);
+      notifSnap.forEach(d => {
+        const type = d.data().type;
+        if (type === 'follow' || type === 'message_request' || type === 'friend_request') {
+          batch.update(doc(db, 'notifications', d.id), { read: true });
+        }
+      });
       
       await batch.commit();
       setActiveChat(null);
@@ -1084,6 +1090,16 @@ export default function ChatBubble() {
         participants: [profile.uid, activeChat.uid],
         status: 'pending',
         createdAt: serverTimestamp(),
+      });
+
+      // Add notification for the recipient
+      await addDoc(collection(db, 'notifications'), {
+        recipientId: activeChat.uid,
+        senderId: profile.uid,
+        senderName: profile.displayName,
+        type: 'follow', // Use same type for consistency with Notifications page UI
+        read: false,
+        createdAt: serverTimestamp()
       });
     }
 
@@ -1445,7 +1461,6 @@ export default function ChatBubble() {
     return cleanText;
   };
 
-  const [isFriendsListOpen, setIsFriendsListOpen] = useState(false);
   const [friends, setFriends] = useState<any[]>([]);
   const [isAccepting, setIsAccepting] = useState(false);
 
@@ -1630,11 +1645,15 @@ export default function ChatBubble() {
                       </button>
 
                       <button
-                        onClick={() => setIsFriendsListOpen(!isFriendsListOpen)}
-                        className="p-1 rounded-md bg-blue-500/10 text-blue-400 hover:bg-blue-500/20 transition-all active:scale-95 border border-blue-500/20"
-                        title="Friends List"
+                        onClick={() => setIsSelectingFriend(!isSelectingFriend)}
+                        className={`p-1.5 rounded-lg transition-all active:scale-95 border shadow-lg ${
+                          isSelectingFriend 
+                            ? 'bg-blue-500 text-white border-blue-400' 
+                            : 'bg-blue-500/10 text-blue-400 hover:bg-blue-500/20 border-blue-500/20 shadow-blue-500/5'
+                        }`}
+                        title="اختيار زميل للمحادثة"
                       >
-                        <Plus className="w-3 h-3" />
+                        <Plus className={`w-3.5 h-3.5 transition-transform duration-300 ${isSelectingFriend ? 'rotate-45' : ''}`} />
                       </button>
 
                       <div className="flex items-center gap-1.5 px-1.5 py-0.5 rounded-full bg-slate-900 border border-slate-800" title="Stream Engine Status">
@@ -1679,12 +1698,16 @@ export default function ChatBubble() {
                       >
                         <Heart className="w-5 h-5" />
                       </button>
-                     <button
-                        onClick={() => setIsFriendsListOpen(!isFriendsListOpen)}
-                        className="p-2 rounded-xl bg-blue-500/10 text-blue-400 hover:bg-blue-500 hover:text-white transition-all border border-blue-500/10 active:scale-95"
-                        title="Friends"
+                    <button
+                        onClick={() => setIsSelectingFriend(!isSelectingFriend)}
+                        className={`p-2 rounded-xl transition-all border active:scale-95 ${
+                          isSelectingFriend
+                            ? 'bg-blue-500 text-white border-blue-400'
+                            : 'bg-blue-500/10 text-blue-400 hover:bg-blue-500 hover:text-white border-blue-500/10'
+                        }`}
+                        title="البحث عن زملاء"
                       >
-                        <Plus className="w-5 h-5" />
+                        <Plus className={`w-5 h-5 transition-transform duration-300 ${isSelectingFriend ? 'rotate-45' : ''}`} />
                       </button>
                       <button 
                         onClick={() => setIsOpen(false)} 
@@ -1696,75 +1719,91 @@ export default function ChatBubble() {
                    </div>
                 </div>
               )}
+            </div>
 
-              {/* Friends List Dropdown */}
-              <AnimatePresence>
-                {isFriendsListOpen && (
-                  <motion.div 
-                    initial={{ opacity: 0, y: -10, scale: 0.95 }}
-                    animate={{ opacity: 1, y: 0, scale: 1 }}
-                    exit={{ opacity: 0, y: -10, scale: 0.95 }}
-                    className="absolute top-full mt-2 right-2 w-64 bg-slate-900/95 backdrop-blur-3xl border border-white/10 rounded-2xl p-3 shadow-2xl z-[250] shadow-black/50"
-                    onClick={(e) => e.stopPropagation()}
+            {/* Content Area */}
+            <div className="flex-1 flex flex-col bg-slate-950/50 overflow-hidden relative">
+              {/* Separate Friend List View */}
+              <AnimatePresence mode="wait">
+                {isSelectingFriend && (
+                  <motion.div
+                    initial={{ opacity: 0, x: 20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    exit={{ opacity: 0, x: -20 }}
+                    className="absolute inset-0 z-50 bg-slate-950 flex flex-col"
                   >
-                    <div className="flex items-center justify-between mb-3 px-1">
-                      <h3 className="text-[10px] font-black text-white flex items-center gap-2">
-                        <Users className="w-3.5 h-3.5 text-blue-400" />
-                        الزملاء والنشاط
-                      </h3>
+                    <div className="p-4 border-b border-white/5 bg-slate-900/50 flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-2xl bg-blue-500/20 flex items-center justify-center border border-blue-500/30">
+                          <Users className="w-5 h-5 text-blue-400" />
+                        </div>
+                        <div>
+                          <h3 className="text-white font-black text-sm">قائمة الزملاء</h3>
+                          <p className="text-[10px] text-slate-400 font-bold">اختر زميلاً لبدء محادثة</p>
+                        </div>
+                      </div>
                       <button 
-                        onClick={() => setIsFriendsListOpen(false)}
-                        className="p-1 rounded-lg bg-white/5 text-slate-500 hover:text-white transition-colors"
+                        onClick={() => setIsSelectingFriend(false)}
+                        className="p-2 rounded-xl bg-white/5 text-slate-400 hover:text-white"
                       >
-                        <X className="w-3 h-3" />
+                        <X className="w-5 h-5" />
                       </button>
                     </div>
-                    <div className="space-y-2 max-h-[350px] overflow-y-auto no-scrollbar" dir="rtl">
-                      {friends.length === 0 && (
-                        <div className="text-center py-8 opacity-40">
-                          <Users className="w-8 h-8 mx-auto mb-2 opacity-20" />
-                          <p className="text-[10px] font-bold">لا يوجد زملاء نشطون حالياً</p>
+
+                    <div className="flex-1 overflow-y-auto p-4 space-y-3 custom-scrollbar">
+                      {friends.length === 0 ? (
+                        <div className="flex flex-col items-center justify-center h-full opacity-50 grayscale py-10">
+                          <Users className="w-16 h-16 mb-4 text-slate-600" />
+                          <p className="text-sm font-black text-slate-500">لا يوجد زملاء نشطون حالياً</p>
                         </div>
-                      )}
-                      {friends.map((friend) => (
-                        <div 
-                          key={friend.uid} 
-                          onClick={() => {
-                            setActiveChat(friend);
-                            setIsFriendsListOpen(false);
-                          }}
-                          className="flex items-center gap-3 p-2 rounded-xl hover:bg-white/5 transition-all group/friend cursor-pointer active:scale-[0.98]"
-                        >
-                          <div className="relative shrink-0">
-                            <img src={friend.photoURL || `https://ui-avatars.com/api/?name=${encodeURIComponent(friend.displayName || 'U')}&background=random`} className="w-9 h-9 rounded-lg object-cover border border-white/10" alt="" />
-                            <div className={`absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full border-2 border-slate-900 ${getStatusColor(friend.lastSeen)} ${getStatus(friend.lastSeen) === 'online' ? 'animate-pulse' : ''}`}></div>
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center justify-between gap-1">
-                              <h4 className="text-[11px] font-black text-white truncate">{friend.displayName || 'زميل جديد'}</h4>
-                              {friend.subject && (
-                                <span className="text-[8px] px-1.5 py-0.5 rounded bg-blue-500/10 text-blue-400 font-bold">
-                                  {getAbbreviated(friend.subject)}
+                      ) : (
+                        friends.map((friend) => (
+                          <motion.div
+                            key={friend.uid}
+                            initial={{ opacity: 0, y: 10 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            whileHover={{ scale: 1.02 }}
+                            whileTap={{ scale: 0.98 }}
+                            onClick={() => {
+                              setActiveChat(friend);
+                              setIsSelectingFriend(false);
+                            }}
+                            className="flex items-center gap-4 p-4 rounded-3xl bg-slate-900/50 border border-white/5 hover:border-blue-500/30 hover:bg-slate-900 transition-all cursor-pointer group"
+                            dir="rtl"
+                          >
+                            <div className="relative shrink-0">
+                              <img 
+                                src={friend.photoURL || `https://ui-avatars.com/api/?name=${encodeURIComponent(friend.displayName || 'U')}&background=random`} 
+                                className="w-12 h-12 rounded-2xl object-cover border-2 border-white/5 group-hover:border-blue-500/30 transition-all" 
+                                alt="" 
+                              />
+                              <div className={`absolute -bottom-1 -right-1 w-4 h-4 rounded-full border-4 border-slate-900 ${getStatusColor(friend.lastSeen)} ${getStatus(friend.lastSeen) === 'online' ? 'animate-pulse' : ''}`}></div>
+                            </div>
+                            <div className="flex-1 min-w-0 text-right">
+                              <div className="flex items-center justify-between gap-2">
+                                <h4 className="text-sm font-black text-white truncate">{friend.displayName || 'زميل جديد'}</h4>
+                                {friend.subject && (
+                                  <span className="text-[10px] px-2 py-1 rounded-lg bg-blue-500/10 text-blue-400 font-bold border border-blue-500/20">
+                                    {getAbbreviated(friend.subject)}
+                                  </span>
+                                )}
+                              </div>
+                              <div className="flex items-center gap-2 mt-1">
+                                <Clock className="w-3 h-3 text-slate-500" />
+                                <span className="text-[11px] text-slate-400 font-bold">
+                                  {getStatus(friend.lastSeen) === 'online' ? 'متصل الآن' : `أغلق منذ ${formatLastSeenTime(friend.lastSeen)}`}
                                 </span>
-                              )}
+                              </div>
                             </div>
-                            <div className="flex items-center gap-1.5 mt-0.5 opacity-60 group-hover/friend:opacity-100 transition-opacity">
-                              <Clock className="w-2.5 h-2.5 text-slate-500" />
-                              <span className="text-[9px] text-slate-400 font-bold">
-                                {getStatus(friend.lastSeen) === 'online' ? 'متصل الآن' : `أغلق منذ ${formatLastSeenTime(friend.lastSeen)}`}
-                              </span>
-                            </div>
-                          </div>
-                        </div>
-                      ))}
+                            <ChevronRight className="w-5 h-5 text-slate-700 group-hover:text-blue-500 transition-colors" />
+                          </motion.div>
+                        ))
+                      )}
                     </div>
                   </motion.div>
                 )}
               </AnimatePresence>
-            </div>
 
-            {/* Content */}
-            <div className="flex-1 flex flex-col bg-slate-950/50 overflow-hidden relative">
               {/* Incoming Call Overlay */}
               <AnimatePresence>
                 {incomingCall && !isCalling && (
