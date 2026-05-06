@@ -51,6 +51,20 @@ export default function CompleteProfile() {
     birthDate: ''
   });
 
+  const handleSkip = async () => {
+    setLoading(true);
+    try {
+      await completeProfile({ 
+        isProfileComplete: true,
+        displayName: profile?.displayName || 'الاستاذ(ة)'
+      });
+    } catch (err) {
+      console.error("Profile skip error:", err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (step < 3) {
@@ -77,6 +91,7 @@ export default function CompleteProfile() {
 
       const finalData = {
         ...formData,
+        isProfileComplete: true,
         displayName: `${formData.firstName} ${formData.lastName}`.trim() || formData.displayName
       };
       await completeProfile(finalData);
@@ -100,6 +115,14 @@ export default function CompleteProfile() {
         animate={{ opacity: 1, scale: 1, y: 0 }}
         className="bg-slate-900 w-full max-w-md rounded-3xl p-8 border border-slate-800 shadow-2xl my-auto"
       >
+        <div className="flex justify-end mb-4">
+          <button 
+            onClick={handleSkip}
+            className="text-[10px] font-black text-slate-500 uppercase tracking-widest hover:text-white transition-colors"
+          >
+            Finish Later / إكمال لاحقاً
+          </button>
+        </div>
         <div className="text-center mb-8">
           <div className="w-16 h-16 bg-primary/20 rounded-2xl flex items-center justify-center mx-auto mb-4">
             <GraduationCap className="w-8 h-8 text-primary" />

@@ -360,7 +360,7 @@ export default function App() {
                   </div>
                 </div>
 
-                {user && <ChatBubble />}
+                {user && profile && profile.isProfileComplete && <ChatBubble />}
                 <SoulMedicine isOpen={isSoulMedOpen} onClose={() => setIsSoulMedOpen(false)} />
               </>
             )}
