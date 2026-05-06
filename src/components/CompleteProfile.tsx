@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
 import { useAuth } from '../hooks/useAuth';
 import { motion } from 'motion/react';
-import { GraduationCap, MapPin, BookOpen, Clock, User, CheckCircle2 } from 'lucide-react';
-import { db } from '../firebase';
+import { GraduationCap, MapPin, BookOpen, Clock, User, CheckCircle2, LogOut } from 'lucide-react';
+import { auth, db } from '../firebase';
+import { signOut } from 'firebase/auth';
 import { collection, query, where, getDocs } from 'firebase/firestore';
 
 const WILAYAS = [
@@ -50,6 +51,15 @@ export default function CompleteProfile() {
     phoneNumber: '',
     birthDate: ''
   });
+
+  const handleLogout = async () => {
+    try {
+      await signOut(auth);
+      window.location.reload();
+    } catch (err) {
+      console.error("Logout error:", err);
+    }
+  };
 
   const handleSkip = async () => {
     setLoading(true);
@@ -109,14 +119,23 @@ export default function CompleteProfile() {
   };
 
   return (
-    <div className="fixed inset-0 bg-slate-950/90 backdrop-blur-xl z-50 flex items-center justify-center p-4 overflow-y-auto">
+    <div className="fixed inset-0 bg-slate-950/95 backdrop-blur-2xl z-50 overflow-y-auto px-4 py-8 flex flex-col items-center">
       <motion.div 
         initial={{ opacity: 0, scale: 0.9, y: 20 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
-        className="bg-slate-900 w-full max-w-md rounded-3xl p-8 border border-slate-800 shadow-2xl my-auto"
+        className="bg-slate-900 w-full max-w-md rounded-3xl p-6 sm:p-8 border border-slate-800 shadow-[0_0_50px_rgba(0,0,0,0.5)] my-auto relative"
       >
-        <div className="flex justify-end mb-4">
+        <div className="flex justify-between items-center mb-6">
           <button 
+            type="button"
+            onClick={handleLogout}
+            className="flex items-center gap-1.5 text-[10px] font-black text-red-500 uppercase tracking-widest hover:text-red-400 transition-colors bg-red-500/5 px-3 py-1.5 rounded-lg border border-red-500/10"
+          >
+            <LogOut className="w-3 h-3" />
+            Logout / خروج
+          </button>
+          <button 
+            type="button"
             onClick={handleSkip}
             className="text-[10px] font-black text-slate-500 uppercase tracking-widest hover:text-white transition-colors"
           >
@@ -124,11 +143,11 @@ export default function CompleteProfile() {
           </button>
         </div>
         <div className="text-center mb-8">
-          <div className="w-16 h-16 bg-primary/20 rounded-2xl flex items-center justify-center mx-auto mb-4">
+          <div className="w-16 h-16 bg-primary/20 rounded-2xl flex items-center justify-center mx-auto mb-4 border border-primary/20 shadow-lg shadow-primary/10">
             <GraduationCap className="w-8 h-8 text-primary" />
           </div>
-          <h2 className="text-2xl font-black text-white mb-2">Complete Your Profile</h2>
-          <p className="text-slate-400 text-sm">Help other teachers find and connect with you.</p>
+          <h2 className="text-2xl font-black text-white mb-2">إكمال الملف الشخصي</h2>
+          <p className="text-slate-400 text-sm font-bold">Complete Your Profile</p>
         </div>
 
         {error && (
@@ -178,21 +197,19 @@ export default function CompleteProfile() {
                 </div>
               </div>
 
-              <div>
-                <label className="text-xs font-black text-slate-500 uppercase tracking-wider mb-2 block">Wilaya (State)</label>
-                <div className="relative">
-                  <MapPin className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
-                  <select
-                    required
-                    value={formData.wilaya}
-                    onChange={(e) => setFormData({ ...formData, wilaya: e.target.value })}
-                    className="w-full bg-slate-950 border border-slate-800 rounded-xl py-3 pl-12 pr-4 text-white outline-none focus:ring-2 focus:ring-primary/50 transition-all appearance-none"
-                  >
-                    <option value="">Select your wilaya</option>
-                    {WILAYAS.map(w => <option key={w} value={w}>{w}</option>)}
-                  </select>
-                </div>
-              </div>
+                  <label className="text-xs font-black text-slate-500 uppercase tracking-wider mb-2 block">الولاية (Wilaya / State)</label>
+                  <div className="relative">
+                    <MapPin className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500 pointer-events-none" />
+                    <select
+                      required
+                      value={formData.wilaya}
+                      onChange={(e) => setFormData({ ...formData, wilaya: e.target.value })}
+                      className="w-full bg-slate-950 border border-slate-800 rounded-xl py-4 pl-12 pr-4 text-white outline-none focus:ring-2 focus:ring-primary/50 transition-all text-sm font-bold"
+                    >
+                      <option value="">Select your wilaya / اختر الولاية</option>
+                      {WILAYAS.map(w => <option key={w} value={w}>{w}</option>)}
+                    </select>
+                  </div>
             </motion.div>
           ) : step === 2 ? (
             <motion.div 
@@ -337,7 +354,7 @@ export default function CompleteProfile() {
                 <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
               ) : (
                 <>
-                  {step < 3 ? 'Next Step' : 'Finish Setup'}
+                  {step < 3 ? 'Next Step / الخطوة التالية' : 'Finish Setup / إنهاء'}
                   <CheckCircle2 className="w-5 h-5 group-hover:scale-110 transition-transform" />
                 </>
               )}

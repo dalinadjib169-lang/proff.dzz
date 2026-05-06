@@ -163,7 +163,18 @@ export default function Login() {
       }
     } catch (err: any) {
       console.error("Email Auth Error:", err);
-      setError(err.message || 'Authentication failed');
+      if (err.code === 'auth/email-already-in-use') {
+        setError('هذا الحساب موجود بالفعل. يرجى تسجيل الدخول بدلاً من فتح حساب جديد.');
+        setIsRegister(false); // Automatically switch to login if they try to register an existing account
+      } else if (err.code === 'auth/invalid-email') {
+        setError('البريد الإلكتروني أو رقم الهاتف غير صالح');
+      } else if (err.code === 'auth/weak-password') {
+        setError('كلمة السر ضعيفة جداً. يجب أن تتكون من 6 أحرف على الأقل.');
+      } else if (err.code === 'auth/user-not-found' || err.code === 'auth/wrong-password') {
+        setError('خطأ في البريد الإلكتروني أو كلمة السر');
+      } else {
+        setError(err.message || 'Authentication failed');
+      }
     } finally {
       setLoading(false);
     }
@@ -189,13 +200,13 @@ export default function Login() {
   };
 
   return (
-    <div className="min-h-[calc(100vh-4rem)] flex items-center justify-center relative overflow-hidden rounded-3xl p-4">
+    <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center relative overflow-y-auto p-4 md:p-8">
       {/* Background Image with Overlay */}
       <div 
-        className="absolute inset-0 z-0 bg-cover bg-center"
+        className="fixed inset-0 z-0 bg-cover bg-center"
         style={{ backgroundImage: 'url("/user_uploads/input_file_0.png")' }}
       >
-        <div className="absolute inset-0 bg-slate-950/70 backdrop-blur-[3px]"></div>
+        <div className="absolute inset-0 bg-slate-950/80 backdrop-blur-[4px]"></div>
       </div>
 
       <div className="relative z-10 w-full max-w-md">
@@ -293,13 +304,13 @@ export default function Login() {
 
         <form onSubmit={handleEmailAuth} className="space-y-4">
           {isRegister && (
-            <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center justify-start mb-2">
               <button 
                 type="button" 
                 onClick={() => setIsRegister(false)}
-                className="flex items-center gap-2 p-2 rounded-xl bg-slate-950/50 text-slate-400 hover:text-white transition-all border border-slate-800/50 group"
+                className="flex items-center gap-2 px-4 py-2 rounded-xl bg-slate-950/50 text-slate-400 hover:text-white transition-all border border-slate-800/50 group hover:border-primary/50"
               >
-                <ChevronRight className="w-4 h-4" />
+                <ChevronRight className="w-4 h-4 group-hover:-translate-x-1 transition-transform" />
                 <span className="text-xs font-black uppercase tracking-widest">Back / رجوع</span>
               </button>
             </div>

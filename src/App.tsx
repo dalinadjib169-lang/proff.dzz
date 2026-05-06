@@ -235,8 +235,8 @@ export default function App() {
             ) : (
               <>
                 {/* Profile completion is now optional, users can edit it from their profile page anytime */}
-                {user && <Navbar />}
-                {user && <BottomNav />}
+                {user && profile?.isProfileComplete && <Navbar />}
+                {user && profile?.isProfileComplete && <BottomNav />}
                 {user && profile && !profile.isProfileComplete && <CompleteProfile />}
                 {/* Mobile Sidebar Toggle - Disconnected to free screen space */}
                 {/* {user && (
@@ -254,7 +254,7 @@ export default function App() {
                 )} */}
 
         {/* Side Toggle Handle */}
-        {user && (
+        {user && profile?.isProfileComplete && (
           <div className="lg:hidden fixed left-0 top-1/2 -translate-y-1/2 z-[60]">
             <motion.button
               whileHover={{ scale: 1.1, x: 2 }}
@@ -312,12 +312,12 @@ export default function App() {
 
                 <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-4 sm:py-8 pb-24 lg:pb-8">
                   <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 lg:gap-8">
-                    {user && (
-                      <div className="hidden lg:block lg:col-span-3">
+                    {user && profile?.isProfileComplete && (
+                      <div className="hidden lg:col-span-3 lg:block">
                         <Sidebar />
                       </div>
                     )}
-                    <main className={user ? "lg:col-span-9 xl:col-span-6" : "col-span-12"}>
+                    <main className={user && profile?.isProfileComplete ? "lg:col-span-9 xl:col-span-6" : "col-span-12 w-full flex justify-center items-center"}>
                       <Routes>
                         <Route path="/login" element={!user ? <Login /> : <Navigate to="/" />} />
                         <Route path="/" element={user ? <Home /> : <Navigate to="/login" />} />
@@ -337,7 +337,7 @@ export default function App() {
                         <Route path="*" element={<Navigate to="/" />} />
                       </Routes>
                     </main>
-                    {user && (
+                    {user && profile?.isProfileComplete && (
                       <div className="hidden xl:block xl:col-span-3">
                         <div className="sticky top-24 space-y-6">
                           <FriendSuggestions />
