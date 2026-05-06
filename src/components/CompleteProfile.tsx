@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useAuth } from '../hooks/useAuth';
 import { motion } from 'motion/react';
-import { GraduationCap, MapPin, BookOpen, Clock, User, CheckCircle2, LogOut } from 'lucide-react';
+import { GraduationCap, MapPin, BookOpen, Clock, User, CheckCircle2, LogOut, ChevronDown } from 'lucide-react';
 import { auth, db } from '../firebase';
 import { signOut } from 'firebase/auth';
 import { collection, query, where, getDocs } from 'firebase/firestore';
@@ -174,42 +174,49 @@ export default function CompleteProfile() {
             >
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="text-xs font-black text-slate-500 uppercase tracking-wider mb-2 block">First Name</label>
+                  <label className="text-xs font-black text-slate-500 uppercase tracking-wider mb-2 block">الاسم (First Name)</label>
                   <input
                     required
                     type="text"
                     value={formData.firstName}
                     onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
-                    className="w-full bg-slate-950 border border-slate-800 rounded-xl py-3 px-4 text-white outline-none focus:ring-2 focus:ring-primary/50 transition-all"
+                    className="w-full bg-slate-950 border border-slate-800 rounded-xl py-3.5 px-4 text-white outline-none focus:ring-2 focus:ring-primary/50 transition-all text-sm font-bold"
                     placeholder="First Name"
                   />
                 </div>
                 <div>
-                  <label className="text-xs font-black text-slate-500 uppercase tracking-wider mb-2 block">Last Name</label>
+                  <label className="text-xs font-black text-slate-500 uppercase tracking-wider mb-2 block">اللقب (Last Name)</label>
                   <input
                     required
                     type="text"
                     value={formData.lastName}
                     onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
-                    className="w-full bg-slate-950 border border-slate-800 rounded-xl py-3 px-4 text-white outline-none focus:ring-2 focus:ring-primary/50 transition-all"
+                    className="w-full bg-slate-950 border border-slate-800 rounded-xl py-3.5 px-4 text-white outline-none focus:ring-2 focus:ring-primary/50 transition-all text-sm font-bold"
                     placeholder="Last Name"
                   />
                 </div>
               </div>
 
-                  <label className="text-xs font-black text-slate-500 uppercase tracking-wider mb-2 block">الولاية (Wilaya / State)</label>
-                  <div className="relative">
-                    <MapPin className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500 pointer-events-none" />
-                    <select
-                      required
-                      value={formData.wilaya}
-                      onChange={(e) => setFormData({ ...formData, wilaya: e.target.value })}
-                      className="w-full bg-slate-950 border border-slate-800 rounded-xl py-4 pl-12 pr-4 text-white outline-none focus:ring-2 focus:ring-primary/50 transition-all text-sm font-bold"
-                    >
-                      <option value="">Select your wilaya / اختر الولاية</option>
-                      {WILAYAS.map(w => <option key={w} value={w}>{w}</option>)}
-                    </select>
+              <div>
+                <label className="text-xs font-black text-slate-500 uppercase tracking-wider mb-2 block font-bold">الولاية (Wilaya / State)</label>
+                <div className="relative group">
+                  <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none group-focus-within:text-primary transition-colors">
+                    <MapPin className="w-5 h-5" />
                   </div>
+                  <select
+                    required
+                    value={formData.wilaya}
+                    onChange={(e) => setFormData({ ...formData, wilaya: e.target.value })}
+                    className="w-full bg-slate-950 border border-slate-800 rounded-xl py-4 pl-12 pr-10 text-white outline-none focus:ring-2 focus:ring-primary/50 transition-all text-sm font-black appearance-none cursor-pointer"
+                  >
+                    <option value="">Select your wilaya / اختر الولاية</option>
+                    {WILAYAS.map(w => <option key={w} value={w}>{w}</option>)}
+                  </select>
+                  <div className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none">
+                    <ChevronDown className="w-5 h-5" />
+                  </div>
+                </div>
+              </div>
             </motion.div>
           ) : step === 2 ? (
             <motion.div 

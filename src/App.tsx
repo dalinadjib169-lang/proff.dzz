@@ -162,7 +162,7 @@ export default function App() {
                 loading="lazy"
               />
             )}
-            <div className="relative z-10 w-full h-full">
+            <div className="relative z-10 w-full">
               <AnimatePresence>
                 {!isOnline && (
                   <motion.div
@@ -185,15 +185,23 @@ export default function App() {
                   <div className="relative animate-spin rounded-full h-16 w-16 border-t-2 border-b-2 border-primary"></div>
                 </div>
                 <h2 className="text-xl font-black text-white mb-2 animate-pulse">{t('connecting')}</h2>
-                <p className="text-slate-500 text-sm max-w-xs text-center">
+                <p className="text-slate-500 text-sm max-w-xs text-center mb-8">
                   If this takes more than 10 seconds, please check your internet connection or refresh the page.
                 </p>
-                <button 
-                  onClick={() => window.location.reload()}
-                  className="mt-8 px-6 py-2 bg-slate-900 hover:bg-slate-800 text-slate-400 text-xs font-bold rounded-xl transition-all border border-slate-800"
-                >
-                  {t('refresh')}
-                </button>
+                <div className="flex gap-4">
+                  <button 
+                    onClick={() => window.location.reload()}
+                    className="px-6 py-2 bg-slate-900 hover:bg-slate-800 text-slate-400 text-xs font-bold rounded-xl transition-all border border-slate-800"
+                  >
+                    {t('refresh')}
+                  </button>
+                  <button 
+                    onClick={() => signOut(auth)}
+                    className="px-6 py-2 bg-red-500/10 hover:bg-red-500/20 text-red-500 text-xs font-bold rounded-xl transition-all border border-red-500/20"
+                  >
+                    Logout / خروج
+                  </button>
+                </div>
               </div>
             ) : user && !profile ? (
               <div className="min-h-screen flex flex-col items-center justify-center bg-slate-950 p-8 text-center">
@@ -204,9 +212,9 @@ export default function App() {
                 <p className="text-slate-400 max-w-md mb-6">We're preparing your teacher dashboard. This should only take a moment.</p>
                 
                 {error && (
-                  <div className="bg-red-500/10 border border-red-500/20 p-4 rounded-2xl mb-8 flex items-center gap-3 max-w-md mx-auto">
+                  <div className="bg-red-500/10 border border-red-500/20 p-4 rounded-2xl mb-8 flex items-center gap-3 max-w-md mx-auto text-left">
                     <AlertCircle className="w-5 h-5 text-red-500 shrink-0" />
-                    <p className="text-sm text-red-400 text-left">{error}</p>
+                    <p className="text-sm text-red-400">{error}</p>
                   </div>
                 )}
 
@@ -234,81 +242,67 @@ export default function App() {
               </div>
             ) : (
               <>
-                {/* Profile completion is now optional, users can edit it from their profile page anytime */}
+                {/* Fixed position components rendered first */}
+                {user && profile && !profile.isProfileComplete && <CompleteProfile />}
                 {user && profile?.isProfileComplete && <Navbar />}
                 {user && profile?.isProfileComplete && <BottomNav />}
-                {user && profile && !profile.isProfileComplete && <CompleteProfile />}
-                {/* Mobile Sidebar Toggle - Disconnected to free screen space */}
-                {/* {user && (
+
+                {/* Side Toggle Handle */}
+                {user && profile?.isProfileComplete && (
                   <div className="lg:hidden fixed left-0 top-1/2 -translate-y-1/2 z-[60]">
                     <motion.button
-                      whileHover={{ scale: 1.1 }}
+                      whileHover={{ scale: 1.1, x: 2 }}
                       whileTap={{ scale: 0.9 }}
                       onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-                      className="bg-purple-600 text-white p-3 rounded-r-2xl shadow-lg shadow-purple-500/20 border-y border-r border-purple-400/30 flex items-center gap-1"
+                      className="bg-primary/20 backdrop-blur-md text-primary p-1.5 rounded-r-xl shadow-lg border-y border-r border-primary/30 flex items-center justify-center cursor-pointer transition-colors"
                     >
-                      {isSidebarOpen ? <Unlock className="w-5 h-5" /> : <Lock className="w-5 h-5" />}
-                      <ChevronRight className={`w-4 h-4 transition-transform ${isSidebarOpen ? 'rotate-180' : ''}`} />
+                      <motion.div
+                        animate={{ x: isSidebarOpen ? 0 : [0, 2, 0] }}
+                        transition={{ repeat: isSidebarOpen ? 0 : Infinity, duration: 2 }}
+                      >
+                        {isSidebarOpen ? <ChevronLeft className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
+                      </motion.div>
                     </motion.button>
                   </div>
-                )} */}
+                )}
 
-        {/* Side Toggle Handle */}
-        {user && profile?.isProfileComplete && (
-          <div className="lg:hidden fixed left-0 top-1/2 -translate-y-1/2 z-[60]">
-            <motion.button
-              whileHover={{ scale: 1.1, x: 2 }}
-              whileTap={{ scale: 0.9 }}
-              onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-              className="bg-primary/20 backdrop-blur-md text-primary p-1.5 rounded-r-xl shadow-lg border-y border-r border-primary/30 flex items-center justify-center cursor-pointer transition-colors"
-            >
-              <motion.div
-                animate={{ x: isSidebarOpen ? 0 : [0, 2, 0] }}
-                transition={{ repeat: isSidebarOpen ? 0 : Infinity, duration: 2 }}
-              >
-                {isSidebarOpen ? <ChevronLeft className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
-              </motion.div>
-            </motion.button>
-          </div>
-        )}
-
-        {/* Mobile Sidebar Overlay */}
-        <AnimatePresence>
-          {user && isSidebarOpen && (
-            <motion.div
-              key="sidebar-overlay"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              onClick={() => setIsSidebarOpen(false)}
-              className="fixed inset-0 bg-slate-950/60 backdrop-blur-sm z-[70] lg:hidden"
-            />
-          )}
-          {user && isSidebarOpen && (
-            <motion.div
-              key="sidebar-panel"
-              initial={{ x: '-100%' }}
-              animate={{ x: 0 }}
-              exit={{ x: '-100%' }}
-              transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-              className="fixed left-0 top-0 bottom-0 w-[300px] bg-slate-950/40 backdrop-blur-3xl z-[80] lg:hidden overflow-y-auto p-6 border-r border-slate-800/30"
-            >
-              <div className="flex items-center justify-between mb-8">
-                <div className="flex items-center gap-2">
-                  <GraduationCap className="w-8 h-8 text-primary shadow-[0_0_15px_rgba(var(--primary-rgb),0.5)]" />
-                  <span className="text-xl font-black text-white">Teac DZ</span>
-                </div>
-                <button 
-                  onClick={() => setIsSidebarOpen(false)} 
-                  className="p-2.5 bg-slate-900 rounded-xl text-slate-400 hover:text-white transition-all shadow-lg shadow-black/20"
-                >
-                  <ChevronLeft className="w-6 h-6" />
-                </button>
-              </div>
-              <Sidebar />
-            </motion.div>
-          )}
-        </AnimatePresence>
+                {/* Mobile Sidebar Overlay */}
+                <AnimatePresence>
+                  {user && profile?.isProfileComplete && isSidebarOpen && (
+                    <motion.div
+                      key="sidebar-overlay"
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      exit={{ opacity: 0 }}
+                      onClick={() => setIsSidebarOpen(false)}
+                      className="fixed inset-0 bg-slate-950/60 backdrop-blur-sm z-[70] lg:hidden"
+                    />
+                  )}
+                  {user && profile?.isProfileComplete && isSidebarOpen && (
+                    <motion.div
+                      key="sidebar-panel"
+                      initial={{ x: '-100%' }}
+                      animate={{ x: 0 }}
+                      exit={{ x: '-100%' }}
+                      transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+                      className="fixed left-0 top-0 bottom-0 w-[300px] bg-slate-950/40 backdrop-blur-3xl z-[80] lg:hidden overflow-y-auto p-6 border-r border-slate-800/30"
+                    >
+                      <div className="flex items-center justify-between mb-8">
+                        <div className="flex items-center gap-2">
+                          <GraduationCap className="w-8 h-8 text-primary shadow-[0_0_15px_rgba(var(--primary-rgb),0.5)]" />
+                          <span className="text-xl font-black text-white">Teac DZ</span>
+                        </div>
+                        <button 
+                          onClick={() => setIsSidebarOpen(false)} 
+                          className="p-2.5 bg-slate-900 rounded-xl text-slate-400 hover:text-white transition-all shadow-lg shadow-black/20"
+                        >
+                          <ChevronLeft className="w-6 h-6" />
+                        </button>
+                      </div>
+                      <Sidebar />
+                    </motion.div>
+                  )}
+                </AnimatePresence>
 
                 <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-4 sm:py-8 pb-24 lg:pb-8">
                   <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 lg:gap-8">
@@ -317,10 +311,15 @@ export default function App() {
                         <Sidebar />
                       </div>
                     )}
-                    <main className={user && profile?.isProfileComplete ? "lg:col-span-9 xl:col-span-6" : "col-span-12 w-full flex justify-center items-center"}>
+                    <main className={user && profile?.isProfileComplete ? "lg:col-span-9 xl:col-span-6" : "col-span-12 w-full"}>
                       <Routes>
                         <Route path="/login" element={!user ? <Login /> : <Navigate to="/" />} />
-                        <Route path="/" element={user ? <Home /> : <Navigate to="/login" />} />
+                        <Route path="/" element={user ? (
+                          profile?.isProfileComplete ? <Home /> : <div className="min-h-[60vh] flex flex-col items-center justify-center p-8 text-center">
+                            <GraduationCap className="w-16 h-16 text-slate-800 mb-4" />
+                            <p className="text-slate-500 font-bold max-w-xs">يرجى إكمال ملفك الشخصي للمتابعة واستخدام كافة ميزات المنصة</p>
+                          </div>
+                        ) : <Navigate to="/login" />} />
                         <Route path="/profile/:uid" element={user ? <Profile /> : <Navigate to="/login" />} />
                         <Route path="/profile/loading" element={<ProfileRedirect />} />
                         <Route path="/notifications" element={user ? <Notifications /> : <Navigate to="/login" />} />

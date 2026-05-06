@@ -262,7 +262,11 @@ export default function Login() {
           </div>
 
         {error && (
-          <div className="bg-red-500/10 text-red-500 p-4 rounded-2xl text-sm font-medium border border-red-500/20 shadow-lg">
+          <motion.div 
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="bg-red-500/10 text-red-500 p-4 rounded-2xl text-sm font-medium border border-red-500/20 shadow-lg space-y-3"
+          >
             <div className="flex items-start gap-3">
               <AlertCircle className="w-5 h-5 shrink-0 mt-0.5" />
               <div>
@@ -270,7 +274,16 @@ export default function Login() {
                 <p className="text-xs opacity-90 whitespace-pre-wrap">{error}</p>
               </div>
             </div>
-          </div>
+            {isRegister && error.includes('بالفعل') && (
+              <button 
+                type="button"
+                onClick={() => { setIsRegister(false); setError(null); }}
+                className="w-full py-2 bg-red-500 text-white rounded-xl text-xs font-black uppercase tracking-widest hover:bg-red-600 transition-all shadow-lg shadow-red-500/20"
+              >
+                Go to Login / تسجيل الدخول
+              </button>
+            )}
+          </motion.div>
         )}
 
         {success && (
