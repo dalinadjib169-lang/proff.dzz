@@ -632,29 +632,15 @@ export default function ChatBubble() {
   };
 
    const joinAgoraChannel = async (channelName: string, uid: string, type: 'video' | 'audio') => {
-    // Priority: hardcoded new ID if env is missing or default
-    const HARDCODED_ID = 'bf4c0915140644f1a0e6396f3ee59e83';
-    const envAppId = (import.meta as any).env.VITE_AGORA_APP_ID;
-    const appId = (envAppId && envAppId !== 'MY_AGORA_APP_ID' ? envAppId.trim() : HARDCODED_ID);
+    // Strictly using App ID for Testing Mode (No Token)
+    const APP_ID = '30a4b4ce20e741b6bfdb1140015f6de0';
     
-    const envToken = (import.meta as any).env.VITE_AGORA_TOKEN;
-    const token = (envToken && typeof envToken === 'string' && envToken.trim() !== '' && envToken !== 'MY_AGORA_TOKEN') ? envToken.trim() : null;
+    console.log("APP_ID:", APP_ID);
+    console.log("CHANNEL:", channelName);
     
-    if (!appId || appId === 'MY_AGORA_APP_ID') {
-      toast.error("Agora App ID missing or invalid");
-      return;
-    }
-
     if (agoraJoinedRef.current || isJoiningRef.current) {
       return;
     }
-
-    console.log("Agora: JOIN CONFIG", { 
-      appId, 
-      channel: channelName, 
-      uid, 
-      hasToken: !!token
-    });
 
     isJoiningRef.current = true;
     try {
@@ -679,8 +665,8 @@ export default function ChatBubble() {
         setRemoteStream(null);
       });
 
-      // Passing token if available, otherwise null (requires project to be in 'App ID' only mode)
-      await client.join(appId, channelName, token, uid);
+      // Strictly joining with null token and null uid for Testing Mode
+      await client.join(APP_ID, channelName, null, null);
       console.log("Agora: JOINED SUCCESSFULLY");
       
       const audioTrack = await AgoraRTC.createMicrophoneAudioTrack().catch(e => {
@@ -721,18 +707,20 @@ export default function ChatBubble() {
       console.error("Agora join ERROR details:", JSON.stringify(err, null, 2));
       console.error("Agora full error message:", err.message);
       
-      const isDynamicError = err.message?.includes('dynamic use static key') || err.code === 'CAN_NOT_GET_GATEWAY_SERVER' || err.message?.includes('4096');
+      const isDynamicError = err.message?.includes('dynamic use static key') || 
+                             err.code === 'CAN_NOT_GET_GATEWAY_SERVER' || 
+                             err.message?.includes('4096');
       
       if (isDynamicError) {
-        const truncatedId = appId.substring(0, 6) + "...";
-        toast.error(`خطأ Security: مشروع Agora (${truncatedId}) يتطلب Token. يرجى الضغط على زر الحذف بجانب "Primary Certificate" في موقع Agora أو إنشاء مشروع جديد بنمط Testing Mode.`);
-        console.warn("SOLUTION: Go to Agora Console -> Project -> Disable (Delete) Primary Certificate. Currently using ID:", appId);
+        toast.error("تنبيه هام: إعدادات Agora لديك تتطلب Token. يرجى حذف (Delete) الـ 'Primary Certificate' من لوحة تحكم Agora ليعمل التطبيق بوضع الاختبار المباشر.", { duration: 10000 });
+        console.warn("SOLUTION: Go to Agora Console -> Project -> Delete Primary Certificate. Currently using ID:", APP_ID);
       } else {
-        toast.error(`خطأ في Agora: ${err.message || 'تعذر الاتصال'}`);
+        toast.error(`تعذر بدء المكالمة: ${err.message || 'خطأ في الربط'}`);
       }
       
-      // Clean up if join failed partially
-      await leaveAgora();
+      // Reset call state securely
+      await leaveAgora().catch(() => {});
+      endCall();
     } finally {
       isJoiningRef.current = false;
     }
@@ -772,6 +760,7 @@ export default function ChatBubble() {
       collection(db, 'calls'),
       where('recipientId', '==', profile.uid),
       where('status', 'in', ['ringing', 'accepted']),
+      orderBy('createdAt', 'desc'),
       limit(1)
     );
 
@@ -809,42 +798,55 @@ export default function ChatBubble() {
     };
   }, [profile]);
 
-  // Handle Call Status Updates (for the caller)
+  // Handle Call Status Updates (Unified for both Caller and Recipient)
   useEffect(() => {
-    if (!profile?.uid || !isCalling) return;
+    if (!profile?.uid || !currentCallId) return;
 
-    const q = query(
-      collection(db, 'calls'),
-      where('senderId', '==', profile.uid),
-      where('status', 'in', ['accepted', 'connected', 'rejected', 'ended', 'failed']),
-      orderBy('createdAt', 'desc'),
-      limit(1)
-    );
-
-    const unsubscribe = onSnapshot(q, async (snapshot) => {
-      if (!snapshot.empty) {
-        const call = { id: snapshot.docs[0].id, ...snapshot.docs[0].data() as any };
+    console.log("CallListener: Monitoring call status for", currentCallId);
+    
+    const unsubscribe = onSnapshot(doc(db, 'calls', currentCallId), async (snapshot) => {
+      if (snapshot.exists()) {
+        const call = { id: snapshot.id, ...snapshot.data() as any };
+        console.log("Call Status Update:", call.status);
         
-        if (call.status === 'accepted' && !agoraJoined) {
-          stopRingtone(); // Stop dial tone for caller
+        // Anyone in the call joins Agora when status moves to accepted or connected
+        if ((call.status === 'accepted' || call.status === 'connected') && !agoraJoinedRef.current) {
+          stopRingtone();
+          console.log("Agora: Joining channel", call.channelName);
+          
+          toast.loading("جاري الربط المشفر...", { id: 'call-negotiating' });
           await joinAgoraChannel(call.channelName, profile.uid, call.type);
-          await updateDoc(doc(db, 'calls', call.id), { status: 'connected' });
-        } else if (call.status === 'rejected' || call.status === 'ended' || call.status === 'failed') {
+          toast.dismiss('call-negotiating');
+          
+          // Only update to 'connected' if we were the one who moved it from 'accepted'
+          // or just generally to mark presence. If both do it, it's fine.
+          if (call.status === 'accepted') {
+            await updateDoc(doc(db, 'calls', call.id), { status: 'connected' }).catch(() => {});
+          }
+        } 
+        else if (call.status === 'rejected' || call.status === 'ended' || call.status === 'failed' || call.status === 'missed') {
           stopRingtone();
           if (call.status === 'failed') {
-            toast.error("فشل تأسيس الاتصال المشفر بين الجهازين.");
+            toast.error("فشل تأسيس الاتصال.");
+          } else if (call.status === 'rejected') {
+            toast.error("تم رفض المكالمة.");
           }
+          console.log("Call ended by status:", call.status);
           endCall();
-        } else if (call.status === 'connected') {
-          stopRingtone();
         }
+      } else {
+        // Doc deleted
+        endCall();
       }
     }, (error) => {
-      handleFirestoreError(error, OperationType.LIST, 'calls_status');
+      console.error("Call Status Listener Error:", error);
+      // Don't toast here to avoid spamming if permissions are tight, 
+      // but end call if we can't listen anymore
+      if (isCalling) endCall();
     });
 
     return unsubscribe;
-  }, [profile, isCalling, localStream]);
+  }, [profile?.uid, currentCallId]);
 
   useEffect(() => {
     if (!profile?.uid || !activeChat?.uid) {
@@ -1279,18 +1281,12 @@ export default function ChatBubble() {
     stopRingtone(); 
 
     try {
+      // Setting isCalling and currentCallId triggers the listener in useEffect to join Agora
       setIsCalling(incomingCall.type);
+      setCurrentCallId(incomingCall.id);
+      
       await updateDoc(doc(db, 'calls', incomingCall.id), { 
         status: 'accepted'
-      });
-
-      toast.loading("جاري تأسيس الاتصال الآمن...", { id: 'call-negotiating' });
-      await joinAgoraChannel(incomingCall.channelName, profile.uid, incomingCall.type);
-      toast.dismiss('call-negotiating');
-
-      // Mark as connected once Agora is joined
-      await updateDoc(doc(db, 'calls', incomingCall.id), { 
-        status: 'connected'
       });
 
     } catch (err: any) {
@@ -1299,7 +1295,6 @@ export default function ChatBubble() {
       endCall();
     }
   };
-
   const handleRejectCall = async () => {
     if (!incomingCall) return;
     stopRingtone();
