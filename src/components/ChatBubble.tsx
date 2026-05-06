@@ -680,7 +680,15 @@ export default function ChatBubble() {
       }
       
       if (type === 'video') {
-        const videoTrack = await AgoraRTC.createCameraVideoTrack().catch(e => {
+        const videoTrack = await AgoraRTC.createCameraVideoTrack({
+          encoderConfig: {
+            width: 1280,
+            height: 720,
+            frameRate: 30,
+            bitrateMin: 600,
+            bitrateMax: 1500
+          }
+        }).catch(e => {
           console.error("Agora: Cam track failed", e);
           return null;
         });
@@ -1615,17 +1623,17 @@ export default function ChatBubble() {
                       <div className="flex items-center gap-1.5 bg-white/5 p-1 rounded-xl border border-white/10">
                         <button 
                           onClick={() => handleStartCall('audio')}
-                          className="flex flex-col items-center gap-1 p-1 sm:p-1.5 rounded-lg bg-emerald-500 text-white shadow-lg active:scale-90 transition-all hover:bg-emerald-600"
+                          className="flex flex-col items-center gap-1 p-2 sm:p-2.5 rounded-lg bg-emerald-500 text-white shadow-lg active:scale-90 transition-all hover:bg-emerald-600"
                           title="صوتي"
                         >
-                          <Phone className="w-3.5 h-3.5" />
+                          <Phone className="w-5 h-5" />
                         </button>
                         <button 
                           onClick={() => handleStartCall('video')}
-                          className="flex flex-col items-center gap-1 p-1 sm:p-1.5 rounded-lg bg-indigo-500 text-white shadow-lg active:scale-90 transition-all hover:bg-indigo-600"
+                          className="flex flex-col items-center gap-1 p-2 sm:p-2.5 rounded-lg bg-indigo-500 text-white shadow-lg active:scale-90 transition-all hover:bg-indigo-600"
                           title="فيديو"
                         >
-                          <Video className="w-3.5 h-3.5" />
+                          <Video className="w-5 h-5" />
                         </button>
                       </div>
                     )}
@@ -1879,7 +1887,7 @@ export default function ChatBubble() {
                       </div>
                     </div>
 
-                    <div className="relative z-10 flex flex-col items-center justify-center h-full w-full bg-slate-950/40 backdrop-blur-sm p-8">
+                    <div className={`relative z-10 flex flex-col items-center justify-center h-full w-full ${!remoteStream ? 'bg-slate-950/40 backdrop-blur-sm' : ''} p-8`}>
                       {!remoteStream && (
                         <>
                           <div className="relative mb-8">
