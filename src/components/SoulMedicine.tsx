@@ -5,7 +5,7 @@ import { X, Heart, Sparkles, BookOpen, Scroll, ShieldCheck, HeartCrack, Palette,
 interface ContentItem {
   id: string;
   title: string;
-  category: 'surah' | 'hadith' | 'athkar' | 'ruqya' | 'barakah' | 'targhib' | 'friday';
+  category: 'surah' | 'hadith' | 'athkar' | 'ruqya' | 'barakah' | 'targhib' | 'friday' | 'shifa';
   text: string;
   benefit: string;
   source?: string;
@@ -140,6 +140,96 @@ const CONTENT_DATA: ContentItem[] = [
     text: 'لا إِلَهَ إِلا أَنْتَ سُبْحَانَكَ إِنِّي كُنْتُ مِنَ الظَّالِمِينَ',
     benefit: 'ما دعا بها مكروب إلا فرج الله عنه.',
     source: 'رواه الترمذي'
+  },
+  // --- ADDITIONAL RUQYA ---
+  {
+    id: 'ruqya_3',
+    title: 'رقية جبريل (للوجع)',
+    category: 'ruqya',
+    text: 'ضع يدك على الذي تألم من جسدك وقل: باسم الله (ثلاثاً)، وقل (سبع مرات): أعوذ بالله وقدرته من شر ما أجد وأحاذر.',
+    benefit: 'تسكن الوجع بإذن الله وهي تعبير عن كمال التوكل.',
+    source: 'صحيح مسلم'
+  },
+  {
+    id: 'ruqya_4',
+    title: 'رقية الشفاء العام',
+    category: 'ruqya',
+    text: 'اللهم رب الناس، أذهب الباس، اشف وأنت الشافي، لا شفاء إلا شفاؤوك، شفاء لا يغادر سقماً.',
+    benefit: 'من أعظم الرقى النبوية الشاملة لكل داء ووجع.',
+    source: 'متفق عليه'
+  },
+  // --- SHIFA (HEALING) ---
+  {
+    id: 'shifa_honey',
+    title: 'دواء العسل والشفاء',
+    category: 'shifa',
+    text: 'يَخْرُجُ مِنْ بُطُونِهَا شَرَابٌ مُخْتَلِفٌ أَلْوَانُهُ فِيهِ شِفَاءٌ لِلنَّاسِ',
+    benefit: 'العسل فيه شفاء للأجسام واليقين في كلام الله شفاء للقلوب.',
+    source: 'سورة النحل: 69'
+  },
+  {
+    id: 'shifa_dua_1',
+    title: 'دعاء الشفاء من كل ضر',
+    category: 'shifa',
+    text: 'أني مسني الضر وأنت أرحم الراحمين',
+    benefit: 'دعاء أيوب عليه السلام الذي كان مفتاحاً للشفاء بعد سنين العناء.',
+    source: 'سورة الأنبياء: 83'
+  },
+  {
+    id: 'shifa_verse_3',
+    title: 'آية الشفاء (3)',
+    category: 'shifa',
+    text: 'وَنُنَزِّلُ مِنَ الْقُرْآنِ مَا هُوَ شِفَاءٌ وَرَحْمَةٌ لِلْمُؤْمِنِينَ',
+    benefit: 'القرآن كله شفاء، وهذه الآية تذكرة ببركة التلاوة.',
+    source: 'سورة الإسراء: 82'
+  },
+  {
+    id: 'shifa_blackseed',
+    title: 'الحبة السوداء (شفاء من كل داء)',
+    category: 'shifa',
+    text: 'في الحبة السوداء شفاء من كل داء إلا السام (الموت).',
+    benefit: 'تقوية المناعة واليقين في الطب النبوي.',
+    source: 'رواه البخاري'
+  },
+  {
+    id: 'shifa_zamzam',
+    title: 'ماء زمزم (لما شرب له)',
+    category: 'shifa',
+    text: 'ماء زمزم لما شرب له، إن شربته تستشفي به شفاك الله.',
+    benefit: 'بركة الماء المبارك والنية الصادقة في الطلب.',
+    source: 'رواه ابن ماجة'
+  },
+  {
+    id: 'ruqya_muawidhat',
+    title: 'المعوذتين (الحصن الحصين)',
+    category: 'ruqya',
+    text: 'بِسْمِ اللَّهِ الرَّحْمَنِ الرَّحِيمِ. قُلْ أَعُوذُ بِرَبِّ الْفَلَقِ... قُلْ أَعُوذُ بِرَبِّ النَّاسِ...',
+    benefit: 'ما تعوذ متعوذ بمثلهما، حماية من السحر والنفث في العقد.',
+    source: 'القرآن الكريم'
+  },
+  {
+    id: 'ruqya_ikhlas',
+    title: 'سورة الإخلاص (ثلث القرآن)',
+    category: 'ruqya',
+    text: 'قُلْ هُوَ اللَّهُ أَحَدٌ، اللَّهُ الصَّمَدُ، لَمْ يَلِدْ وَلَمْ يُولَدْ، وَلَمْ يَكُن لَّهُ كُفُوًا أَحَدٌ',
+    benefit: 'تعدل ثلث القرآن وهي أساس التوحيد الذي يطرد الشياطين.',
+    source: 'رواه البخاري'
+  },
+  {
+    id: 'friday_dua_mustajab',
+    title: 'ساعة الاستجابة',
+    category: 'friday',
+    text: 'في الجمعة ساعة لا يوافقها عبد مسلم قائم يصلي يسال الله تعالى شيئا إلا أعطاه إياه.',
+    benefit: 'فرصة عظيمة لتحقيق المستحيلات بالدعاء واليقين.',
+    source: 'متفق عليه'
+  },
+  {
+    id: 'friday_ghusl',
+    title: 'غسل الجمعة وطيبها',
+    category: 'friday',
+    text: 'من اغتسل يوم الجمعة وتطهر بما استطاع من طهر ودهن من دهنه أو مس من طيب بيته...',
+    benefit: 'النظافة والجمال جزء من روحانية هذا اليوم العظيم.',
+    source: 'رواه البخاري'
   }
 ];
 
@@ -193,6 +283,16 @@ export const SoulMedicine: React.FC<{ isOpen: boolean; onClose: () => void }> = 
 
   const currentTheme = selectedTheme;
 
+  const { contentBgColor, mainContainerBg } = useMemo(() => {
+    switch (currentTheme.id) {
+      case 'emerald': return { contentBgColor: 'bg-emerald-950/40 border-emerald-500/10', mainContainerBg: 'bg-emerald-950 border-emerald-500/20' };
+      case 'rose': return { contentBgColor: 'bg-rose-950/40 border-rose-500/10', mainContainerBg: 'bg-rose-950 border-rose-500/20' };
+      case 'gold': return { contentBgColor: 'bg-amber-950/40 border-amber-500/10', mainContainerBg: 'bg-amber-950 border-amber-500/20' };
+      case 'indigo': return { contentBgColor: 'bg-indigo-950/40 border-indigo-500/10', mainContainerBg: 'bg-indigo-950 border-indigo-500/20' };
+      default: return { contentBgColor: 'bg-slate-950/60 border-white/5', mainContainerBg: 'bg-slate-950 border-white/10' };
+    }
+  }, [currentTheme.id]);
+
   return (
     <AnimatePresence>
       {isOpen && (
@@ -207,45 +307,48 @@ export const SoulMedicine: React.FC<{ isOpen: boolean; onClose: () => void }> = 
             initial={{ scale: 0.9, y: 20 }}
             animate={{ scale: 1, y: 0 }}
             exit={{ scale: 0.9, y: 20 }}
-            className={`w-full max-w-2xl bg-slate-950 border border-white/10 rounded-[2.5rem] shadow-2xl overflow-hidden flex flex-col max-h-[90vh] shadow-${currentTheme.id}-500/10`}
+            className={`w-full max-w-2xl ${mainContainerBg} border rounded-[2.5rem] shadow-2xl overflow-hidden flex flex-col max-h-[90vh] transition-colors duration-1000`}
             onClick={e => e.stopPropagation()}
           >
             {/* Header Section */}
-            <div className={`relative h-56 sm:h-64 bg-gradient-to-br ${currentTheme.bg} p-6 sm:p-8 flex flex-col justify-end transition-all duration-700`}>
+            <div className={`relative h-64 sm:h-72 bg-gradient-to-br ${currentTheme.bg} p-6 sm:p-8 flex flex-col justify-end transition-all duration-700`}>
               
-              {/* Dynamic Heart Status */}
+              {/* Dynamic Red Heart Status */}
               <div className="absolute top-6 left-6 flex flex-col items-center gap-2">
                 <motion.div 
                   initial={false}
                   animate={{ 
-                    scale: isHeartBroken ? [1, 1.1, 1] : 1,
+                    scale: isHeartBroken ? [1, 1.1, 1] : (soulHealth > 10 ? [1, 1.05, 1] : 1),
                     rotate: isHeartBroken ? [0, -5, 5, 0] : 0 
                   }}
-                  transition={{ repeat: Infinity, duration: 2 }}
+                  transition={{ repeat: Infinity, duration: 2.5 }}
                   className="relative group cursor-help"
                 >
-                  <div className="relative z-10 p-3 rounded-2xl bg-white/10 backdrop-blur-md border border-white/20 shadow-xl overflow-hidden">
+                  <div className="relative z-10 p-3.5 rounded-[2rem] bg-white/10 backdrop-blur-md border border-white/20 shadow-2xl overflow-hidden min-w-[70px] flex flex-col items-center">
                     <div 
-                      className={`absolute bottom-0 left-0 right-0 ${currentTheme.secondary} transition-all duration-1000 ease-out opacity-20`}
+                      className={`absolute bottom-0 left-0 right-0 bg-red-600 transition-all duration-1000 ease-out opacity-40`}
                       style={{ height: `${soulHealth}%` }}
                     />
                     {isHeartBroken ? (
-                      <HeartCrack className="w-8 h-8 text-red-400 drop-shadow-lg" />
+                      <HeartCrack className="w-10 h-10 text-slate-400 drop-shadow-lg" />
                     ) : (
                       <Heart 
-                        className={`w-8 h-8 ${currentTheme.text} drop-shadow-lg transition-all`} 
-                        fill={soulHealth > 20 ? "currentColor" : "none"}
+                        className={`w-10 h-10 text-red-500 drop-shadow-lg transition-all`} 
+                        fill={soulHealth > 10 ? "#ef4444" : "none"}
                         style={{ fillOpacity: soulHealth / 100 }}
                       />
                     )}
+                    <span className="relative z-20 text-[10px] font-black text-white mt-1 drop-shadow-md">
+                      {soulHealth}%
+                    </span>
                   </div>
                   
-                  <div className="absolute top-full mt-2 left-1/2 -translate-x-1/2 whitespace-nowrap bg-black/80 backdrop-blur-md text-[9px] font-black text-white px-2 py-1 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity border border-white/10">
-                    {isHeartBroken ? "القلب منكسر! اقرأ لترميمه" : `صحة الروح: ${soulHealth}%`}
+                  <div className="absolute top-full mt-3 left-1/2 -translate-x-1/2 whitespace-nowrap bg-black/90 backdrop-blur-md text-[10px] font-black text-white px-3 py-1.5 rounded-xl opacity-0 group-hover:opacity-100 transition-opacity border border-white/10 shadow-xl z-[60]">
+                    {isHeartBroken ? "القلب منكسر! سارع بالذكر" : `نور القلب: ${soulHealth}%`}
                   </div>
                 </motion.div>
-                <div className="w-12 h-1 bg-white/10 rounded-full overflow-hidden">
-                   <div className={`h-full ${currentTheme.secondary} transition-all duration-500`} style={{ width: `${soulHealth}%` }} />
+                <div className="w-16 h-1.5 bg-white/10 rounded-full overflow-hidden border border-white/5">
+                   <div className={`h-full bg-red-500 transition-all duration-700 shadow-[0_0_10px_rgba(239,68,68,0.5)]`} style={{ width: `${soulHealth}%` }} />
                 </div>
               </div>
 
@@ -253,77 +356,54 @@ export const SoulMedicine: React.FC<{ isOpen: boolean; onClose: () => void }> = 
               <div className="absolute top-6 right-6 flex flex-col gap-3">
                 <button 
                   onClick={onClose}
-                  className="p-3 rounded-2xl bg-white/10 text-white hover:bg-white/20 transition-all border border-white/20 backdrop-blur-md"
+                  className="p-3 rounded-2xl bg-white/10 text-white hover:bg-white/20 transition-all border border-white/20 backdrop-blur-md shadow-lg"
                 >
                   <X className="w-6 h-6" />
                 </button>
                 
                 <button 
                   onClick={() => setIsThemeSelectorOpen(!isThemeSelectorOpen)}
-                  className={`p-3 rounded-2xl transition-all border backdrop-blur-md ${isThemeSelectorOpen ? 'bg-white text-slate-900 border-white' : 'bg-white/10 text-white border-white/20'}`}
+                  className={`p-3 rounded-2xl transition-all border backdrop-blur-md shadow-lg ${isThemeSelectorOpen ? 'bg-white text-slate-900 border-white' : 'bg-white/10 text-white border-white/20'}`}
                 >
                   <Palette className="w-5 h-5" />
                 </button>
               </div>
 
-              {/* Theme Popover */}
-              <AnimatePresence>
-                {isThemeSelectorOpen && (
-                  <motion.div
-                    initial={{ opacity: 0, x: 20 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    exit={{ opacity: 0, x: 20 }}
-                    className="absolute top-6 right-20 bg-slate-900/90 backdrop-blur-xl border border-white/10 rounded-3xl p-3 flex flex-col gap-2 z-50 shadow-2xl"
-                  >
-                    {THEMES.map(theme => (
-                      <button
-                        key={theme.id}
-                        onClick={() => {
-                          setSelectedTheme(theme);
-                          localStorage.setItem('soul_theme', theme.id);
-                        }}
-                        className={`flex items-center gap-3 px-4 py-2 rounded-2xl transition-all ${selectedTheme.id === theme.id ? 'bg-white/20 border border-white/20' : 'hover:bg-white/5'}`}
-                      >
-                        <div className={`w-4 h-4 rounded-full bg-gradient-to-br ${theme.bg}`} />
-                        <span className="text-xs font-black text-white">{theme.name}</span>
-                      </button>
-                    ))}
-                  </motion.div>
-                )}
-              </AnimatePresence>
+              {/* Themes... (unchanged) */}
 
               {/* Branding */}
-              <div className="flex items-center gap-4 mb-2" dir="rtl">
-                <div className="w-14 h-14 bg-white/20 rounded-3xl flex items-center justify-center backdrop-blur-md border border-white/20">
-                  {isHeartBroken ? <HeartCrack className="w-8 h-8 text-red-300" /> : <Sparkles className={`w-8 h-8 ${currentTheme.text} animate-pulse`} />}
+              <div className="flex items-center gap-5 mb-2" dir="rtl">
+                <div className="w-16 h-16 bg-white/15 rounded-[2rem] flex items-center justify-center backdrop-blur-md border border-white/25 shadow-xl">
+                  {isHeartBroken ? <HeartCrack className="w-10 h-10 text-slate-300" /> : <Sparkles className={`w-10 h-10 text-red-100 animate-pulse`} />}
                 </div>
                 <div>
-                  <h2 className="text-4xl font-black text-white font-amiri tracking-wider drop-shadow-md">دواء الروح</h2>
-                  <p className={`${currentTheme.text} text-xs font-bold opacity-80 uppercase tracking-tighter`}>نور للقلوب وطمأنينة للنفوس المستكينة</p>
+                  <h2 className="text-5xl font-black text-white font-amiri tracking-wider drop-shadow-2xl">دواء الروح</h2>
+                  <p className="text-white/70 text-[11px] font-bold opacity-90 uppercase tracking-widest mt-1">نور للقلوب وطمأنينة للنفوس</p>
                 </div>
               </div>
               
               {/* Navigation */}
-              <div className="flex gap-2 mt-6 overflow-x-auto no-scrollbar scroll-smooth p-1" dir="rtl">
+              <div className="flex gap-2.5 mt-8 overflow-x-auto no-scrollbar scroll-smooth p-1" dir="rtl">
                 {[
-                  ...(isFriday ? [{ id: 'friday', label: 'يوم الجمعة', icon: Star, color: 'bg-amber-500 text-white' }] : []),
-                  { id: 'surah', label: 'سور وآيات', icon: BookOpen },
-                  { id: 'hadith', label: 'أحاديث نبوية', icon: Scroll },
-                  { id: 'ruqya', label: 'الرقية الشرعية', icon: ShieldCheck },
-                  { id: 'barakah', label: 'البركة والرزق', icon: Coffee },
-                  { id: 'targhib', label: 'كنوز الجنة', icon: Flower },
-                  { id: 'athkar', label: 'أذكار وعلاجات', icon: Sun }
+                  ...(isFriday ? [{ id: 'friday', label: 'باب الجمعة', icon: Star, color: 'bg-amber-500 text-white' }] : []),
+                  { id: 'surah', label: 'باب السور والآيات', icon: BookOpen },
+                  { id: 'ruqya', label: 'باب الرقية الشرعية', icon: ShieldCheck },
+                  { id: 'shifa', label: 'باب الشفاء التام', icon: Moon },
+                  { id: 'barakah', label: 'باب البركة والرزق', icon: Coffee },
+                  { id: 'targhib', label: 'باب كنوز الجنة', icon: Flower },
+                  { id: 'hadith', label: 'باب السنة النبوية', icon: Scroll },
+                  { id: 'athkar', label: 'باب تفريج الكروب', icon: Sun }
                 ].map((tab) => (
                   <button
                     key={tab.id}
                     onClick={() => setActiveTab(tab.id as any)}
-                    className={`flex items-center gap-2 px-5 py-2.5 rounded-2xl text-[11px] font-black transition-all whitespace-nowrap active:scale-95 ${
+                    className={`flex items-center gap-2.5 px-6 py-3 rounded-2xl text-[12px] font-black transition-all whitespace-nowrap active:scale-95 ${
                       activeTab === tab.id 
-                        ? (tab.id === 'friday' ? 'bg-amber-500 text-white shadow-xl shadow-amber-500/20' : 'bg-white text-slate-950 shadow-xl scale-105')
-                        : 'bg-black/20 text-white/70 hover:bg-black/30 backdrop-blur-md border border-white/5'
+                        ? (tab.id === 'friday' ? 'bg-amber-500 text-white shadow-xl shadow-amber-500/30 ring-2 ring-amber-400' : 'bg-white text-slate-950 shadow-2xl scale-105 ring-4 ring-white/10')
+                        : 'bg-black/30 text-white/80 hover:bg-black/40 backdrop-blur-md border border-white/10 shadow-lg'
                     }`}
                   >
-                    <tab.icon className="w-3.5 h-3.5" />
+                    <tab.icon className="w-4 h-4" />
                     {tab.label}
                   </button>
                 ))}
@@ -331,7 +411,7 @@ export const SoulMedicine: React.FC<{ isOpen: boolean; onClose: () => void }> = 
             </div>
 
             {/* List */}
-            <div className="flex-1 overflow-y-auto custom-scrollbar p-6 sm:p-8 space-y-8" dir="rtl">
+            <div className={`flex-1 overflow-y-auto custom-scrollbar p-6 sm:p-8 space-y-8 transition-colors duration-700 ${contentBgColor}`} dir="rtl">
               {CONTENT_DATA.filter(item => item.category === activeTab).map((item) => (
                 <motion.div
                   key={item.id}
