@@ -1542,7 +1542,7 @@ export default function ChatBubble() {
             {/* Header */}
             <div className={`shrink-0 bg-slate-900/60 backdrop-blur-xl border-b border-white/10 transition-all ${isMobile && isKeyboardOpen ? 'p-1' : 'p-2 sm:p-3'}`}>
               {activeChat ? (
-                <div className="flex items-center gap-2 sm:gap-4 h-14 sm:h-16" dir="rtl">
+                <div className="flex items-center gap-2 sm:gap-4 h-16 sm:h-20" dir="rtl">
                   {/* Identity Section (Right) */}
                   <div 
                     onClick={() => setIsOpen(false)}
@@ -1638,30 +1638,30 @@ export default function ChatBubble() {
                       </div>
                     )}
                     
-                    <div className="flex flex-col gap-1 items-center">
+                    <div className="flex flex-row flex-wrap gap-1 items-center justify-center max-w-[60px] sm:max-w-[70px]">
                       <button
                         onClick={() => window.dispatchEvent(new CustomEvent('show-soul-medicine'))}
-                        className="p-1.5 rounded-lg bg-emerald-500/10 text-emerald-500 hover:bg-emerald-500 hover:text-white transition-all active:scale-95 border border-emerald-500/20 shadow-lg shadow-emerald-500/5 group/soul"
+                        className="p-1 sm:p-1.5 rounded-lg bg-emerald-500/10 text-emerald-500 hover:bg-emerald-500 hover:text-white transition-all active:scale-95 border border-emerald-500/20 shadow-lg shadow-emerald-500/5 group/soul"
                         title="دواء الروح - الآيات والأذكار"
                       >
-                        <Heart className="w-3.5 h-3.5 group-hover/soul:animate-pulse" />
+                        <Heart className="w-3 h-3 sm:w-3.5 sm:h-3.5 group-hover/soul:animate-pulse" />
                       </button>
 
                       <button
                         onClick={() => setIsSelectingFriend(!isSelectingFriend)}
-                        className={`p-1.5 rounded-lg transition-all active:scale-95 border shadow-lg ${
+                        className={`p-1 sm:p-1.5 rounded-lg transition-all active:scale-95 border shadow-lg ${
                           isSelectingFriend 
                             ? 'bg-blue-500 text-white border-blue-400' 
                             : 'bg-blue-500/10 text-blue-400 hover:bg-blue-500/20 border-blue-500/20 shadow-blue-500/5'
                         }`}
                         title="اختيار زميل للمحادثة"
                       >
-                        <Plus className={`w-3.5 h-3.5 transition-transform duration-300 ${isSelectingFriend ? 'rotate-45' : ''}`} />
+                        <Plus className={`w-3 h-3 sm:w-3.5 sm:h-3.5 transition-transform duration-300 ${isSelectingFriend ? 'rotate-45' : ''}`} />
                       </button>
 
-                      <div className="flex items-center gap-1.5 px-1.5 py-0.5 rounded-full bg-slate-900 border border-slate-800" title="Stream Engine Status">
+                      <div className="flex items-center gap-1 px-1 py-0.5 rounded-full bg-slate-900 border border-slate-800" title="Stream Engine Status">
                         <div className={`w-1 h-1 rounded-full ${agoraJoined ? 'bg-green-500' : 'bg-amber-500 animate-pulse'}`}></div>
-                        <span className="text-[6px] font-black text-slate-500 uppercase tracking-tighter">
+                        <span className="text-[5px] sm:text-[6px] font-black text-slate-500 uppercase tracking-tighter shrink-0">
                           {agoraJoined ? 'Live' : 'Ready'}
                         </span>
                       </div>
@@ -1670,10 +1670,14 @@ export default function ChatBubble() {
                         <button 
                           onClick={handleConnect}
                           disabled={isConnecting}
-                          className={`p-1 rounded-md transition-all active:scale-95 ${profile?.following?.includes(activeChat.uid) ? 'bg-amber-500 text-white' : 'bg-amber-500/10 text-amber-500/60 hover:bg-amber-500/20'}`}
+                          className={`p-1 sm:p-1.5 rounded-lg transition-all active:scale-95 border shadow-lg ${
+                            profile?.following?.includes(activeChat.uid) 
+                              ? 'bg-amber-500 text-white border-amber-400' 
+                              : 'bg-amber-500/10 text-amber-500 hover:bg-amber-500/20 border-amber-500/20 shadow-amber-500/5'
+                          }`}
                           title="Connect / متابعة"
                         >
-                          {profile?.following?.includes(activeChat.uid) ? <UserCheck className="w-3 h-3" /> : <UserPlus className="w-3 h-3" />}
+                          {profile?.following?.includes(activeChat.uid) ? <UserCheck className="w-3 h-3 sm:w-3.5 sm:h-3.5" /> : <UserPlus className="w-3 h-3 sm:w-3.5 sm:h-3.5" />}
                         </button>
                       )}
                     </div>
