@@ -280,6 +280,7 @@ export default function ChatBubble() {
   const [isConnected, setIsConnected] = useState(true);
   const [lightboxSrc, setLightboxSrc] = useState<string | null>(null);
   const [selectedMessageId, setSelectedMessageId] = useState<string | null>(null);
+  const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [replyMessage, setReplyMessage] = useState<any | null>(null);
   const pressTimer = useRef<any>(null);
 
@@ -1086,14 +1087,14 @@ export default function ChatBubble() {
     }
   };
 
-  const handleSendMessage = async (e: React.FormEvent, type: 'text' | 'image' | 'audio' = 'text', file?: File) => {
+  const handleSendMessage = async (e: React.FormEvent, type: 'text' | 'image' | 'audio' = 'text', directFile?: File) => {
     if (e) e.preventDefault();
-    if (!newMessage.trim() && !file && type === 'text') return;
+    
+    const hasFiles = selectedFiles.length > 0 || !!directFile;
+    if (!newMessage.trim() && !hasFiles && type === 'text') return;
     if (!profile || !activeChat) return;
 
-    // Auto-connect on message if not connected ? No, let's keep it strict or auto-send request
     if (!isFriend && activeChat.uid !== 'global' && !friendRequest) {
-      // Auto-send invitation if none exists
       await addDoc(collection(db, 'invitations'), {
         senderId: profile.uid,
         recipientId: activeChat.uid,
@@ -1102,12 +1103,11 @@ export default function ChatBubble() {
         createdAt: serverTimestamp(),
       });
 
-      // Add notification for the recipient
       await addDoc(collection(db, 'notifications'), {
         recipientId: activeChat.uid,
         senderId: profile.uid,
         senderName: profile.displayName,
-        type: 'follow', // Use same type for consistency with Notifications page UI
+        type: 'follow',
         read: false,
         createdAt: serverTimestamp()
       });
@@ -1121,33 +1121,66 @@ export default function ChatBubble() {
       const isReply = !!replyMessage;
       const currentReply = replyMessage;
       
-      if (file) {
-        const messageData = {
-          roomId,
-          participants,
-          senderId: profile.uid,
-          senderName: profile.displayName,
-          createdAt: serverTimestamp(),
-          clientCreatedAt: Date.now(),
-          seen: false,
-          replyTo: isReply ? {
-            text: currentReply.text || 'صورة',
-            senderName: currentReply.senderName,
-            id: currentReply.id
-          } : null
-        };
-        
-        await startUpload(file, 'message', messageData);
-        setEmojiState('happy');
+      // Handle files (selected or direct)
+      const filesToUpload = directFile ? [directFile] : selectedFiles;
+      
+      if (filesToUpload.length > 0) {
+        // Clear selection immediately for better UX
+        setSelectedFiles([]);
+        setNewMessage('');
         setReplyMessage(null);
+        
+        for (const file of filesToUpload) {
+          const messageData = {
+            roomId,
+            participants,
+            senderId: profile.uid,
+            senderName: profile.displayName,
+            createdAt: serverTimestamp(),
+            clientCreatedAt: Date.now(),
+            seen: false,
+            replyTo: isReply ? {
+              text: currentReply.text || 'صورة',
+              senderName: currentReply.senderName,
+              id: currentReply.id
+            } : null
+          };
+          
+          await startUpload(file, 'message', messageData);
+        }
+
+        // If there was text too and it wasn't cleared yet (though we cleared it above, let's play safe)
+        if (messageText.trim() && filesToUpload.length === 0) {
+           // This part won't run because filesToUpload.length > 0
+        }
+        
+        // If they also typed text, send it as a separate message
+        if (messageText.trim()) {
+          const textMessageData = {
+            roomId,
+            participants,
+            senderId: profile.uid,
+            senderName: profile.displayName,
+            createdAt: serverTimestamp(),
+            clientCreatedAt: Date.now(),
+            seen: false,
+            text: messageText,
+            replyTo: isReply ? {
+              text: currentReply.text || 'صورة',
+              senderName: currentReply.senderName,
+              id: currentReply.id
+            } : null
+          };
+          await addDoc(collection(db, 'messages'), textMessageData);
+        }
+
+        setEmojiState('happy');
         return;
       }
 
-      // OPTIMISTIC UI: Clear input immediately and let onSnapshot handle the local update
+      // Plain text message
       setNewMessage('');
       setReplyMessage(null);
-      
-      // Focus input again on mobile to keep keyboard open (instantly)
       chatInputRef.current?.focus();
       
       const messageData: any = {
@@ -1166,10 +1199,8 @@ export default function ChatBubble() {
         } : null
       };
 
-      // Add to Firestore - onSnapshot with includeMetadataChanges will show it instantly
       await addDoc(collection(db, 'messages'), messageData);
       setEmojiState('happy');
-      // Final focus enforcement
       setTimeout(() => chatInputRef.current?.focus(), 50);
     } catch (error) {
       handleFirestoreError(error, OperationType.CREATE, 'messages');
@@ -1335,10 +1366,15 @@ export default function ChatBubble() {
   };
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      handleSendMessage(null as any, file.type.startsWith('image') ? 'image' : 'text', file);
+    const files = e.target.files;
+    if (files && files.length > 0) {
+      const newFiles = Array.from(files);
+      setSelectedFiles(prev => [...prev, ...newFiles]);
     }
+  };
+
+  const removeSelectedFile = (index: number) => {
+    setSelectedFiles(prev => prev.filter((_, i) => i !== index));
   };
 
   const filteredUsers = users.filter(u => {
@@ -2463,6 +2499,54 @@ export default function ChatBubble() {
                         </button>
                       </motion.div>
                     )}
+
+                    {/* Multi-Image Preview */}
+                    {selectedFiles.length > 0 && (
+                      <div className="flex flex-wrap gap-2 p-3 bg-slate-950/60 rounded-2xl border border-white/5 animate-in fade-in slide-in-from-bottom-4 duration-300">
+                        <AnimatePresence mode="popLayout">
+                          {selectedFiles.map((file, idx) => {
+                            const url = URL.createObjectURL(file);
+                            return (
+                              <motion.div 
+                                key={file.name + idx}
+                                layout
+                                initial={{ opacity: 0, scale: 0.8 }}
+                                animate={{ opacity: 1, scale: 1 }}
+                                exit={{ opacity: 0, scale: 0.8 }}
+                                className="relative group overflow-hidden rounded-xl border border-white/10 shadow-2xl bg-slate-900"
+                              >
+                                <img 
+                                  src={url} 
+                                  alt="preview" 
+                                  className="w-20 h-20 object-cover transition-transform group-hover:scale-110"
+                                />
+                                <button 
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    removeSelectedFile(idx);
+                                    URL.revokeObjectURL(url);
+                                  }}
+                                  className="absolute top-1 right-1 bg-red-500/90 hover:bg-red-600 text-white rounded-full p-1 shadow-lg backdrop-blur-sm transition-all transform scale-90 group-hover:scale-100"
+                                >
+                                  <X className="w-3.5 h-3.5" />
+                                </button>
+                              </motion.div>
+                            );
+                          })}
+                        </AnimatePresence>
+                        <motion.button 
+                          layout
+                          whileHover={{ scale: 1.05 }}
+                          whileTap={{ scale: 0.95 }}
+                          onClick={() => fileInputRef.current?.click()}
+                          className="w-20 h-20 flex flex-col items-center justify-center gap-1 border-2 border-dashed border-slate-800 rounded-xl text-slate-500 hover:border-purple-500/50 hover:text-purple-400 hover:bg-purple-500/5 transition-all group"
+                        >
+                          <Plus className="w-6 h-6 group-hover:rotate-90 transition-transform duration-300" />
+                          <span className="text-[8px] font-black uppercase tracking-tighter">أضف</span>
+                        </motion.button>
+                      </div>
+                    )}
+
                     <div className="flex items-center gap-2">
                       <button 
                         type="button"
@@ -2598,6 +2682,7 @@ export default function ChatBubble() {
                       ref={fileInputRef} 
                       className="hidden" 
                       accept="image/*" 
+                      multiple
                       onChange={handleFileSelect}
                     />
                   </div>
