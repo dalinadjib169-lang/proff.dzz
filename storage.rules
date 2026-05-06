@@ -20,7 +20,7 @@ service firebase.storage {
 
     match /posts/{allPaths=**} {
       allow read: if true;
-      allow write: if isSignedIn() && (isImage() || isVideo()) && request.resource.size < 20 * 1024 * 1024;
+      allow write: if isSignedIn() && (isImage() || isVideo() || isAudio()) && request.resource.size < 20 * 1024 * 1024;
     }
     
     match /profiles/{allPaths=**} {

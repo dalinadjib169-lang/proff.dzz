@@ -1,14 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { db, storage } from '../firebase';
-import { doc, getDoc, updateDoc, collection, query, where, orderBy, onSnapshot, addDoc, serverTimestamp, deleteDoc, arrayUnion, arrayRemove, limit, Timestamp } from 'firebase/firestore';
+import { doc, getDoc, updateDoc, collection, query, where, orderBy, onSnapshot, addDoc, serverTimestamp, deleteDoc, arrayUnion, arrayRemove, limit, Timestamp, writeBatch, getDocs } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { useAuth } from '../hooks/useAuth';
 import { useUpload } from '../hooks/useUpload';
 import { UserProfile, Post } from '../types';
 import PostCard from '../components/PostCard';
 import { ALGERIAN_WILAYAS } from '../constants';
-import { Edit3, Camera, Image as ImageIcon, MapPin, Book, Calendar, Mail, CheckCircle, GraduationCap, PenTool, UserPlus, UserCheck, UserX, Clock, Phone, Eye, EyeOff, Bell, Droplets, Dumbbell, Plus, Minus, ShoppingBag, Lock, Users } from 'lucide-react';
+import { Edit3, Camera, Image as ImageIcon, MapPin, Book, Calendar, Mail, CheckCircle, GraduationCap, PenTool, UserPlus, UserCheck, UserX, Clock, Phone, Eye, EyeOff, Bell, Droplets, Dumbbell, Plus, Minus, ShoppingBag, Lock, Users, X } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { playSound } from '../lib/sounds';
 import { handleFirestoreError, OperationType } from '../lib/firestore-errors';
@@ -57,6 +57,7 @@ export default function Profile() {
   const [loading, setLoading] = useState(true);
   const [connectionStatus, setConnectionStatus] = useState<'none' | 'pending' | 'connected'>('none');
   const [invitationId, setInvitationId] = useState<string | null>(null);
+  const [invitation, setInvitation] = useState<any>(null);
 
   const BIO_BACKGROUNDS = [
     'linear-gradient(to bottom right, var(--primary-color), var(--primary-dark))',
@@ -99,6 +100,7 @@ export default function Profile() {
       
       if (inv) {
         setInvitationId(inv.id);
+        setInvitation(inv);
         if (inv.status === 'accepted') {
           setConnectionStatus('connected');
         } else {
@@ -107,6 +109,7 @@ export default function Profile() {
       } else {
         setConnectionStatus('none');
         setInvitationId(null);
+        setInvitation(null);
       }
     }, (error) => {
       handleFirestoreError(error, OperationType.LIST, 'invitations');
@@ -319,6 +322,86 @@ export default function Profile() {
       }
     } catch (error) {
       handleFirestoreError(error, OperationType.CREATE, 'invitations');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleAcceptConnect = async () => {
+    if (!loggedInProfile || !uid || !invitationId) return;
+    setLoading(true);
+    try {
+      const batch = writeBatch(db);
+      
+      // Update invitation status
+      batch.update(doc(db, 'invitations', invitationId), { 
+        status: 'accepted',
+        updatedAt: serverTimestamp()
+      });
+      
+      // Update both users' friends
+      const myRef = doc(db, 'users', loggedInProfile.uid);
+      const theirRef = doc(db, 'users', uid);
+      
+      batch.update(myRef, {
+        friends: arrayUnion(uid),
+        following: arrayUnion(uid),
+        followers: arrayUnion(uid)
+      });
+      
+      batch.update(theirRef, {
+        friends: arrayUnion(loggedInProfile.uid),
+        following: arrayUnion(loggedInProfile.uid),
+        followers: arrayUnion(loggedInProfile.uid)
+      });
+
+      // Find and mark related notification as read
+      const notifQ = query(
+        collection(db, 'notifications'),
+        where('recipientId', '==', loggedInProfile.uid),
+        where('senderId', '==', uid),
+        where('type', '==', 'follow'),
+        where('read', '==', false)
+      );
+      const notifSnap = await getDocs(notifQ);
+      notifSnap.forEach(d => {
+        batch.update(doc(db, 'notifications', d.id), { read: true });
+      });
+      
+      await batch.commit();
+      playSound('notification');
+    } catch (error) {
+      handleFirestoreError(error, OperationType.UPDATE, 'invitations');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDeclineConnect = async () => {
+    if (!loggedInProfile || !uid || !invitationId) return;
+    setLoading(true);
+    try {
+      const batch = writeBatch(db);
+      
+      // Delete invitation
+      batch.delete(doc(db, 'invitations', invitationId));
+      
+      // Find and mark related notification as read
+      const notifQ = query(
+        collection(db, 'notifications'),
+        where('recipientId', '==', loggedInProfile.uid),
+        where('senderId', '==', uid),
+        where('type', '==', 'follow'),
+        where('read', '==', false)
+      );
+      const notifSnap = await getDocs(notifQ);
+      notifSnap.forEach(d => {
+        batch.update(doc(db, 'notifications', d.id), { read: true });
+      });
+      
+      await batch.commit();
+    } catch (error) {
+      handleFirestoreError(error, OperationType.DELETE, 'invitations');
     } finally {
       setLoading(false);
     }
@@ -567,25 +650,44 @@ export default function Profile() {
               </button>
             ) : (
               <div className="flex gap-2">
-                <button
-                  onClick={handleConnect}
-                  disabled={loading}
-                  className={`px-6 py-3 font-black rounded-2xl transition-all flex items-center gap-2 shadow-lg active:scale-95 ${
-                    connectionStatus === 'connected' 
-                      ? 'bg-green-600 text-white hover:bg-green-700 shadow-green-500/20' 
-                      : connectionStatus === 'pending'
-                      ? 'bg-slate-800 text-slate-300 hover:bg-slate-700'
-                      : 'bg-primary text-white hover:bg-primary-dark shadow-primary/20'
-                  }`}
-                >
-                  {connectionStatus === 'connected' ? (
-                    <><UserCheck className="w-4 h-4" /> Connected</>
-                  ) : connectionStatus === 'pending' ? (
-                    <><Clock className="w-4 h-4" /> Pending</>
-                  ) : (
-                    <><UserPlus className="w-4 h-4" /> Connect</>
-                  )}
-                </button>
+                {connectionStatus === 'pending' && invitation?.senderId === uid ? (
+                  <>
+                    <button
+                      onClick={handleAcceptConnect}
+                      disabled={loading}
+                      className="px-6 py-3 bg-green-600 text-white font-black rounded-2xl hover:bg-green-700 transition-all flex items-center gap-2 shadow-lg active:scale-95 shadow-green-500/20"
+                    >
+                      <UserCheck className="w-4 h-4" /> قبول الصفقة (Accept)
+                    </button>
+                    <button
+                      onClick={handleDeclineConnect}
+                      disabled={loading}
+                      className="px-6 py-3 bg-slate-800 text-slate-300 font-black rounded-2xl hover:bg-slate-700 transition-all flex items-center gap-2 active:scale-95"
+                    >
+                      <X className="w-4 h-4" /> رفض (Decline)
+                    </button>
+                  </>
+                ) : (
+                  <button
+                    onClick={handleConnect}
+                    disabled={loading}
+                    className={`px-6 py-3 font-black rounded-2xl transition-all flex items-center gap-2 shadow-lg active:scale-95 ${
+                      connectionStatus === 'connected' 
+                        ? 'bg-green-600 text-white hover:bg-green-700 shadow-green-500/20' 
+                        : connectionStatus === 'pending'
+                        ? 'bg-slate-800 text-slate-300 hover:bg-slate-700'
+                        : 'bg-primary text-white hover:bg-primary-dark shadow-primary/20'
+                    }`}
+                  >
+                    {connectionStatus === 'connected' ? (
+                      <><UserCheck className="w-4 h-4" /> Connected</>
+                    ) : connectionStatus === 'pending' ? (
+                      <><Clock className="w-4 h-4" /> Pending</>
+                    ) : (
+                      <><UserPlus className="w-4 h-4" /> Connect</>
+                    )}
+                  </button>
+                )}
                 <button
                   onClick={handleBlockUser}
                   className="p-3 bg-red-500/10 text-red-500 rounded-2xl hover:bg-red-500 hover:text-white transition-all shadow-lg active:scale-95"

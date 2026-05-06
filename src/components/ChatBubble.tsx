@@ -951,10 +951,12 @@ export default function ChatBubble() {
   }, []);
 
   const [isFriend, setIsFriend] = useState(false);
+  const [localIsFriendOverride, setLocalIsFriendOverride] = useState(false);
   const [friendRequest, setFriendRequest] = useState<any>(null);
 
   // Check friendship status for activeChat
   useEffect(() => {
+    setLocalIsFriendOverride(false); // Reset override on chat change
     if (!profile?.uid || !activeChat?.uid || activeChat.uid === 'global') {
       setIsFriend(true); 
       setFriendRequest(null);
@@ -983,16 +985,88 @@ export default function ChatBubble() {
   }, [profile?.uid, activeChat?.uid]);
 
   const handleAcceptRequest = async () => {
-    if (!friendRequest) return;
+    if (!friendRequest || !profile?.uid) return;
     setIsAccepting(true);
     try {
-      await updateDoc(doc(db, 'invitations', friendRequest.id), { status: 'accepted' });
-      // Optimization: No need to manually setIsFriend(true), the onSnapshot listener will handle it.
+      const batch = writeBatch(db);
+      
+      // Update invitation status
+      batch.update(doc(db, 'invitations', friendRequest.id), { 
+        status: 'accepted',
+        updatedAt: serverTimestamp()
+      });
+      
+      // Update both users' friends and followers/following
+      const myRef = doc(db, 'users', profile.uid);
+      const theirRef = doc(db, 'users', activeChat!.uid);
+      
+      batch.update(myRef, {
+        friends: arrayUnion(activeChat!.uid),
+        followers: arrayUnion(activeChat!.uid),
+        following: arrayUnion(activeChat!.uid)
+      });
+      
+      batch.update(theirRef, {
+        friends: arrayUnion(profile.uid),
+        followers: arrayUnion(profile.uid),
+        following: arrayUnion(profile.uid)
+      });
+
+      // Try to find and mark related notification as read
+      const q = query(
+        collection(db, 'notifications'),
+        where('recipientId', '==', profile.uid),
+        where('senderId', '==', activeChat!.uid),
+        where('type', '==', 'follow'),
+        where('read', '==', false),
+        limit(1)
+      );
+      const notifSnap = await getDocs(q);
+      if (!notifSnap.empty) {
+        batch.update(doc(db, 'notifications', notifSnap.docs[0].id), { read: true });
+      }
+      
+      await batch.commit();
+      setLocalIsFriendOverride(true);
       playSound('notification');
+      toast.success('تم قبول طلب المراسلة!');
     } catch (e) {
       console.error("Error accepting request:", e);
+      toast.error('حدث خطأ أثناء قبول الطلب');
     } finally {
       setIsAccepting(false);
+    }
+  };
+
+  const handleDeclineRequest = async () => {
+    if (!friendRequest || !profile?.uid) return;
+    try {
+      const batch = writeBatch(db);
+      
+      // Delete invitation
+      batch.delete(doc(db, 'invitations', friendRequest.id));
+      
+      // Try to find and mark related notification as read
+      const q = query(
+        collection(db, 'notifications'),
+        where('recipientId', '==', profile.uid),
+        where('senderId', '==', activeChat!.uid),
+        where('type', '==', 'follow'),
+        where('read', '==', false),
+        limit(1)
+      );
+      const notifSnap = await getDocs(q);
+      if (!notifSnap.empty) {
+        batch.update(doc(db, 'notifications', notifSnap.docs[0].id), { read: true });
+      }
+      
+      await batch.commit();
+      setActiveChat(null);
+      playSound('notification');
+      toast.success('تم رفض طلب المراسلة');
+    } catch (e) {
+      console.error("Error declining request:", e);
+      toast.error('حدث خطأ أثناء رفض الطلب');
     }
   };
 
@@ -2006,7 +2080,7 @@ export default function ChatBubble() {
                 <>
                   <div ref={scrollRef} className="flex-1 overflow-y-auto p-4 space-y-4 custom-scrollbar overscroll-contain">
                     {/* Message Request UI */}
-                    {!isFriend && activeChat.uid !== 'global' && (
+                    {!isFriend && !localIsFriendOverride && activeChat.uid !== 'global' && (
                       <div className="bg-slate-900/80 border border-slate-700 rounded-3xl p-6 text-center shadow-xl mb-6">
                         <div className="w-16 h-16 bg-purple-600/10 rounded-full flex items-center justify-center mx-auto mb-4 border border-purple-500/20">
                           <UserPlus className="w-8 h-8 text-purple-500" />
@@ -2020,10 +2094,7 @@ export default function ChatBubble() {
                         {friendRequest?.senderId !== profile.uid ? (
                           <div className="flex gap-2">
                             <button 
-                              onClick={() => {
-                                if (friendRequest) deleteDoc(doc(db, 'invitations', friendRequest.id));
-                                setActiveChat(null);
-                              }}
+                              onClick={handleDeclineRequest}
                               className="flex-1 py-3 bg-red-500/10 text-red-500 rounded-2xl font-black text-xs hover:bg-red-500 hover:text-white transition-all border border-red-500/20"
                             >
                               رفض (Decline)
