@@ -116,21 +116,22 @@ export default function CompleteProfile() {
           <div className="w-16 h-16 bg-primary/20 rounded-2xl flex items-center justify-center mx-auto mb-4">
             <GraduationCap className="w-8 h-8 text-primary" />
           </div>
-          <h2 className="text-2xl font-black text-white mb-2">Complete Your Profile</h2>
-          <p className="text-slate-400 text-sm">Help other teachers find and connect with you.</p>
-          <div className="mt-4 flex flex-col items-center gap-2">
+          <h2 className="text-2xl font-black text-white mb-2">أكمل ملفك الشخصي</h2>
+          <p className="text-slate-400 text-sm">ساعد زملائك الأساتذة في العثور عليك والتواصل معك.</p>
+          <div className="mt-6 flex flex-col items-center gap-4">
             <button 
               onClick={handleSkip}
-              className="text-[10px] font-black text-slate-500 hover:text-primary transition-all uppercase tracking-[0.2em] underline underline-offset-4"
+              className="w-full py-3 px-4 bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold rounded-2xl transition-all text-xs border border-slate-700/50 flex items-center justify-center gap-2 group"
             >
+              <CheckCircle2 className="w-4 h-4 text-primary" />
               إكمال المعلومات لاحقاً (Skip for Now)
             </button>
             <button 
               onClick={() => signOut(auth)}
-              className="flex items-center gap-1.5 text-[10px] font-black text-red-500/60 hover:text-red-500 transition-all uppercase tracking-[0.2em]"
+              className="flex items-center gap-2 text-[10px] font-black text-red-500/60 hover:text-red-500 transition-all uppercase tracking-[0.2em] group"
             >
-              <LogOut className="w-3 h-3" />
-              تسجيل الخروج (Sign Out)
+              <LogOut className="w-3 h-3 group-hover:-translate-x-1 transition-transform" />
+              تسجيل الخروج والعودة (Sign Out & Exit)
             </button>
           </div>
         </div>
@@ -159,40 +160,40 @@ export default function CompleteProfile() {
             >
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="text-xs font-black text-slate-500 uppercase tracking-wider mb-2 block">First Name</label>
+                  <label className="text-xs font-black text-slate-500 uppercase tracking-wider mb-2 block text-right">الاسم</label>
                   <input
                     required
                     type="text"
                     value={formData.firstName}
                     onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
-                    className="w-full bg-slate-950 border border-slate-800 rounded-xl py-3 px-4 text-white outline-none focus:ring-2 focus:ring-primary/50 transition-all"
-                    placeholder="First Name"
+                    className="w-full bg-slate-950 border border-slate-800 rounded-xl py-3 px-4 text-white text-right outline-none focus:ring-2 focus:ring-primary/50 transition-all"
+                    placeholder="الاسم"
                   />
                 </div>
                 <div>
-                  <label className="text-xs font-black text-slate-500 uppercase tracking-wider mb-2 block">Last Name</label>
+                  <label className="text-xs font-black text-slate-500 uppercase tracking-wider mb-2 block text-right">اللقب</label>
                   <input
                     required
                     type="text"
                     value={formData.lastName}
                     onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
-                    className="w-full bg-slate-950 border border-slate-800 rounded-xl py-3 px-4 text-white outline-none focus:ring-2 focus:ring-primary/50 transition-all"
-                    placeholder="Last Name"
+                    className="w-full bg-slate-950 border border-slate-800 rounded-xl py-3 px-4 text-white text-right outline-none focus:ring-2 focus:ring-primary/50 transition-all"
+                    placeholder="اللقب"
                   />
                 </div>
               </div>
 
               <div>
-                <label className="text-xs font-black text-slate-500 uppercase tracking-wider mb-2 block">Wilaya (State)</label>
+                <label className="text-xs font-black text-slate-500 uppercase tracking-wider mb-2 block text-right">الولاية</label>
                 <div className="relative">
                   <MapPin className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
                   <select
                     required
                     value={formData.wilaya}
                     onChange={(e) => setFormData({ ...formData, wilaya: e.target.value })}
-                    className="w-full bg-slate-950 border border-slate-800 rounded-xl py-3 pl-12 pr-4 text-white outline-none focus:ring-2 focus:ring-primary/50 transition-all appearance-none"
+                    className="w-full bg-slate-950 border border-slate-800 rounded-xl py-3 pl-12 pr-4 text-white text-right outline-none focus:ring-2 focus:ring-primary/50 transition-all appearance-none"
                   >
-                    <option value="">Select your wilaya</option>
+                    <option value="">اختر ولايتك</option>
                     {WILAYAS.map(w => <option key={w} value={w}>{w}</option>)}
                   </select>
                 </div>
@@ -205,23 +206,23 @@ export default function CompleteProfile() {
               className="space-y-4"
             >
               <div>
-                <label className="text-xs font-black text-slate-500 uppercase tracking-wider mb-2 block">Subject</label>
+                <label className="text-xs font-black text-slate-500 uppercase tracking-wider mb-2 block text-right">المادة المدرّسة</label>
                 <div className="relative">
                   <BookOpen className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
                   <select
                     required
                     value={formData.subject}
                     onChange={(e) => setFormData({ ...formData, subject: e.target.value })}
-                    className="w-full bg-slate-950 border border-slate-800 rounded-xl py-3 pl-12 pr-4 text-white outline-none focus:ring-2 focus:ring-primary/50 transition-all appearance-none"
+                    className="w-full bg-slate-950 border border-slate-800 rounded-xl py-3 pl-12 pr-4 text-white text-right outline-none focus:ring-2 focus:ring-primary/50 transition-all appearance-none"
                   >
-                    <option value="">Select your subject</option>
+                    <option value="">اختر المادة</option>
                     {SUBJECTS.map(s => <option key={s} value={s}>{s}</option>)}
                   </select>
                 </div>
               </div>
 
               <div>
-                <label className="text-xs font-black text-slate-500 uppercase tracking-wider mb-2 block">Gender (الجنس)</label>
+                <label className="text-xs font-black text-slate-500 uppercase tracking-wider mb-2 block text-right">الجنس</label>
                 <div className="flex gap-4">
                   {['ذكر (Male)', 'أنثى (Female)'].map((g) => (
                     <button
@@ -237,47 +238,47 @@ export default function CompleteProfile() {
               </div>
 
               <div>
-                <label className="text-xs font-black text-slate-500 uppercase tracking-wider mb-2 block">Role (الصفة)</label>
+                <label className="text-xs font-black text-slate-500 uppercase tracking-wider mb-2 block text-right">الصفة</label>
                 <select
                   required
                   value={formData.role}
                   onChange={(e) => setFormData({ ...formData, role: e.target.value })}
-                  className="w-full bg-slate-950 border border-slate-800 rounded-xl py-3 px-4 text-white outline-none focus:ring-2 focus:ring-primary/50 transition-all appearance-none"
+                  className="w-full bg-slate-950 border border-slate-800 rounded-xl py-3 px-4 text-white text-right outline-none focus:ring-2 focus:ring-primary/50 transition-all appearance-none"
                 >
                   {ROLES.map(r => <option key={r} value={r}>{r}</option>)}
                 </select>
               </div>
 
               <div>
-                <label className="text-xs font-black text-slate-500 uppercase tracking-wider mb-2 block">Rank (الرتبة)</label>
+                <label className="text-xs font-black text-slate-500 uppercase tracking-wider mb-2 block text-right">الرتبة</label>
                 <select
                   required
                   value={formData.rank}
                   onChange={(e) => setFormData({ ...formData, rank: e.target.value })}
-                  className="w-full bg-slate-950 border border-slate-800 rounded-xl py-3 px-4 text-white outline-none focus:ring-2 focus:ring-primary/50 transition-all appearance-none"
+                  className="w-full bg-slate-950 border border-slate-800 rounded-xl py-3 px-4 text-white text-right outline-none focus:ring-2 focus:ring-primary/50 transition-all appearance-none"
                 >
                   {RANKS.map(r => <option key={r} value={r}>{r}</option>)}
                 </select>
               </div>
 
               <div>
-                <label className="text-xs font-black text-slate-500 uppercase tracking-wider mb-2 block">Teaching Level</label>
+                <label className="text-xs font-black text-slate-500 uppercase tracking-wider mb-2 block text-right">الطور التعليمي</label>
                 <div className="relative">
                   <GraduationCap className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
                   <select
                     required
                     value={formData.level}
                     onChange={(e) => setFormData({ ...formData, level: e.target.value })}
-                    className="w-full bg-slate-950 border border-slate-800 rounded-xl py-3 pl-12 pr-4 text-white outline-none focus:ring-2 focus:ring-primary/50 transition-all appearance-none"
+                    className="w-full bg-slate-950 border border-slate-800 rounded-xl py-3 pl-12 pr-4 text-white text-right outline-none focus:ring-2 focus:ring-primary/50 transition-all appearance-none"
                   >
-                    <option value="">Select level</option>
+                    <option value="">اختر الطور</option>
                     {LEVELS.map(l => <option key={l} value={l}>{l}</option>)}
                   </select>
                 </div>
               </div>
 
               <div>
-                <label className="text-xs font-black text-slate-500 uppercase tracking-wider mb-2 block">Years of Experience</label>
+                <label className="text-xs font-black text-slate-500 uppercase tracking-wider mb-2 block text-right">عدد سنوات الخبرة</label>
                 <div className="relative">
                   <Clock className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
                   <input
@@ -287,7 +288,7 @@ export default function CompleteProfile() {
                     max="50"
                     value={isNaN(formData.yearsOfExperience) ? '' : formData.yearsOfExperience}
                     onChange={(e) => setFormData({ ...formData, yearsOfExperience: e.target.value === '' ? 0 : parseInt(e.target.value) })}
-                    className="w-full bg-slate-950 border border-slate-800 rounded-xl py-3 pl-12 pr-4 text-white outline-none focus:ring-2 focus:ring-primary/50 transition-all"
+                    className="w-full bg-slate-950 border border-slate-800 rounded-xl py-3 pl-12 pr-4 text-white text-right outline-none focus:ring-2 focus:ring-primary/50 transition-all"
                   />
                 </div>
               </div>
@@ -299,24 +300,24 @@ export default function CompleteProfile() {
               className="space-y-4"
             >
               <div>
-                <label className="text-xs font-black text-slate-500 uppercase tracking-wider mb-2 block">Phone Number</label>
+                <label className="text-xs font-black text-slate-500 uppercase tracking-wider mb-2 block text-right">رقم الهاتف</label>
                 <input
                   required
                   type="tel"
                   value={formData.phoneNumber}
                   onChange={(e) => setFormData({ ...formData, phoneNumber: e.target.value })}
-                  className="w-full bg-slate-950 border border-slate-800 rounded-xl py-3 px-4 text-white outline-none focus:ring-2 focus:ring-primary/50 transition-all"
+                  className="w-full bg-slate-950 border border-slate-800 rounded-xl py-3 px-4 text-white text-right outline-none focus:ring-2 focus:ring-primary/50 transition-all"
                   placeholder="0X XX XX XX XX"
                 />
               </div>
               <div>
-                <label className="text-xs font-black text-slate-500 uppercase tracking-wider mb-2 block">Birth Date</label>
+                <label className="text-xs font-black text-slate-500 uppercase tracking-wider mb-2 block text-right">تاريخ الميلاد</label>
                 <input
                   required
                   type="date"
                   value={formData.birthDate}
                   onChange={(e) => setFormData({ ...formData, birthDate: e.target.value })}
-                  className="w-full bg-slate-950 border border-slate-800 rounded-xl py-3 px-4 text-white outline-none focus:ring-2 focus:ring-primary/50 transition-all"
+                  className="w-full bg-slate-950 border border-slate-800 rounded-xl py-3 px-4 text-white text-right outline-none focus:ring-2 focus:ring-primary/50 transition-all"
                 />
               </div>
             </motion.div>
@@ -329,7 +330,7 @@ export default function CompleteProfile() {
                 onClick={() => setStep(step - 1)}
                 className="flex-1 bg-slate-800 hover:bg-slate-700 text-white font-black py-4 rounded-2xl transition-all"
               >
-                Back
+                رجوع (Back)
               </button>
             )}
             <button
@@ -341,7 +342,7 @@ export default function CompleteProfile() {
                 <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
               ) : (
                 <>
-                  {step < 3 ? 'Next Step' : 'Finish Setup'}
+                  {step < 3 ? 'التالي (Next)' : 'إنهاء (Finish)'}
                   <CheckCircle2 className="w-5 h-5 group-hover:scale-110 transition-transform" />
                 </>
               )}

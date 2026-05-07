@@ -28,7 +28,16 @@ export function useAuth() {
       }
 
       setUser(u);
-        // Set a timeout to prevent infinite loading if Firestore hangs
+      setProfile(null);
+      setLoading(true);
+      setError(null);
+
+      if (unsubscribeProfile) {
+        unsubscribeProfile();
+        unsubscribeProfile = null;
+      }
+
+      // Set a timeout to prevent infinite loading if Firestore hangs
         loadingTimeout = setTimeout(() => {
           if (loading) {
             console.warn("Profile fetch timed out after 30s for UID:", u.uid);

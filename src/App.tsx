@@ -254,7 +254,7 @@ export default function App() {
                 )} */}
 
         {/* Side Toggle Handle */}
-        {user && (
+        {user && profile?.isProfileComplete && (
           <div className="lg:hidden fixed left-0 top-1/2 -translate-y-1/2 z-[60]">
             <motion.button
               whileHover={{ scale: 1.1, x: 2 }}

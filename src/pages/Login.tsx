@@ -291,10 +291,10 @@ export default function Login() {
         {isRegister && (
           <button 
             onClick={() => setIsRegister(false)}
-            className="self-start py-2 px-4 flex items-center gap-2 text-slate-400 hover:text-white transition-colors bg-slate-800/50 rounded-xl border border-slate-700/50 text-xs font-bold"
+            className="self-start py-2.5 px-5 flex items-center gap-2 text-white transition-all bg-slate-800 hover:bg-slate-700 rounded-2xl border border-slate-700 shadow-xl text-xs font-black group active:scale-95"
           >
-            <ChevronRight className="w-4 h-4" />
-            رجوع / BACK
+            <ChevronRight className="w-4 h-4 group-hover:-translate-x-1 transition-transform" />
+            رجوع لصفحة الدخول / BACK
           </button>
         )}
 
@@ -363,7 +363,8 @@ export default function Login() {
             <button
               type="button"
               onClick={() => setShowPassword(!showPassword)}
-              className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300 transition-colors"
+              className="absolute right-4 top-1/2 -translate-y-1/2 p-2 rounded-lg text-slate-400 hover:text-purple-400 hover:bg-purple-400/10 transition-all z-10"
+              title={showPassword ? "إخفاء كلمة السر" : "إظهار كلمة السر"}
             >
               {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
             </button>
