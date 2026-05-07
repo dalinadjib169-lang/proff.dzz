@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { signInWithPopup, GoogleAuthProvider, signInWithEmailAndPassword, createUserWithEmailAndPassword, setPersistence, browserLocalPersistence, browserSessionPersistence, signOut, sendPasswordResetEmail } from 'firebase/auth';
 import { auth } from '../firebase';
 import { motion } from 'motion/react';
-import { BookOpen, GraduationCap, Mail, Lock, User, LogIn, RefreshCw, AlertCircle, Sparkles, UserCircle, KeyRound, CheckCircle2 } from 'lucide-react';
+import { BookOpen, GraduationCap, Mail, Lock, User, LogIn, RefreshCw, AlertCircle, Sparkles, UserCircle, KeyRound, CheckCircle2, Eye, EyeOff, ChevronRight } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
 export default function Login() {
@@ -14,6 +14,7 @@ export default function Login() {
   const [lastName, setLastName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(true);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
@@ -147,14 +148,11 @@ export default function Login() {
       }
 
       if (isRegister) {
-        if (!firstName || !lastName) {
-          throw new Error('يرجى إدخال الاسم واللقب');
-        }
         const userCredential = await createUserWithEmailAndPassword(auth, finalEmail, password);
         // Save pending data for profile creation
         localStorage.setItem('pendingRegistrationData', JSON.stringify({ 
-          firstName, 
-          lastName,
+          firstName: firstName || 'زميل', 
+          lastName: lastName || 'جديد',
           phone: authMethod === 'phone' ? phone : null
         }));
       } else {
@@ -290,6 +288,16 @@ export default function Login() {
           </button>
         </div>
 
+        {isRegister && (
+          <button 
+            onClick={() => setIsRegister(false)}
+            className="self-start py-2 px-4 flex items-center gap-2 text-slate-400 hover:text-white transition-colors bg-slate-800/50 rounded-xl border border-slate-700/50 text-xs font-bold"
+          >
+            <ChevronRight className="w-4 h-4" />
+            رجوع / BACK
+          </button>
+        )}
+
         <form onSubmit={handleEmailAuth} className="space-y-4">
           {isRegister && (
             <div className="grid grid-cols-2 gap-3">
@@ -301,7 +309,6 @@ export default function Login() {
                   className="w-full pl-12 pr-4 py-3.5 bg-slate-950/30 border border-slate-800/50 rounded-2xl focus:ring-2 focus:ring-purple-500 focus:border-purple-500 outline-none transition-all text-white placeholder:text-slate-600 text-sm font-bold"
                   value={firstName}
                   onChange={(e) => setFirstName(e.target.value)}
-                  required
                 />
               </div>
               <div className="relative">
@@ -312,7 +319,6 @@ export default function Login() {
                   className="w-full pl-12 pr-4 py-3.5 bg-slate-950/30 border border-slate-800/50 rounded-2xl focus:ring-2 focus:ring-purple-500 focus:border-purple-500 outline-none transition-all text-white placeholder:text-slate-600 text-sm font-bold"
                   value={lastName}
                   onChange={(e) => setLastName(e.target.value)}
-                  required
                 />
               </div>
             </div>
@@ -347,13 +353,20 @@ export default function Login() {
           <div className="relative">
             <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-500" />
             <input
-              type="password"
+              type={showPassword ? "text" : "password"}
               placeholder="كلمة السر"
-              className="w-full pl-12 pr-4 py-3.5 bg-slate-950/30 border border-slate-800/50 rounded-2xl focus:ring-2 focus:ring-purple-500 focus:border-purple-500 outline-none transition-all text-white placeholder:text-slate-600 text-sm font-bold"
+              className="w-full pl-12 pr-12 py-3.5 bg-slate-950/30 border border-slate-800/50 rounded-2xl focus:ring-2 focus:ring-purple-500 focus:border-purple-500 outline-none transition-all text-white placeholder:text-slate-600 text-sm font-bold"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               required
             />
+            <button
+              type="button"
+              onClick={() => setShowPassword(!showPassword)}
+              className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300 transition-colors"
+            >
+              {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+            </button>
           </div>
 
           <div className="flex items-center justify-between px-2">

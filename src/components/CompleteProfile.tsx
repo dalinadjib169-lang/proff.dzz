@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
 import { useAuth } from '../hooks/useAuth';
 import { motion } from 'motion/react';
-import { GraduationCap, MapPin, BookOpen, Clock, User, CheckCircle2 } from 'lucide-react';
-import { db } from '../firebase';
+import { GraduationCap, MapPin, BookOpen, Clock, User, CheckCircle2, LogOut } from 'lucide-react';
+import { auth, db } from '../firebase';
+import { signOut } from 'firebase/auth';
 import { collection, query, where, getDocs } from 'firebase/firestore';
 
 const WILAYAS = [
@@ -50,6 +51,17 @@ export default function CompleteProfile() {
     phoneNumber: '',
     birthDate: ''
   });
+
+  const handleSkip = async () => {
+    setLoading(true);
+    try {
+      await completeProfile({ isProfileComplete: true } as any);
+    } catch (err) {
+      console.error("Profile skip error:", err);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -106,6 +118,21 @@ export default function CompleteProfile() {
           </div>
           <h2 className="text-2xl font-black text-white mb-2">Complete Your Profile</h2>
           <p className="text-slate-400 text-sm">Help other teachers find and connect with you.</p>
+          <div className="mt-4 flex flex-col items-center gap-2">
+            <button 
+              onClick={handleSkip}
+              className="text-[10px] font-black text-slate-500 hover:text-primary transition-all uppercase tracking-[0.2em] underline underline-offset-4"
+            >
+              إكمال المعلومات لاحقاً (Skip for Now)
+            </button>
+            <button 
+              onClick={() => signOut(auth)}
+              className="flex items-center gap-1.5 text-[10px] font-black text-red-500/60 hover:text-red-500 transition-all uppercase tracking-[0.2em]"
+            >
+              <LogOut className="w-3 h-3" />
+              تسجيل الخروج (Sign Out)
+            </button>
+          </div>
         </div>
 
         {error && (

@@ -235,8 +235,8 @@ export default function App() {
             ) : (
               <>
                 {/* Profile completion is now optional, users can edit it from their profile page anytime */}
-                {user && <Navbar />}
-                {user && <BottomNav />}
+                {user && profile?.isProfileComplete && <Navbar />}
+                {user && profile?.isProfileComplete && <BottomNav />}
                 {user && profile && !profile.isProfileComplete && <CompleteProfile />}
                 {/* Mobile Sidebar Toggle - Disconnected to free screen space */}
                 {/* {user && (
@@ -360,7 +360,7 @@ export default function App() {
                   </div>
                 </div>
 
-                {user && <ChatBubble />}
+                {user && profile?.isProfileComplete && <ChatBubble />}
                 <SoulMedicine isOpen={isSoulMedOpen} onClose={() => setIsSoulMedOpen(false)} />
               </>
             )}
