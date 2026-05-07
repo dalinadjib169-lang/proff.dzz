@@ -1002,6 +1002,7 @@ export default function ChatBubble() {
   const [isSelectingFriend, setIsSelectingFriend] = useState(false);
   const [isCreatingGroup, setIsCreatingGroup] = useState(false);
   const [groupName, setGroupName] = useState('');
+  const [groupPhoto, setGroupPhoto] = useState<string | null>(null);
   const [selectedGroupUsers, setSelectedGroupUsers] = useState<string[]>([]);
   const [isSavingGroup, setIsSavingGroup] = useState(false);
 
@@ -1477,11 +1478,14 @@ export default function ChatBubble() {
     setIsSavingGroup(true);
     try {
       const allParticipants = [profile.uid, ...selectedGroupUsers];
+      const finalPhoto = groupPhoto || `https://ui-avatars.com/api/?name=${encodeURIComponent(groupName)}&background=random`;
+      
       const groupDoc = await addDoc(collection(db, 'chat_rooms'), {
         name: groupName,
         participants: allParticipants,
         createdBy: profile.uid,
         isGroup: true,
+        photoURL: finalPhoto,
         createdAt: serverTimestamp()
       });
 
@@ -1490,7 +1494,7 @@ export default function ChatBubble() {
         displayName: groupName,
         isGroup: true,
         participants: allParticipants,
-        photoURL: `https://ui-avatars.com/api/?name=${encodeURIComponent(groupName)}&background=random`
+        photoURL: finalPhoto
       };
 
       // Send initial system message
@@ -1505,10 +1509,25 @@ export default function ChatBubble() {
         seen: false
       });
 
+      // Notify participants
+      const notifPromises = selectedGroupUsers.map(uid => 
+        addDoc(collection(db, 'notifications'), {
+          recipientId: uid,
+          senderId: profile.uid,
+          senderName: profile.displayName,
+          type: 'group_addition',
+          groupName: groupName,
+          read: false,
+          createdAt: serverTimestamp()
+        })
+      );
+      await Promise.all(notifPromises);
+
       toast.success('تم إنشاء المجموعة بنجاح');
       setActiveChat(groupData as any);
       setIsCreatingGroup(false);
       setGroupName('');
+      setGroupPhoto(null);
       setSelectedGroupUsers([]);
     } catch (e) {
       console.error(e);
@@ -1691,6 +1710,11 @@ export default function ChatBubble() {
                             <span className="text-[9px] font-black uppercase">{getAbbreviated(activeChat.level)}</span>
                           </div>
                         )}
+                        {!activeChat.isGroup && activeChat.uid !== 'global' && (
+                          <div className="flex items-center gap-1 px-1.5 py-0.5 rounded-lg bg-amber-500/20 text-amber-400 border border-amber-500/30">
+                            <span className="text-[9px] font-black uppercase">{activeChat.yearsOfExperience || 1} EXP</span>
+                          </div>
+                        )}
                       </div>
                     )}
                     <div className="flex items-center gap-1 sm:gap-2">
@@ -1842,6 +1866,35 @@ export default function ChatBubble() {
                     </div>
 
                     <div className="p-4 space-y-4 flex-1 flex flex-col overflow-hidden">
+                       <div className="flex flex-col items-center gap-3 mb-2">
+                         <div className="relative group/avatar">
+                           <img 
+                            src={groupPhoto || `https://ui-avatars.com/api/?name=${encodeURIComponent(groupName || 'Group')}&background=random`} 
+                            className="w-20 h-20 rounded-3xl object-cover border-4 border-slate-800 shadow-2xl"
+                            alt="Group Profile"
+                           />
+                           <label className="absolute inset-0 flex items-center justify-center bg-black/40 rounded-3xl opacity-0 group-hover/avatar:opacity-100 cursor-pointer transition-all">
+                             <Camera className="w-8 h-8 text-white" />
+                             <input 
+                              type="file" 
+                              className="hidden" 
+                              accept="image/*"
+                              onChange={async (e) => {
+                                const file = e.target.files?.[0];
+                                if (file) {
+                                  // Simplified: just use data URL or prompt for URL if no storage
+                                  // In AI Studio we usually use Cloudinary or just dataURL for demo
+                                  const reader = new FileReader();
+                                  reader.onload = (re) => setGroupPhoto(re.target?.result as string);
+                                  reader.readAsDataURL(file);
+                                }
+                              }}
+                             />
+                           </label>
+                         </div>
+                         <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">صورة المجموعة</p>
+                       </div>
+
                        <input 
                         type="text"
                         placeholder="اسم المجموعة..."
