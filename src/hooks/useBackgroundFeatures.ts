@@ -1,0 +1,146 @@
+
+import { useEffect, useState, useRef } from 'react';
+import { Coordinates, CalculationParameters, PrayerTimes, Prayer } from 'adhan';
+import { toast } from 'react-hot-toast';
+import { useAuth } from './useAuth';
+import { db } from '../firebase';
+import { doc, updateDoc } from 'firebase/firestore';
+
+export function useBackgroundFeatures() {
+  const { profile } = useAuth();
+  const [isWaterEnabled, setIsWaterEnabled] = useState(profile?.settings?.isWaterEnabled ?? false);
+  const [isAthanEnabled, setIsAthanEnabled] = useState(profile?.settings?.isAthanEnabled ?? false);
+  const [waterReminderMinutes, setWaterReminderMinutes] = useState(profile?.settings?.waterReminderMinutes ?? 120);
+  
+  useEffect(() => {
+    if (profile?.settings) {
+      setIsWaterEnabled(profile.settings.isWaterEnabled ?? false);
+      setIsAthanEnabled(profile.settings.isAthanEnabled ?? false);
+      setWaterReminderMinutes(profile.settings.waterReminderMinutes ?? 120);
+    }
+  }, [profile?.settings]);
+
+  const lastAthanPlayed = useRef<string | null>(null);
+  const lastWaterPlayed = useRef<number | null>(null);
+  const userCoords = useRef<Coordinates | null>(null);
+
+  useEffect(() => {
+    // Initial location fetch
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition((pos) => {
+        userCoords.current = new Coordinates(pos.coords.latitude, pos.coords.longitude);
+      }, (err) => console.warn('Geolocation error:', err));
+    }
+  }, []);
+
+  // Sounds
+  const athanSound = useRef(new Audio('https://assets.mixkit.co/active_storage/sfx/2281/2281-preview.mp3'));
+  const waterSound = useRef(new Audio('https://assets.mixkit.co/active_storage/sfx/1350/1350-preview.mp3'));
+
+  useEffect(() => {
+    // Register Service Worker
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('/sw.js').then(reg => {
+        console.log('SW Registered', reg);
+      });
+    }
+    
+    // Request Notification Permissions
+    if ('Notification' in window && Notification.permission !== 'granted') {
+      Notification.requestPermission();
+    }
+  }, []);
+
+  // Prayer Times Monitoring
+  useEffect(() => {
+    const checkPrayer = () => {
+      if (!isAthanEnabled) return;
+
+      if (!userCoords.current) {
+        navigator.geolocation.getCurrentPosition((pos) => {
+          userCoords.current = new Coordinates(pos.coords.latitude, pos.coords.longitude);
+        });
+        return;
+      }
+
+      const params = CalculationParameters.MuslimWorldLeague();
+      const date = new Date();
+      const prayerTimes = new PrayerTimes(userCoords.current, date, params);
+      
+      const nextP = prayerTimes.nextPrayer();
+      const nextTime = prayerTimes.timeForPrayer(nextP);
+      
+      if (nextTime) {
+        const diff = nextTime.getTime() - Date.now();
+        // Trigger if less than 35 seconds to next prayer (since we check every 30s)
+        if (diff > 0 && diff < 35000 && lastAthanPlayed.current !== nextP && nextP !== 'none') {
+          playAthan(nextP);
+          lastAthanPlayed.current = nextP;
+        }
+      }
+    };
+
+    const interval = setInterval(checkPrayer, 30000); // Check every 30 seconds
+    return () => clearInterval(interval);
+  }, [isAthanEnabled]);
+
+  // Water Reminder Monitoring
+  useEffect(() => {
+    const checkWater = () => {
+      if (!isWaterEnabled) return;
+      
+      const now = Date.now();
+      const intervalMs = waterReminderMinutes * 60 * 1000;
+      
+      if (!lastWaterPlayed.current || (now - lastWaterPlayed.current >= intervalMs)) {
+        playWaterReminder();
+        lastWaterPlayed.current = now;
+      }
+    };
+
+    const interval = setInterval(checkWater, 60000); // Check every minute
+    return () => clearInterval(interval);
+  }, [isWaterEnabled, waterReminderMinutes]);
+
+  const playAthan = (prayerName: string) => {
+    const pNames: Record<string, string> = {
+      fajr: 'الفجر',
+      dhuhr: 'الظهر',
+      asr: 'العصر',
+      maghrib: 'المغرب',
+      isha: 'العشاء'
+    };
+    
+    const name = pNames[prayerName] || prayerName;
+    
+    if (Notification.permission === 'granted') {
+      new Notification(`حان الآن موعد أذان ${name}`, {
+        body: 'اذكر الله وصل على النبي محمد صلى الله عليه وسلم',
+        icon: '/logo.png'
+      });
+    }
+    
+    athanSound.current.play().catch(e => console.log('Audio blocked', e));
+    toast.success(`حان وقت الصلاة: ${name}`);
+  };
+
+  const playWaterReminder = () => {
+    if (Notification.permission === 'granted') {
+      new Notification('تذكير: اشرب الماء', {
+        body: 'حافظ على رطوبة جسمك وصحتك، اشرب كوباً من الماء الآن.',
+        icon: '/logo.png'
+      });
+    }
+    waterSound.current.play().catch(e => console.error('Audio blocked', e));
+    toast('💦 حان وقت شرب الماء!', { icon: '🥛' });
+  };
+
+  return {
+    isWaterEnabled,
+    setIsWaterEnabled,
+    isAthanEnabled,
+    setIsAthanEnabled,
+    waterReminderMinutes,
+    setWaterReminderMinutes
+  };
+}

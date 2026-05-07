@@ -1,15 +1,36 @@
-// Simple service worker to satisfy PWA requirements
-const CACHE_NAME = 'teachdz-v1';
 
-self.addEventListener('install', (event) => {
-  console.log('Service Worker: Installed');
+self.addEventListener('push', function(event) {
+  const data = event.data?.json() ?? {};
+  const title = data.title || 'تنبیه جديد';
+  const options = {
+    body: data.body || '',
+    icon: '/logo.png',
+    badge: '/logo.png',
+    data: data.url,
+    tag: data.tag || 'general-notif',
+    renotify: true
+  };
+
+  event.waitUntil(
+    self.registration.showNotification(title, options)
+  );
 });
 
-self.addEventListener('activate', (event) => {
-  console.log('Service Worker: Activated');
-});
-
-self.addEventListener('fetch', (event) => {
-  // Pass-through strategy - just enough to make it installable
-  event.respondWith(fetch(event.request));
+self.addEventListener('notificationclick', function(event) {
+  event.notification.close();
+  const urlToOpen = event.notification.data || '/';
+  
+  event.waitUntil(
+    clients.matchAll({ type: 'window', includeUncontrolled: true }).then(function(windowClients) {
+      for (let i = 0; i < windowClients.length; i++) {
+        const client = windowClients[i];
+        if (client.url === urlToOpen && 'focus' in client) {
+          return client.focus();
+        }
+      }
+      if (clients.openWindow) {
+        return clients.openWindow(urlToOpen);
+      }
+    })
+  );
 });

@@ -42,9 +42,11 @@ import InstallPrompt from './components/InstallPrompt';
 import { Toaster } from 'react-hot-toast';
 
 import { useTranslation } from './hooks/useTranslation';
+import { useBackgroundFeatures } from './hooks/useBackgroundFeatures';
 
 export default function App() {
   const { user, profile, loading, error, retry } = useAuth();
+  useBackgroundFeatures();
   const { t } = useTranslation();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isSoulMedOpen, setIsSoulMedOpen] = useState(false);

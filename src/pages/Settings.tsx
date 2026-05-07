@@ -451,6 +451,85 @@ export default function Settings() {
           </div>
         </section>
 
+        {/* Background Services */}
+        <section className="bg-white dark:bg-slate-900 rounded-[2.5rem] p-8 shadow-xl border border-slate-100 dark:border-slate-800 space-y-8">
+          <div className="space-y-6">
+            <div className="flex items-center gap-3 text-emerald-600 dark:text-emerald-400">
+              <Zap className="w-6 h-6" />
+              <h2 className="text-xl font-black uppercase tracking-tight">خدمات الخلفية (Background)</h2>
+            </div>
+
+            <div className="space-y-6">
+              <div className="p-4 bg-primary/10 border border-primary/20 rounded-2xl flex items-center justify-between gap-4 mb-4">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-full bg-primary flex items-center justify-center">
+                    <Zap className="w-5 h-5 text-white animate-pulse" />
+                  </div>
+                  <div>
+                    <h4 className="text-sm font-black text-slate-800 dark:text-white uppercase tracking-tighter">تفعيل الصوت للحلفية</h4>
+                    <p className="text-[10px] text-slate-500 font-bold">اضغط هنا للسماح للمتصفح بتشغيل الأذان والتنبيهات</p>
+                  </div>
+                </div>
+                <button 
+                  onClick={() => {
+                    const audio = new Audio('https://assets.mixkit.co/active_storage/sfx/1350/1350-preview.mp3');
+                    audio.volume = 0;
+                    audio.play().catch(() => {});
+                    toast.success('تم تفعيل الصلاحية الصوتية');
+                  }}
+                  className="px-4 py-2 bg-primary text-white rounded-xl text-[10px] font-black uppercase tracking-widest shadow-lg shadow-primary/20 hover:scale-105 transition-all"
+                >
+                  تفعيل الآن
+                </button>
+              </div>
+
+              <div className="flex items-center justify-between p-4 bg-slate-50 dark:bg-slate-800 rounded-2xl border border-slate-100 dark:border-slate-800">
+                <div className="flex flex-col">
+                  <h3 className="text-sm font-black text-slate-700 dark:text-slate-200">تواصل الأذان (Offline/Background)</h3>
+                  <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">تفعيل أذان الصلاة مع وقت الصلاة</p>
+                </div>
+                <button
+                  onClick={() => setSettings({ ...settings, isAthanEnabled: !settings.isAthanEnabled })}
+                  className={`w-14 h-8 rounded-full p-1 transition-all duration-300 ${settings.isAthanEnabled ? 'bg-primary' : 'bg-slate-300'}`}
+                >
+                  <div className={`w-6 h-6 bg-white rounded-full shadow-md transform transition-all duration-300 ${settings.isAthanEnabled ? 'translate-x-6' : 'translate-x-0'}`} />
+                </button>
+              </div>
+
+              <div className="flex items-center justify-between p-4 bg-slate-50 dark:bg-slate-800 rounded-2xl border border-slate-100 dark:border-slate-800">
+                <div className="flex flex-col">
+                  <h3 className="text-sm font-black text-slate-700 dark:text-slate-200">تذكير شرب الماء</h3>
+                  <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">تنبيه صوتي كل ساعتين (أو حسب اختيارك)</p>
+                </div>
+                <button
+                  onClick={() => setSettings({ ...settings, isWaterEnabled: !settings.isWaterEnabled })}
+                  className={`w-14 h-8 rounded-full p-1 transition-all duration-300 ${settings.isWaterEnabled ? 'bg-primary' : 'bg-slate-300'}`}
+                >
+                  <div className={`w-6 h-6 bg-white rounded-full shadow-md transform transition-all duration-300 ${settings.isWaterEnabled ? 'translate-x-6' : 'translate-x-0'}`} />
+                </button>
+              </div>
+
+              {settings.isWaterEnabled && (
+                <div className="space-y-4 p-4 bg-slate-50 dark:bg-slate-800 rounded-2xl border border-slate-100 dark:border-slate-800">
+                  <label className="block text-sm font-black text-slate-400 uppercase">تكرار التذكير (بالدقائق)</label>
+                  <div className="flex items-center gap-4">
+                    <input 
+                      type="range" 
+                      min="15" 
+                      max="240" 
+                      step="15"
+                      value={settings.waterReminderMinutes || 120}
+                      onChange={(e) => setSettings({ ...settings, waterReminderMinutes: parseInt(e.target.value) })}
+                      className="flex-1 accent-primary"
+                    />
+                    <span className="text-sm font-black text-primary">{settings.waterReminderMinutes || 120} دقيقة</span>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        </section>
+
         {/* Security & Protection */}
         <section className="bg-white dark:bg-slate-900 rounded-[2.5rem] p-8 shadow-xl border border-slate-100 dark:border-slate-800 space-y-8 overflow-hidden relative">
           <div className="absolute top-0 right-0 p-8 opacity-10 pointer-events-none">

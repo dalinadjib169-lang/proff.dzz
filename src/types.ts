@@ -65,6 +65,9 @@ export interface UserSettings {
   fontSize: 'small' | 'medium' | 'large';
   fontType: 'sans' | 'serif' | 'mono';
   defaultPostPrivacy: 'public' | 'friends' | 'private';
+  isAthanEnabled?: boolean;
+  isWaterEnabled?: boolean;
+  waterReminderMinutes?: number;
 }
 
 export interface Product {

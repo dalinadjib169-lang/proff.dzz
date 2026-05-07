@@ -424,6 +424,19 @@ export default function ChatBubble() {
       );
       if (hasNewMessage) {
         playSound('message');
+        
+        // Background Notification for messages
+        if (document.visibilityState !== 'visible' && Notification.permission === 'granted') {
+          const latestDoc = snapshot.docChanges().find(c => c.type === 'added')?.doc;
+          if (latestDoc) {
+            const data = latestDoc.data();
+            new Notification(`رسالة جديدة من ${data.senderName}`, {
+              body: data.text || 'أرسل لك ملفاً/صورة',
+              icon: '/logo.png',
+              tag: 'new-message'
+            });
+          }
+        }
       }
     }, (error) => {
       handleFirestoreError(error, OperationType.LIST, 'messages');
@@ -816,6 +829,16 @@ export default function ChatBubble() {
         if (callData.status === 'ringing' && !isCalling) {
           if (!ringtoneRef.current) {
             ringtoneRef.current = playSound('ringtone', true);
+            
+            // Background Notification for calls
+            if (document.visibilityState !== 'visible' && Notification.permission === 'granted') {
+              new Notification(`مكالمة واردة من ${callData.senderName}`, {
+                body: `يتصل بك الآن (${callData.type === 'video' ? 'فيديو' : 'صوت'})`,
+                icon: '/logo.png',
+                tag: `call-${callData.id}`,
+                requireInteraction: true // Keep it until user acts
+              });
+            }
           }
         } else {
           // If status moved to accepted/connected/ended, stop ringing
