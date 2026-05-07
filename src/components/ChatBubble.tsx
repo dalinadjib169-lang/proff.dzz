@@ -210,6 +210,7 @@ export default function ChatBubble() {
             convosMap.set(data.roomId, {
               uid: data.roomId,
               isGroup: true,
+              displayName: data.roomName || 'مجموعة عمل',
               lastMessage: data.text || 'صورة/صوت ✨',
               lastTime: data.createdAt || Timestamp.now(),
               unread: data.senderId !== profile.uid && data.seen === false
@@ -1004,6 +1005,20 @@ export default function ChatBubble() {
   const [selectedGroupUsers, setSelectedGroupUsers] = useState<string[]>([]);
   const [isSavingGroup, setIsSavingGroup] = useState(false);
 
+  // Sound effect for ringing
+  useEffect(() => {
+    let interval: any;
+    if (incomingCall) {
+      const ring = new Audio('https://assets.mixkit.co/active_storage/sfx/1359/1359-preview.mp3'); // Ringing sound
+      ring.loop = true;
+      ring.play().catch(e => console.log('Audio play blocked:', e));
+      return () => {
+        ring.pause();
+        ring.currentTime = 0;
+      };
+    }
+  }, [incomingCall]);
+
   // Check friendship status for activeChat
   useEffect(() => {
     setLocalIsFriendOverride(false); // Reset override on chat change
@@ -1481,6 +1496,7 @@ export default function ChatBubble() {
       // Send initial system message
       await addDoc(collection(db, 'messages'), {
         roomId: groupDoc.id,
+        roomName: groupName,
         participants: allParticipants,
         senderId: profile.uid,
         senderName: 'النظام',
@@ -1641,78 +1657,47 @@ export default function ChatBubble() {
             {/* Header */}
             <div className={`shrink-0 bg-slate-900/60 backdrop-blur-xl border-b border-white/10 transition-all ${isMobile && isKeyboardOpen ? 'p-1' : 'p-2 sm:p-3'}`}>
               {activeChat ? (
-                <div className="flex items-center gap-2 sm:gap-4 h-20 sm:h-24" dir="rtl">
-                  {/* Identity Section (Right) */}
+                <div className="flex items-center gap-2 sm:gap-4 h-24 sm:h-28" dir="rtl">
+                  {/* Exit/Profile (Right) */}
                   <div 
                     onClick={() => setIsOpen(false)}
-                    className={`flex items-center gap-1.5 sm:gap-2 min-w-0 bg-white/5 hover:bg-red-500/10 rounded-2xl p-1 sm:p-1.5 pr-2 border border-white/10 hover:border-red-500/30 shadow-lg flex-shrink-0 cursor-pointer transition-all active:scale-95 group/profile ${isMobile && isKeyboardOpen ? 'max-w-[120px]' : ''}`}
+                    className="flex-shrink-0 group/profile flex items-center gap-2 cursor-pointer bg-white/5 hover:bg-orange-500/10 rounded-2xl p-1 sm:p-1.5 border border-white/10 hover:border-orange-500/30 transition-all active:scale-95 shadow-lg"
                   >
-                    <div className="relative flex-shrink-0">
+                    <div className="relative">
                       <img 
                         src={activeChat.photoURL || `https://ui-avatars.com/api/?name=${encodeURIComponent(activeChat.displayName || 'U')}&background=random`} 
-                        className={`rounded-xl object-cover border border-white/20 shadow-xl group-hover/profile:border-red-500/50 ${isMobile && isKeyboardOpen ? 'w-10 h-10' : 'w-12 h-12 sm:w-14 sm:h-14'}`} 
+                        className={`rounded-xl object-cover border-2 border-white/20 shadow-2xl group-hover/profile:border-orange-500/50 ${isMobile && isKeyboardOpen ? 'w-10 h-10' : 'w-12 h-12 sm:w-14 sm:h-14'}`} 
                         referrerPolicy="no-referrer"
                         alt={activeChat.displayName}
                       />
-                      <div className={`absolute -bottom-0.5 -right-0.5 rounded-full border-2 border-slate-900 ${isOnline(activeChat.uid === 'global' || activeChat.isGroup ? null : activeChat.lastSeen) ? 'bg-green-500' : 'bg-slate-500'} ${isMobile && isKeyboardOpen ? 'w-3 h-3' : 'w-4 h-4'}`}></div>
-                      <div className="absolute inset-0 bg-red-500/0 group-hover/profile:bg-red-500/10 rounded-xl transition-all flex items-center justify-center">
+                      <div className={`absolute -bottom-1 -right-1 rounded-full border-2 border-slate-900 ${isOnline(activeChat.uid === 'global' || activeChat.isGroup ? null : activeChat.lastSeen) ? 'bg-green-500' : 'bg-slate-500'} ${isMobile && isKeyboardOpen ? 'w-3 h-3' : 'w-4 h-4'}`}></div>
+                      <div className="absolute inset-0 bg-orange-500/0 group-hover/profile:bg-orange-500/20 rounded-xl transition-all flex items-center justify-center">
                         <X className="w-5 h-5 text-white opacity-0 group-hover/profile:opacity-100 transition-opacity" />
                       </div>
                     </div>
-                    <div className="min-w-0 flex flex-col justify-center text-right">
-                      <div className="flex items-center gap-1 min-w-0">
-                        <h4 className={`font-black text-white truncate leading-tight group-hover/profile:text-red-400 ${isMobile && isKeyboardOpen ? 'text-[9px]' : 'text-[11px] sm:text-sm max-w-[100px]'}`}>
-                          {activeChat.displayName}
-                        </h4>
-                        {!isConnected && <span className="w-1.5 h-1.5 bg-yellow-400 rounded-full animate-pulse"></span>}
-                      </div>
-                      {!isKeyboardOpen && (
-                        <div className="flex items-center gap-1 mt-0.5 opacity-60">
-                           <span className={`w-1.5 h-1.5 rounded-full ${isOnline(activeChat.uid === 'global' ? true : activeChat.lastSeen) ? 'bg-green-400' : 'bg-slate-500'}`}></span>
-                           <p className="text-[8px] sm:text-[9px] font-black text-white uppercase tracking-tighter">
-                             {activeChat.uid === 'global' ? 'بث مباشر' : (isOnline(activeChat.lastSeen) ? 'متصل' : 'أوفلاين')}
-                           </p>
-                        </div>
-                      )}
-                    </div>
                   </div>
 
-                  {/* Info Grid Section (Center) */}
-                  <div className="flex-1 grid grid-cols-2 gap-x-2 gap-y-1 px-1 border-r border-white/5 min-w-0" dir="rtl">
-                    <div className="flex items-center gap-1 min-w-0">
-                      <div className="w-3.5 h-3.5 rounded bg-emerald-500/20 flex items-center justify-center flex-shrink-0">
-                        <GraduationCap className="w-2 h-2 text-emerald-400" />
+                  {/* Info Section (Center) */}
+                  <div className="flex-1 flex flex-col items-center justify-center min-w-0 px-2 overflow-hidden border-r border-white/5">
+                    {!isKeyboardOpen && (
+                      <div className="flex flex-wrap items-center justify-center gap-1 mb-1">
+                        {activeChat.subject && (
+                          <div className="flex items-center gap-1 px-1.5 py-0.5 rounded-lg bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
+                            <span className="text-[9px] font-black uppercase">{getAbbreviated(activeChat.subject)}</span>
+                          </div>
+                        )}
+                        {activeChat.level && (
+                          <div className="flex items-center gap-1 px-1.5 py-0.5 rounded-lg bg-blue-500/20 text-blue-400 border border-blue-500/30">
+                            <span className="text-[9px] font-black uppercase">{getAbbreviated(activeChat.level)}</span>
+                          </div>
+                        )}
                       </div>
-                      <span className="text-[10px] font-black text-emerald-300/80 leading-none h-3 whitespace-nowrap">
-                        {activeChat.uid === 'global' ? 'Dz' : getAbbreviated(activeChat.level || 'CEM')}
-                      </span>
-                    </div>
-
-                    <div className="flex items-center gap-1 min-w-0">
-                      <div className="w-3.5 h-3.5 rounded bg-blue-500/20 flex items-center justify-center flex-shrink-0">
-                        {activeChat.uid === 'global' ? <Globe className="w-1.5 h-1.5 text-blue-400" /> : getSubjectIcon(activeChat.subject || '')}
-                      </div>
-                      <span className="text-[10px] font-black text-blue-300/80 leading-none h-3 whitespace-nowrap">
-                        {activeChat.uid === 'global' ? 'Math' : getAbbreviated(activeChat.subject || 'Math')}
-                      </span>
-                    </div>
-
-                    <div className="flex items-center gap-1 min-w-0">
-                      <div className="w-3.5 h-3.5 rounded bg-amber-500/20 flex items-center justify-center flex-shrink-0">
-                        <MapPin className="w-2 h-2 text-amber-400" />
-                      </div>
-                      <span className="text-[10px] font-black text-amber-300/80 leading-none h-3 whitespace-nowrap">
-                        {activeChat.uid === 'global' ? '16' : (activeChat.wilaya?.split(' ')[0] || '16')}
-                      </span>
-                    </div>
-
-                    <div className="flex items-center gap-1 min-w-0">
-                      <div className="w-3.5 h-3.5 rounded bg-purple-500/20 flex items-center justify-center flex-shrink-0">
-                        <Clock className="w-2 h-2 text-purple-400" />
-                      </div>
-                      <span className="text-[9px] font-black text-purple-300/80 leading-none h-3 whitespace-nowrap font-bold">
-                        {activeChat.uid === 'global' ? '1 Exp' : `${activeChat.yearsOfExperience || 1} Exp`}
-                      </span>
+                    )}
+                    <div className="flex items-center gap-1 sm:gap-2">
+                       {activeChat.isGroup && <Users className="w-3.5 h-3.5 text-blue-400 shrink-0" />}
+                       <p className="text-[10px] font-bold text-slate-500 truncate max-w-full">
+                         {activeChat.isGroup ? `${activeChat.participants?.length || 0} أعضاء` : (activeChat.uid === 'global' ? 'Dz Teacher Lounge' : (activeChat.wilaya || '16 الجزائر'))}
+                       </p>
                     </div>
                   </div>
 
@@ -1722,17 +1707,17 @@ export default function ChatBubble() {
                       <div className="flex items-center gap-1.5 bg-white/5 p-1 rounded-xl border border-white/10">
                         <button 
                           onClick={() => handleStartCall('audio')}
-                          className="flex flex-col items-center gap-1 p-1.5 sm:p-2 rounded-lg bg-emerald-500 text-white shadow-lg active:scale-90 transition-all hover:bg-emerald-600"
+                          className="p-2 rounded-lg bg-emerald-500 text-white shadow-lg active:scale-95 transition-all hover:bg-emerald-600 hover:shadow-emerald-500/30"
                           title="صوتي"
                         >
-                          <Phone className="w-4 h-4" />
+                          <Phone className="w-4 h-4 sm:w-4.5 sm:h-4.5" />
                         </button>
                         <button 
                           onClick={() => handleStartCall('video')}
-                          className="flex flex-col items-center gap-1 p-1.5 sm:p-2 rounded-lg bg-indigo-500 text-white shadow-lg active:scale-90 transition-all hover:bg-indigo-600"
+                          className="p-2 rounded-lg bg-indigo-500 text-white shadow-lg active:scale-95 transition-all hover:bg-indigo-600 hover:shadow-indigo-500/30"
                           title="فيديو"
                         >
-                          <Video className="w-4 h-4" />
+                          <Video className="w-4 h-4 sm:w-4.5 sm:h-4.5" />
                         </button>
                       </div>
                     )}
@@ -2342,7 +2327,7 @@ export default function ChatBubble() {
                           </div>
                           <div className="flex-1 text-left min-w-0">
                             <div className="flex justify-between items-center bg-transparent">
-                              <h5 className={`text-sm font-black truncate ${conv.unread ? 'text-purple-400' : 'text-slate-200'}`}>{isGroupDoc ? 'مجموعة محادثة' : (user?.displayName || 'زميل')}</h5>
+                              <h5 className={`text-sm font-black truncate ${conv.unread ? 'text-purple-400' : 'text-slate-200'}`}>{isGroupDoc ? (conv.displayName || 'مجموعة') : (user?.displayName || 'زميل')}</h5>
                               {conv.unread && <div className="w-2 h-2 bg-purple-500 rounded-full animate-pulse"></div>}
                             </div>
                             <p className="text-[10px] font-bold text-slate-500 truncate">{conv.lastMessage}</p>
