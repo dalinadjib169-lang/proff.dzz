@@ -177,40 +177,72 @@ export default function ChatBubble() {
   const [conversations, setConversations] = useState<any[]>([]);
   const [messages, setMessages] = useState<any[]>([]);
 
-  // Fetch recent conversations for the lobby
+  // Fetch recent conversations and groups for the lobby
   useEffect(() => {
     if (!profile?.uid) return;
 
-    const q = query(
+    // Listen to messages to deduce recent chats
+    const qMessages = query(
       collection(db, 'messages'),
       where('participants', 'array-contains', profile.uid),
       orderBy('createdAt', 'desc'),
       limit(50)
     );
 
-    const unsubscribe = onSnapshot(q, (snapshot) => {
+    // Listen to chat_rooms for groups
+    const qRooms = query(
+      collection(db, 'chat_rooms'),
+      where('participants', 'array-contains', profile.uid),
+      orderBy('createdAt', 'desc')
+    );
+
+    const unsubscribeMessages = onSnapshot(qMessages, (snapshot) => {
       const convosMap = new Map();
       snapshot.docs.forEach(docSnap => {
         const data = docSnap.data();
         if (data.roomId === 'global') return;
         
-        const otherId = data.senderId === profile.uid 
-          ? (data.roomId.split('_').find((id: string) => id !== profile.uid))
-          : data.senderId;
+        // If it's a group room (not a UID_UID pattern)
+        const isGroupRoom = !data.roomId.includes('_');
         
-        if (otherId && !convosMap.has(otherId)) {
-          convosMap.set(otherId, {
-            uid: otherId,
-            lastMessage: data.text || 'صورة/صوت ✨',
-            lastTime: data.createdAt || Timestamp.now(),
-            unread: data.senderId !== profile.uid && data.seen === false
-          });
+        if (isGroupRoom) {
+          if (!convosMap.has(data.roomId)) {
+            convosMap.set(data.roomId, {
+              uid: data.roomId,
+              isGroup: true,
+              lastMessage: data.text || 'صورة/صوت ✨',
+              lastTime: data.createdAt || Timestamp.now(),
+              unread: data.senderId !== profile.uid && data.seen === false
+            });
+          }
+        } else {
+          const otherId = data.senderId === profile.uid 
+            ? (data.roomId.split('_').find((id: string) => id !== profile.uid))
+            : data.senderId;
+          
+          if (otherId && !convosMap.has(otherId)) {
+            convosMap.set(otherId, {
+              uid: otherId,
+              isGroup: false,
+              lastMessage: data.text || 'صورة/صوت ✨',
+              lastTime: data.createdAt || Timestamp.now(),
+              unread: data.senderId !== profile.uid && data.seen === false
+            });
+          }
         }
       });
       setConversations(Array.from(convosMap.values()));
     }, () => {});
 
-    return unsubscribe;
+    const unsubscribeRooms = onSnapshot(qRooms, (snapshot) => {
+      // Logic to merge rooms info with conversations if needed
+      // For now we'll just use the message-based approach for recency
+    });
+
+    return () => {
+      unsubscribeMessages();
+      unsubscribeRooms();
+    };
   }, [profile?.uid]);
 
   useEffect(() => {
@@ -967,6 +999,10 @@ export default function ChatBubble() {
   const [localIsFriendOverride, setLocalIsFriendOverride] = useState(false);
   const [friendRequest, setFriendRequest] = useState<any>(null);
   const [isSelectingFriend, setIsSelectingFriend] = useState(false);
+  const [isCreatingGroup, setIsCreatingGroup] = useState(false);
+  const [groupName, setGroupName] = useState('');
+  const [selectedGroupUsers, setSelectedGroupUsers] = useState<string[]>([]);
+  const [isSavingGroup, setIsSavingGroup] = useState(false);
 
   // Check friendship status for activeChat
   useEffect(() => {
@@ -999,7 +1035,10 @@ export default function ChatBubble() {
   }, [profile?.uid, activeChat?.uid]);
 
   const handleAcceptRequest = async () => {
-    if (!friendRequest || !profile?.uid) return;
+    if (!friendRequest || !profile?.uid) {
+      console.warn("Cannot accept request: missing friendRequest or profile UID");
+      return;
+    }
     setIsAccepting(true);
     try {
       const batch = writeBatch(db);
@@ -1026,20 +1065,14 @@ export default function ChatBubble() {
         following: arrayUnion(profile.uid)
       });
 
-      // Try to find and mark related notification as read
-      const notifQ = query(
-        collection(db, 'notifications'),
-        where('recipientId', '==', profile.uid),
-        where('senderId', '==', activeChat!.uid),
-        where('read', '==', false),
-        limit(10)
-      );
-      const notifSnap = await getDocs(notifQ);
-      notifSnap.forEach(d => {
-        const type = d.data().type;
-        if (type === 'follow' || type === 'message_request' || type === 'friend_request') {
-          batch.update(doc(db, 'notifications', d.id), { read: true });
-        }
+      // Notify recipient (the one who sent the request)
+      await addDoc(collection(db, 'notifications'), {
+        recipientId: activeChat!.uid,
+        senderId: profile.uid,
+        senderName: profile.displayName,
+        type: 'friend_request_accepted',
+        read: false,
+        createdAt: serverTimestamp()
       });
       
       await batch.commit();
@@ -1057,28 +1090,9 @@ export default function ChatBubble() {
   const handleDeclineRequest = async () => {
     if (!friendRequest || !profile?.uid) return;
     try {
-      const batch = writeBatch(db);
-      
       // Delete invitation
-      batch.delete(doc(db, 'invitations', friendRequest.id));
+      await deleteDoc(doc(db, 'invitations', friendRequest.id));
       
-      // Try to find and mark related notification as read
-      const notifQ = query(
-        collection(db, 'notifications'),
-        where('recipientId', '==', profile.uid),
-        where('senderId', '==', activeChat!.uid),
-        where('read', '==', false),
-        limit(10)
-      );
-      const notifSnap = await getDocs(notifQ);
-      notifSnap.forEach(d => {
-        const type = d.data().type;
-        if (type === 'follow' || type === 'message_request' || type === 'friend_request') {
-          batch.update(doc(db, 'notifications', d.id), { read: true });
-        }
-      });
-      
-      await batch.commit();
       setActiveChat(null);
       playSound('notification');
       toast.success('تم رفض طلب المراسلة');
@@ -1095,7 +1109,7 @@ export default function ChatBubble() {
     if (!newMessage.trim() && !hasFiles && type === 'text') return;
     if (!profile || !activeChat) return;
 
-    if (!isFriend && activeChat.uid !== 'global' && !friendRequest) {
+    if (!isFriend && activeChat.uid !== 'global' && !activeChat.isGroup && !friendRequest) {
       await addDoc(collection(db, 'invitations'), {
         senderId: profile.uid,
         recipientId: activeChat.uid,
@@ -1114,8 +1128,8 @@ export default function ChatBubble() {
       });
     }
 
-    const roomId = activeChat.uid === 'global' ? 'global' : [profile.uid, activeChat.uid].sort().join('_');
-    const participants = activeChat.uid === 'global' ? ['global'] : [profile.uid, activeChat.uid].sort();
+    const roomId = activeChat.uid === 'global' ? 'global' : (activeChat.isGroup ? activeChat.uid : [profile.uid, activeChat.uid].sort().join('_'));
+    const participants = activeChat.uid === 'global' ? ['global'] : (activeChat.isGroup ? activeChat.participants : [profile.uid, activeChat.uid].sort());
     
     try {
       const messageText = newMessage;
@@ -1440,6 +1454,54 @@ export default function ChatBubble() {
     }
   };
 
+  const handleCreateGroup = async () => {
+    if (!groupName.trim() || selectedGroupUsers.length === 0 || !profile) {
+      toast.error('يرجى إدخال اسم المجموعة واختيار أعضاء');
+      return;
+    }
+    setIsSavingGroup(true);
+    try {
+      const allParticipants = [profile.uid, ...selectedGroupUsers];
+      const groupDoc = await addDoc(collection(db, 'chat_rooms'), {
+        name: groupName,
+        participants: allParticipants,
+        createdBy: profile.uid,
+        isGroup: true,
+        createdAt: serverTimestamp()
+      });
+
+      const groupData = {
+        uid: groupDoc.id,
+        displayName: groupName,
+        isGroup: true,
+        participants: allParticipants,
+        photoURL: `https://ui-avatars.com/api/?name=${encodeURIComponent(groupName)}&background=random`
+      };
+
+      // Send initial system message
+      await addDoc(collection(db, 'messages'), {
+        roomId: groupDoc.id,
+        participants: allParticipants,
+        senderId: profile.uid,
+        senderName: 'النظام',
+        text: `تم إنشاء المجموعة: ${groupName}`,
+        createdAt: serverTimestamp(),
+        seen: false
+      });
+
+      toast.success('تم إنشاء المجموعة بنجاح');
+      setActiveChat(groupData as any);
+      setIsCreatingGroup(false);
+      setGroupName('');
+      setSelectedGroupUsers([]);
+    } catch (e) {
+      console.error(e);
+      toast.error('فشل إنشاء المجموعة');
+    } finally {
+      setIsSavingGroup(false);
+    }
+  };
+
   const isOnline = (lastSeen: any) => {
     if (lastSeen === true) return true;
     if (!lastSeen) return false;
@@ -1579,7 +1641,7 @@ export default function ChatBubble() {
             {/* Header */}
             <div className={`shrink-0 bg-slate-900/60 backdrop-blur-xl border-b border-white/10 transition-all ${isMobile && isKeyboardOpen ? 'p-1' : 'p-2 sm:p-3'}`}>
               {activeChat ? (
-                <div className="flex items-center gap-2 sm:gap-4 h-16 sm:h-20" dir="rtl">
+                <div className="flex items-center gap-2 sm:gap-4 h-20 sm:h-24" dir="rtl">
                   {/* Identity Section (Right) */}
                   <div 
                     onClick={() => setIsOpen(false)}
@@ -1587,12 +1649,12 @@ export default function ChatBubble() {
                   >
                     <div className="relative flex-shrink-0">
                       <img 
-                        src={activeChat.photoURL} 
-                        className={`rounded-xl object-cover border border-white/20 shadow-xl group-hover/profile:border-red-500/50 ${isMobile && isKeyboardOpen ? 'w-8 h-8' : 'w-10 h-10 sm:w-11 sm:h-11'}`} 
+                        src={activeChat.photoURL || `https://ui-avatars.com/api/?name=${encodeURIComponent(activeChat.displayName || 'U')}&background=random`} 
+                        className={`rounded-xl object-cover border border-white/20 shadow-xl group-hover/profile:border-red-500/50 ${isMobile && isKeyboardOpen ? 'w-10 h-10' : 'w-12 h-12 sm:w-14 sm:h-14'}`} 
                         referrerPolicy="no-referrer"
                         alt={activeChat.displayName}
                       />
-                      <div className={`absolute -bottom-0.5 -right-0.5 rounded-full border-2 border-slate-900 ${isOnline(activeChat.uid === 'global' ? null : activeChat.lastSeen) ? 'bg-green-500' : 'bg-slate-500'} ${isMobile && isKeyboardOpen ? 'w-2.5 h-2.5' : 'w-3 h-3'}`}></div>
+                      <div className={`absolute -bottom-0.5 -right-0.5 rounded-full border-2 border-slate-900 ${isOnline(activeChat.uid === 'global' || activeChat.isGroup ? null : activeChat.lastSeen) ? 'bg-green-500' : 'bg-slate-500'} ${isMobile && isKeyboardOpen ? 'w-3 h-3' : 'w-4 h-4'}`}></div>
                       <div className="absolute inset-0 bg-red-500/0 group-hover/profile:bg-red-500/10 rounded-xl transition-all flex items-center justify-center">
                         <X className="w-5 h-5 text-white opacity-0 group-hover/profile:opacity-100 transition-opacity" />
                       </div>
@@ -1656,21 +1718,21 @@ export default function ChatBubble() {
 
                   {/* Actions Section (Left) */}
                   <div className="flex items-center gap-1.5 sm:gap-2 flex-shrink-0 mr-auto">
-                    {activeChat.uid !== 'global' && (
+                    {activeChat.uid !== 'global' && !activeChat.isGroup && (
                       <div className="flex items-center gap-1.5 bg-white/5 p-1 rounded-xl border border-white/10">
                         <button 
                           onClick={() => handleStartCall('audio')}
-                          className="flex flex-col items-center gap-1 p-2 sm:p-2.5 rounded-lg bg-emerald-500 text-white shadow-lg active:scale-90 transition-all hover:bg-emerald-600"
+                          className="flex flex-col items-center gap-1 p-1.5 sm:p-2 rounded-lg bg-emerald-500 text-white shadow-lg active:scale-90 transition-all hover:bg-emerald-600"
                           title="صوتي"
                         >
-                          <Phone className="w-5 h-5" />
+                          <Phone className="w-4 h-4" />
                         </button>
                         <button 
                           onClick={() => handleStartCall('video')}
-                          className="flex flex-col items-center gap-1 p-2 sm:p-2.5 rounded-lg bg-indigo-500 text-white shadow-lg active:scale-90 transition-all hover:bg-indigo-600"
+                          className="flex flex-col items-center gap-1 p-1.5 sm:p-2 rounded-lg bg-indigo-500 text-white shadow-lg active:scale-90 transition-all hover:bg-indigo-600"
                           title="فيديو"
                         >
-                          <Video className="w-5 h-5" />
+                          <Video className="w-4 h-4" />
                         </button>
                       </div>
                     )}
@@ -1767,6 +1829,87 @@ export default function ChatBubble() {
 
             {/* Content Area */}
             <div className="flex-1 flex flex-col bg-slate-950/50 overflow-hidden relative">
+              {/* Group Creation View Overlay */}
+              <AnimatePresence>
+                {isCreatingGroup && (
+                  <motion.div
+                    initial={{ opacity: 0, x: 20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    exit={{ opacity: 0, x: -20 }}
+                    className="absolute inset-0 z-[60] bg-slate-950 flex flex-col"
+                  >
+                    <div className="p-4 border-b border-white/5 bg-slate-900/50 flex items-center justify-between" dir="rtl">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-2xl bg-blue-500/20 flex items-center justify-center border border-blue-500/30">
+                          <Users className="w-5 h-5 text-blue-400" />
+                        </div>
+                        <div className="text-right">
+                          <h3 className="text-white font-black text-sm text-right">إنشاء مجموعة جديدة</h3>
+                          <p className="text-[10px] text-slate-400 font-bold text-right">اختر الأعضاء وقم بتسمية المجموعة</p>
+                        </div>
+                      </div>
+                      <button 
+                        onClick={() => setIsCreatingGroup(false)}
+                        className="p-2 rounded-xl bg-white/5 text-slate-400 hover:text-white"
+                      >
+                        <X className="w-5 h-5" />
+                      </button>
+                    </div>
+
+                    <div className="p-4 space-y-4 flex-1 flex flex-col overflow-hidden">
+                       <input 
+                        type="text"
+                        placeholder="اسم المجموعة..."
+                        className="w-full bg-slate-900 border border-slate-800 rounded-2xl px-4 py-3 text-sm text-white outline-none focus:ring-2 focus:ring-blue-500/30 font-bold"
+                        value={groupName}
+                        onChange={(e) => setGroupName(e.target.value)}
+                        dir="rtl"
+                       />
+
+                       <div className="flex-1 overflow-y-auto space-y-2 pr-2 custom-scrollbar">
+                         <h5 className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-2" dir="rtl">اختر الزملاء ({selectedGroupUsers.length})</h5>
+                         {friends.length === 0 ? (
+                           <div className="text-center py-10">
+                             <p className="text-xs text-slate-500 font-bold">لا يوجد زملاء متاحين للإضافة حالياً</p>
+                           </div>
+                         ) : friends.map(u => (
+                           <button
+                             key={`group-sel-${u.uid}`}
+                             onClick={() => {
+                               setSelectedGroupUsers(prev => 
+                                 prev.includes(u.uid) ? prev.filter(id => id !== u.uid) : [...prev, u.uid]
+                               );
+                             }}
+                             className={`w-full flex items-center gap-3 p-3 rounded-2xl border transition-all ${selectedGroupUsers.includes(u.uid) ? 'bg-blue-600/20 border-blue-500/50 shadow-lg shadow-blue-500/10' : 'bg-slate-900 border-transparent hover:border-slate-800'}`}
+                             dir="rtl"
+                           >
+                             <div className="relative shrink-0">
+                               <img src={u.photoURL} className="w-10 h-10 rounded-xl object-cover" alt="" referrerPolicy="no-referrer" />
+                               {selectedGroupUsers.includes(u.uid) && (
+                                 <div className="absolute -top-1 -right-1 bg-blue-500 rounded-full p-1 border-2 border-slate-900">
+                                   <Check className="w-2.5 h-2.5 text-white" />
+                                 </div>
+                               )}
+                             </div>
+                             <div className="flex-1 text-right min-w-0">
+                               <h5 className="text-sm font-black text-white truncate">{u.displayName}</h5>
+                               <p className="text-[10px] text-slate-500 font-bold truncate">{u.subject || 'زميل'}</p>
+                             </div>
+                           </button>
+                         ))}
+                       </div>
+
+                       <button
+                         onClick={handleCreateGroup}
+                         disabled={isSavingGroup || !groupName.trim() || selectedGroupUsers.length === 0}
+                         className="w-full py-4 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:grayscale text-white rounded-2xl font-black shadow-lg shadow-blue-500/20 transition-all active:scale-95 flex items-center justify-center gap-2"
+                       >
+                         {isSavingGroup ? <Loader2 className="w-5 h-5 animate-spin" /> : 'إنشاء المجموعة الآن'}
+                       </button>
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
               {/* Separate Friend List View */}
               <AnimatePresence mode="wait">
                 {isSelectingFriend && (
@@ -2109,27 +2252,104 @@ export default function ChatBubble() {
                     )}
 
                     {/* Global Chat Option */}
-                    <button
-                      onClick={() => setActiveChat({
-                        uid: 'global',
-                        displayName: 'Global Teacher Lounge',
-                        photoURL: 'https://images.unsplash.com/photo-1524178232363-1fb2b075b655?w=100&h=100&fit=crop',
-                        email: '',
-                        createdAt: Timestamp.now()
-                      } as any)}
-                      className="w-full flex items-center gap-3 p-3 rounded-2xl bg-purple-500/10 border border-purple-500/20 hover:bg-purple-500/20 transition-all group"
-                    >
-                      <div className="relative">
-                        <div className="w-10 h-10 rounded-xl bg-purple-600 flex items-center justify-center">
-                          <GraduationCap className="w-6 h-6 text-white" />
+                    <div className="flex gap-2">
+                       <button
+                        onClick={() => setActiveChat({
+                          uid: 'global',
+                          displayName: 'Global Teacher Lounge',
+                          photoURL: 'https://images.unsplash.com/photo-1524178232363-1fb2b075b655?w=100&h=100&fit=crop',
+                          email: '',
+                          createdAt: Timestamp.now()
+                        } as any)}
+                        className="flex-1 flex items-center gap-3 p-3 rounded-2xl bg-purple-500/10 border border-purple-500/20 hover:bg-purple-500/20 transition-all group"
+                      >
+                        <div className="relative">
+                          <div className="w-10 h-10 rounded-xl bg-purple-600 flex items-center justify-center">
+                            <GraduationCap className="w-6 h-6 text-white" />
+                          </div>
+                          <Circle className="absolute -bottom-1 -right-1 w-3 h-3 fill-green-500 text-slate-900" />
                         </div>
-                        <Circle className="absolute -bottom-1 -right-1 w-3 h-3 fill-green-500 text-slate-900" />
-                      </div>
-                      <div className="text-left">
-                        <h5 className="text-sm font-black text-purple-400">Global Chat</h5>
-                        <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">All Teachers</p>
-                      </div>
-                    </button>
+                        <div className="text-left">
+                          <h5 className="text-sm font-black text-purple-400">Global Chat</h5>
+                          <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">All Teachers</p>
+                        </div>
+                      </button>
+
+                      <button
+                        onClick={() => setIsCreatingGroup(true)}
+                        className="flex-1 flex items-center gap-3 p-3 rounded-2xl bg-blue-500/10 border border-blue-500/20 hover:bg-blue-500/20 transition-all group"
+                      >
+                        <div className="w-10 h-10 rounded-xl bg-blue-600 flex items-center justify-center">
+                          <Users className="w-6 h-6 text-white" />
+                        </div>
+                        <div className="text-left">
+                          <h5 className="text-sm font-black text-blue-400">إنشاء مجموعة</h5>
+                          <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Group Chat</p>
+                        </div>
+                      </button>
+                    </div>
+
+                    {convs.length > 0 && convs.map(conv => {
+                      const user = users.find(u => u.uid === conv.uid);
+                      // Or it could be a group
+                      const isGroupDoc = conv.isGroup;
+                      
+                      return (
+                        <button
+                          key={`conv-${conv.uid}`}
+                          onClick={async () => {
+                            if (isGroupDoc) {
+                               // Fetch real group info if it's a room
+                               try {
+                                 const roomSnap = await getDoc(doc(db, 'chat_rooms', conv.uid));
+                                 if (roomSnap.exists()) {
+                                   const roomData = roomSnap.data();
+                                   setActiveChat({
+                                     uid: conv.uid,
+                                     displayName: roomData.name,
+                                     isGroup: true,
+                                     participants: roomData.participants,
+                                     photoURL: roomData.photoURL || `https://ui-avatars.com/api/?name=${encodeURIComponent(roomData.name)}&background=random`
+                                   } as any);
+                                 } else {
+                                   setActiveChat({
+                                     uid: conv.uid,
+                                     displayName: 'مجموعة مفقودة',
+                                     isGroup: true,
+                                     participants: [profile.uid]
+                                   } as any);
+                                 }
+                               } catch (e) {
+                                 console.error(e);
+                               }
+                            } else if (user) {
+                              setActiveChat(user);
+                            }
+                          }}
+                          className={`w-full flex items-center gap-3 p-3 rounded-2xl border transition-all ${conv.unread ? 'bg-purple-600/10 border-purple-500/50 shadow-lg shadow-purple-500/5' : 'bg-slate-900 border-slate-800 hover:border-slate-700'}`}
+                        >
+                          <div className="relative shrink-0">
+                            {isGroupDoc ? (
+                               <div className="w-10 h-10 rounded-xl bg-blue-600 flex items-center justify-center shadow-lg">
+                                 <Users className="w-6 h-6 text-white" />
+                               </div>
+                            ) : (
+                               <>
+                                 <img src={user?.photoURL} className="w-10 h-10 rounded-xl object-cover" alt="" referrerPolicy="no-referrer" />
+                                 <div className={`absolute -bottom-1 -right-1 w-3 h-3 rounded-full border-2 border-slate-900 ${isOnline(user?.lastSeen) ? 'bg-green-500' : 'bg-slate-700'}`}></div>
+                               </>
+                            )}
+                          </div>
+                          <div className="flex-1 text-left min-w-0">
+                            <div className="flex justify-between items-center bg-transparent">
+                              <h5 className={`text-sm font-black truncate ${conv.unread ? 'text-purple-400' : 'text-slate-200'}`}>{isGroupDoc ? 'مجموعة محادثة' : (user?.displayName || 'زميل')}</h5>
+                              {conv.unread && <div className="w-2 h-2 bg-purple-500 rounded-full animate-pulse"></div>}
+                            </div>
+                            <p className="text-[10px] font-bold text-slate-500 truncate">{conv.lastMessage}</p>
+                          </div>
+                        </button>
+                      );
+                    })}
 
                     {filteredUsers.map(u => (
                       <button

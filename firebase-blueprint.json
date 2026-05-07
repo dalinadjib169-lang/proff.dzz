@@ -289,6 +289,23 @@
         "expiresAt": { "type": "string", "format": "date-time" }
       },
       "required": ["userId", "userDisplayName", "userPhotoURL", "type", "createdAt", "expiresAt"]
+    },
+    "ChatRoom": {
+      "title": "Chat Room",
+      "description": "A group chat room",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "photoURL": { "type": "string" },
+        "participants": { "type": "array", "items": { "type": "string" } },
+        "createdBy": { "type": "string" },
+        "isGroup": { "type": "boolean" },
+        "lastMessage": { "type": "string" },
+        "lastTime": { "type": "string", "format": "date-time" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["name", "participants", "createdBy", "isGroup", "createdAt"]
     }
   },
   "firestore": {
@@ -319,6 +336,10 @@
     "/messages/{messageId}": {
       "schema": "Message",
       "description": "Chat messages"
+    },
+    "/chat_rooms/{roomId}": {
+      "schema": "ChatRoom",
+      "description": "Group chat rooms"
     },
     "/products/{productId}": {
       "schema": "Product",
