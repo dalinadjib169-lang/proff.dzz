@@ -88,41 +88,7 @@ export function useAuth() {
               return merged;
             });
             
-            // Check if profile is complete
-            const isComplete = !!(
-              publicData.displayName && 
-              publicData.wilaya && 
-              publicData.subject && 
-              publicData.level && 
-              publicData.yearsOfExperience !== undefined
-            );
-            
-            const updates: any = {};
-            if (publicData.isProfileComplete !== isComplete) {
-              updates.isProfileComplete = isComplete;
-            }
-            
-            // Update lastSeen if not updated recently (more than 2 minutes)
-            // Be careful with serverTimestamp() comparison
-            const now = new Date();
-            const lastSeen = publicData.lastSeen?.toDate();
-            // Only update if we have a real date and it's old enough
-            // and we are NOT currently in a pending write state (approximated)
-            if (lastSeen && (now.getTime() - lastSeen.getTime() > 120000)) {
-              updates.lastSeen = serverTimestamp();
-            } else if (!lastSeen) {
-              // If it's null, it might be a pending write, so we wait
-              // Only update if it's truly missing (new profile)
-              if (!publicData.createdAt) {
-                 updates.lastSeen = serverTimestamp();
-              }
-            }
-
-            if (Object.keys(updates).length > 0) {
-              updateDoc(docRef, updates).catch(e => {
-                console.error("Error auto-updating profile:", e);
-              });
-            }
+            // Profile completion check removed to allow manual Skip for Now
             setLoading(false);
           } else {
             // Create profile if it doesn't exist
@@ -254,7 +220,7 @@ export function useAuth() {
       
       const updatePublic = {
         ...publicData,
-        isProfileComplete: true,
+        isProfileComplete: data.isProfileComplete ?? true,
         showEmail: data.showEmail ?? true,
         showPhone: data.showPhone ?? true,
       };
@@ -264,9 +230,9 @@ export function useAuth() {
       if (phoneNumber !== undefined) updatePrivate.phoneNumber = phoneNumber;
       if (reminders !== undefined) updatePrivate.reminders = reminders;
 
-      await updateDoc(userRef, updatePublic);
+      await setDoc(userRef, updatePublic, { merge: true });
       if (Object.keys(updatePrivate).length > 0) {
-        await updateDoc(privateRef, updatePrivate);
+        await setDoc(privateRef, updatePrivate, { merge: true });
       }
       // Profile will be updated automatically by onSnapshot
     } catch (error) {
