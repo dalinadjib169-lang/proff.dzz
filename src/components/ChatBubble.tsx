@@ -94,7 +94,8 @@ const ChatTrigger = ({ isOpen, setIsOpen, emojiState, activeChat, profile, unrea
   profile: any,
   unreadCount: number
 }) => {
-  const triggerImage = activeChat?.photoURL || profile?.photoURL || `https://ui-avatars.com/api/?name=${profile?.displayName || 'User'}&background=random`;
+  // Use generic icon by default. Only show photo for active chat.
+  const triggerImage = activeChat?.photoURL || null;
 
   return (
     <motion.div
@@ -121,7 +122,7 @@ const ChatTrigger = ({ isOpen, setIsOpen, emojiState, activeChat, profile, unrea
         />
 
         <div className="w-full h-full rounded-full border-2 border-slate-900 overflow-hidden shadow-2xl relative bg-slate-900">
-          {activeChat || unreadCount > 0 ? (
+          {triggerImage ? (
             <img 
               src={triggerImage} 
               className="w-full h-full object-cover" 
