@@ -145,6 +145,8 @@ export default function App() {
           playSound('notification');
         }
       }
+    }, (error) => {
+      console.warn("Global notification listener error:", error);
     });
 
     return unsubscribe;

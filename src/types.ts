@@ -55,6 +55,8 @@ export interface UserProfile {
     waterGlassCount?: number;
     lastWaterReset?: Timestamp | any;
   };
+  isGroup?: boolean;
+  participants?: string[];
 }
 
 export interface UserSettings {

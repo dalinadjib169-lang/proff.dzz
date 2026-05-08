@@ -29,6 +29,7 @@ import {
   FlaskConical,
   Brain,
   Music,
+  Camera,
   Palette,
   Monitor,
   Languages,
@@ -233,11 +234,15 @@ export default function ChatBubble() {
         }
       });
       setConversations(Array.from(convosMap.values()));
-    }, () => {});
+    }, (error) => {
+      handleFirestoreError(error, OperationType.LIST, 'messages');
+    });
 
     const unsubscribeRooms = onSnapshot(qRooms, (snapshot) => {
       // Logic to merge rooms info with conversations if needed
       // For now we'll just use the message-based approach for recency
+    }, (error) => {
+      handleFirestoreError(error, OperationType.LIST, 'chat_rooms');
     });
 
     return () => {
@@ -475,7 +480,7 @@ export default function ChatBubble() {
     if (!profile?.uid || !activeChat?.uid) return;
     const uidA = profile.uid;
     const uidB = activeChat.uid;
-    const roomId = uidB === 'global' ? 'global' : [uidA, uidB].sort().join('_');
+    const roomId = uidB === 'global' ? 'global' : (activeChat.isGroup ? uidB : [uidA, uidB].sort().join('_'));
     
     const typingRef = doc(db, 'typing', roomId);
     const unsubscribe = onSnapshot(typingRef, (docSnap) => {
@@ -485,8 +490,8 @@ export default function ChatBubble() {
       }
       
       const data = docSnap.data() || {};
-      if (uidB === 'global') {
-        // In global chat, check if anyone else is typing
+      if (uidB === 'global' || activeChat.isGroup) {
+        // In global or group chat, check if anyone else is typing
         const othersTyping = Object.entries(data).some(([u, isTyping]) => u !== uidA && u !== 'participants' && isTyping);
         setIsOtherTyping(othersTyping);
       } else {
@@ -556,7 +561,7 @@ export default function ChatBubble() {
 
   const handleTyping = async (isTyping: boolean) => {
     if (!profile || !activeChat) return;
-    const roomId = activeChat.uid === 'global' ? 'global' : [profile.uid, activeChat.uid].sort().join('_');
+    const roomId = activeChat.uid === 'global' ? 'global' : (activeChat.isGroup ? activeChat.uid : [profile.uid, activeChat.uid].sort().join('_'));
     const typingRef = doc(db, 'typing', roomId);
     
     // Use a local ref to prevent redundant writes
@@ -920,8 +925,8 @@ export default function ChatBubble() {
       return;
     }
 
-    const roomId = activeChat.uid === 'global' ? 'global' : [profile.uid, activeChat.uid].sort().join('_');
-    const participantsValue = activeChat.uid === 'global' ? 'global' : profile.uid;
+    const roomId = activeChat.uid === 'global' ? 'global' : (activeChat.isGroup ? activeChat.uid : [profile.uid, activeChat.uid].sort().join('_'));
+    const participantsValue = activeChat.uid === 'global' ? 'global' : (activeChat.isGroup ? activeChat.uid : profile.uid);
     
     if (!participantsValue) return;
 
@@ -1068,6 +1073,8 @@ export default function ChatBubble() {
         setFriendRequest(null);
         setIsFriend(false);
       }
+    }, (error) => {
+      handleFirestoreError(error, OperationType.LIST, 'invitations');
     });
 
     return unsubscribe;
@@ -1724,27 +1731,36 @@ export default function ChatBubble() {
                     {!isKeyboardOpen && (
                       <div className="flex flex-wrap items-center justify-center gap-1 mb-1">
                         {activeChat.subject && (
-                          <div className="flex items-center gap-1 px-1.5 py-0.5 rounded-lg bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
-                            <span className="text-[9px] font-black uppercase">{getAbbreviated(activeChat.subject)}</span>
+                          <div className="flex items-center gap-1 px-1.5 py-0.5 rounded-lg bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 shadow-sm">
+                            <span className="text-[9px] font-black uppercase whitespace-nowrap">{getAbbreviated(activeChat.subject)}</span>
                           </div>
                         )}
                         {activeChat.level && (
-                          <div className="flex items-center gap-1 px-1.5 py-0.5 rounded-lg bg-blue-500/20 text-blue-400 border border-blue-500/30">
-                            <span className="text-[9px] font-black uppercase">{getAbbreviated(activeChat.level)}</span>
+                          <div className="flex items-center gap-1 px-1.5 py-0.5 rounded-lg bg-blue-500/20 text-blue-400 border border-blue-500/30 shadow-sm">
+                            <span className="text-[9px] font-black uppercase whitespace-nowrap">{getAbbreviated(activeChat.level)}</span>
                           </div>
                         )}
                         {!activeChat.isGroup && activeChat.uid !== 'global' && (
-                          <div className="flex items-center gap-1 px-1.5 py-0.5 rounded-lg bg-amber-500/20 text-amber-400 border border-amber-500/30">
-                            <span className="text-[9px] font-black uppercase">{activeChat.yearsOfExperience || 1} EXP</span>
+                          <div className="flex items-center gap-1 px-1.5 py-0.5 rounded-lg bg-amber-500/20 text-amber-400 border border-amber-500/30 shadow-sm">
+                            <span className="text-[9px] font-black uppercase whitespace-nowrap">{(activeChat.yearsOfExperience || 1)} EXP</span>
                           </div>
                         )}
                       </div>
                     )}
                     <div className="flex items-center gap-1 sm:gap-2">
-                       {activeChat.isGroup && <Users className="w-3.5 h-3.5 text-blue-400 shrink-0" />}
-                       <p className="text-[10px] font-bold text-slate-500 truncate max-w-full">
-                         {activeChat.isGroup ? `${activeChat.participants?.length || 0} أعضاء` : (activeChat.uid === 'global' ? 'Dz Teacher Lounge' : (activeChat.wilaya || '16 الجزائر'))}
-                       </p>
+                       {activeChat.isGroup ? (
+                         <div className="flex items-center gap-1">
+                           <Users className="w-3 h-3 text-blue-400" />
+                           <p className="text-[10px] font-bold text-slate-500 truncate">{activeChat.participants?.length || 0} أعضاء</p>
+                         </div>
+                       ) : (
+                         <div className="flex items-center gap-1">
+                           <MapPin className="w-3 h-3 text-red-400" />
+                           <p className="text-[10px] font-bold text-slate-400 truncate tracking-wide">
+                             {activeChat.uid === 'global' ? 'Dz Teacher Lounge' : (activeChat.wilaya || '16 الجزائر')}
+                           </p>
+                         </div>
+                       )}
                     </div>
                   </div>
 
@@ -2350,7 +2366,7 @@ export default function ChatBubble() {
                       </button>
                     </div>
 
-                    {convs.length > 0 && convs.map(conv => {
+                    {conversations.length > 0 && conversations.map(conv => {
                       const user = users.find(u => u.uid === conv.uid);
                       // Or it could be a group
                       const isGroupDoc = conv.isGroup;

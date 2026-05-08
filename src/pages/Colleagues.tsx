@@ -60,6 +60,9 @@ export default function Colleagues() {
 
       setUsers(otherUsers);
       setLoading(false);
+    }, (error) => {
+      handleFirestoreError(error, OperationType.LIST, 'users');
+      setLoading(false);
     });
   }, [loggedInProfile]);
 

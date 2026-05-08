@@ -170,11 +170,12 @@ service cloud.firestore {
              (!('senderId' in data) || (data.senderId == request.auth.uid || isAdmin() || (data.recipientId == request.auth.uid && (data.type == 'missed_call' || data.type == 'group_request')))) &&
              (!('recipientId' in data) || data.recipientId is string) &&
              (!('senderName' in data) || data.senderName is string) &&
-             (!('type' in data) || data.type in ['like', 'comment', 'follow', 'missed_call', 'market_interest', 'group_invite', 'group_request', 'group_accepted', 'group_rejected']) &&
+             (!('type' in data) || data.type in ['like', 'comment', 'follow', 'missed_call', 'market_interest', 'group_invite', 'group_request', 'group_accepted', 'group_rejected', 'group_addition']) &&
              (!('read' in data) || data.read is bool) &&
              (!('message' in data) || data.message is string) &&
              (!('postId' in data) || data.postId is string) &&
              (!('groupId' in data) || data.groupId is string) &&
+             (!('groupName' in data) || data.groupName is string) &&
              (!('createdAt' in data) || (request.method == 'create' ? data.createdAt == request.time : data.createdAt == existing().createdAt));
     }
 
@@ -435,7 +436,11 @@ service cloud.firestore {
     }
 
     match /typing/{roomId} {
-      allow read, write: if isSignedIn() && (roomId == 'global' || roomId.matches('.*' + request.auth.uid + '.*'));
+      allow read, write: if isSignedIn() && (
+        roomId == 'global' || 
+        roomId.matches('.*' + request.auth.uid + '.*') ||
+        isGroupMember(roomId)
+      );
     }
 
     match /activation_codes/{codeId} {

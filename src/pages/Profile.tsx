@@ -465,6 +465,8 @@ export default function Profile() {
       const q = query(collection(db, 'users'), where('__name__', 'in', mutualIds.slice(0, 5)));
       onSnapshot(q, (snap) => {
         setMutualColleagues(snap.docs.map(d => ({ uid: d.id, ...d.data() })) as UserProfile[]);
+      }, (error) => {
+        handleFirestoreError(error, OperationType.LIST, 'users');
       });
     }
   }, [loggedInProfile, profile]);

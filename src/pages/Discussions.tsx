@@ -48,6 +48,8 @@ export default function Discussions() {
 
     const unsubscribe = onSnapshot(q, (snapshot) => {
       setMessages(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+    }, (error) => {
+      handleFirestoreError(error, OperationType.LIST, `discussions/${activeTopic.id}/messages`);
     });
 
     // Update view count

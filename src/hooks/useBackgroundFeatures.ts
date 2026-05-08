@@ -1,6 +1,6 @@
 
 import { useEffect, useState, useRef } from 'react';
-import { Coordinates, CalculationParameters, PrayerTimes, Prayer } from 'adhan';
+import { Coordinates, CalculationMethod, PrayerTimes, Prayer } from 'adhan';
 import { toast } from 'react-hot-toast';
 import { useAuth } from './useAuth';
 import { db } from '../firebase';
@@ -63,7 +63,7 @@ export function useBackgroundFeatures() {
         return;
       }
 
-      const params = CalculationParameters.MuslimWorldLeague();
+      const params = CalculationMethod.MuslimWorldLeague();
       const date = new Date();
       const prayerTimes = new PrayerTimes(userCoords.current, date, params);
       
