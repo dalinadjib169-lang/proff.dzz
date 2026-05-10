@@ -13,6 +13,7 @@ import Notifications from './pages/Notifications';
 import Settings from './pages/Settings';
 import PremiumTools from './pages/PremiumTools';
 import Market from './pages/Market';
+import Fitness from './pages/Fitness';
 import Discussions from './pages/Discussions';
 import Saved from './pages/Saved';
 import Colleagues from './pages/Colleagues';
@@ -336,6 +337,7 @@ export default function App() {
                         <Route path="/curriculum" element={user ? <Curriculum /> : <Navigate to="/login" />} />
                         <Route path="/premium-tools" element={(user || window.location.search.includes('mode=guest')) ? <PremiumTools /> : <Navigate to="/login" />} />
                         <Route path="/market" element={user ? <Market /> : <Navigate to="/login" />} />
+                        <Route path="/fitness" element={user ? <Fitness /> : <Navigate to="/login" />} />
                         <Route path="/image-uploader" element={user ? <CloudinaryUploader /> : <Navigate to="/login" />} />
                         <Route path="/settings" element={user ? <Settings /> : <Navigate to="/login" />} />
                         <Route path="*" element={<Navigate to="/" />} />
@@ -347,7 +349,7 @@ export default function App() {
                           <FriendSuggestions />
                           <div className="bg-slate-900/20 backdrop-blur-3xl rounded-3xl p-6 shadow-2xl border border-slate-800/30">
                             <h3 className="font-black text-slate-100 mb-4 flex items-center gap-2">
-                              <div className="w-2 h-2 bg-primary rounded-full animate-pulse"></div>
+                              <span className="w-2 h-2 bg-primary rounded-full animate-pulse"></span>
                               Trending Topics
                             </h3>
                             <div className="space-y-3">

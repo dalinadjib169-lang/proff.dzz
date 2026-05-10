@@ -135,6 +135,19 @@ export function useBackgroundFeatures() {
     toast('💦 حان وقت شرب الماء!', { icon: '🥛' });
   };
 
+  useEffect(() => {
+    const handleUpdateWater = (e: any) => {
+      if (!profile?.uid) return;
+      const amount = e.detail?.amount || 250;
+      updateDoc(doc(db, 'users', profile.uid), {
+        'reminders.waterCurrent': (profile?.reminders?.waterCurrent || 0) + amount,
+        'reminders.waterGlassCount': (profile?.reminders?.waterGlassCount || 0) + 1
+      });
+    };
+    window.addEventListener('update-water', handleUpdateWater);
+    return () => window.removeEventListener('update-water', handleUpdateWater);
+  }, [profile?.uid, profile?.reminders]);
+
   return {
     isWaterEnabled,
     setIsWaterEnabled,

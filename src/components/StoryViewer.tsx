@@ -40,18 +40,24 @@ export const StoryViewer: React.FC<StoryViewerProps> = ({ stories, initialIndex 
     if (isOpen && story?.audioUrl) {
       console.log('StoryViewer: Attempting to play audio:', story.audioUrl);
       setAudioError(null);
-      audio.src = story.audioUrl;
-      audio.load();
       
-      const playPromise = audio.play();
-      if (playPromise !== undefined) {
-        playPromise.catch(error => {
-          if (error.name === 'NotAllowedError') {
-             console.warn("StoryViewer: Autoplay blocked. User must interact first.");
-          } else {
-             console.error("StoryViewer: Audio playback error:", error);
-          }
-        });
+      const audio = audioRef.current;
+      if (audio) {
+        audio.crossOrigin = "anonymous";
+        audio.src = story.audioUrl;
+        audio.load();
+        
+        const playPromise = audio.play();
+        if (playPromise !== undefined) {
+          playPromise.catch(error => {
+            if (error.name === 'NotAllowedError') {
+               console.warn("StoryViewer: Autoplay blocked. User must interact first.");
+            } else {
+               console.error("StoryViewer: Audio playback error:", error);
+               setAudioError(error.message);
+            }
+          });
+        }
       }
     } else {
       audio.pause();

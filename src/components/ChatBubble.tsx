@@ -926,17 +926,24 @@ export default function ChatBubble() {
     }
 
     const roomId = activeChat.uid === 'global' ? 'global' : (activeChat.isGroup ? activeChat.uid : [profile.uid, activeChat.uid].sort().join('_'));
-    const participantsValue = activeChat.uid === 'global' ? 'global' : (activeChat.isGroup ? activeChat.uid : profile.uid);
+    const participantsValue = activeChat.uid === 'global' ? 'global' : profile.uid;
     
     if (!participantsValue) return;
 
-    const q = query(
-      collection(db, 'messages'),
-      where('roomId', '==', roomId),
-      where('participants', 'array-contains', participantsValue),
-      orderBy('createdAt', 'desc'),
-      limit(100)
-    );
+    const q = activeChat.isGroup || activeChat.uid === 'global' ? 
+      query(
+        collection(db, 'messages'),
+        where('roomId', '==', roomId),
+        orderBy('createdAt', 'desc'),
+        limit(100)
+      ) : 
+      query(
+        collection(db, 'messages'),
+        where('roomId', '==', roomId),
+        where('participants', 'array-contains', participantsValue),
+        orderBy('createdAt', 'desc'),
+        limit(100)
+      );
 
     const unsubscribe = onSnapshot(q, { includeMetadataChanges: true }, (snapshot) => {
       const msgs = snapshot.docs

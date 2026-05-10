@@ -1,7 +1,7 @@
 import React, { useState, useEffect, memo } from 'react';
 import { NavLink, Link } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
-import { Home, User, Bell, Bookmark, Settings, Users, BookOpen, MessageSquare, TrendingUp, UserPlus, Sparkles, Wand2, CheckSquare, FileText, Image, Share2, ExternalLink, Zap, Car, ShoppingBag, Heart } from 'lucide-react';
+import { Home, User, Bell, Bookmark, Settings, Users, BookOpen, MessageSquare, TrendingUp, UserPlus, Sparkles, Wand2, CheckSquare, FileText, Image, Share2, ExternalLink, Zap, Car, ShoppingBag, Heart, Dumbbell } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { db } from '../firebase';
 import { collection, query, where, onSnapshot, limit, orderBy } from 'firebase/firestore';
@@ -85,6 +85,7 @@ function Sidebar() {
     { icon: MessageSquare, label: t('discussions'), path: '/discussions' },
     { icon: Wand2, label: 'مولد المذكرات - Pro-Mat', path: 'https://pro-mat-1243.vercel.app/', external: true },
     { icon: FileText, label: 'مولد السيرة الذاتية - CV AI', path: 'https://cv-arabic.vercel.app/', external: true },
+    { icon: Dumbbell, label: 'النمط الرياضي - Sport Mode', path: '/fitness' },
     { icon: ShoppingBag, label: t('market'), path: '/market' },
     { icon: Bell, label: t('notifications'), path: '/notifications', badge: unreadCount },
     { icon: Bookmark, label: t('saved'), path: '/saved' },

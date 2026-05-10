@@ -46,56 +46,74 @@ export function UploadProvider({ children }: { children: React.ReactNode }) {
     const isImage = file.type.startsWith('image/');
     
     if (!isImage) {
-      try {
-        const storagePath = type === 'message' ? `chats/${id}_${fileName}` : 
-                           type === 'post' ? `posts/${id}_${fileName}` :
-                           type === 'profile' ? `profiles/${data.uid}_${id}` :
-                           `products/${data.productId}/${id}_${fileName}`;
-        
-        const storageRef = ref(storage, storagePath);
-        const uploadTask = uploadBytesResumable(storageRef, file);
+      return new Promise((resolve) => {
+        try {
+          const storagePath = type === 'message' ? `chats/${id}_${fileName}` : 
+                             type === 'post' ? `posts/${id}_${fileName}` :
+                             type === 'profile' ? `profiles/${data.uid}_${id}` :
+                             `products/${data.productId}/${id}_${fileName}`;
+          
+          const storageRef = ref(storage, storagePath);
+          const uploadTask = uploadBytesResumable(storageRef, file);
 
-        uploadTask.on('state_changed', 
-          (snapshot) => {
-            const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
-            setActiveUploads(prev => prev.map(u => u.id === id ? { ...u, progress } : u));
-          }, 
-          (error) => {
-            console.error("Firebase Storage Error:", error);
-            setActiveUploads(prev => prev.map(u => u.id === id ? { ...u, status: 'error' } : u));
-            setTimeout(() => removeUpload(id), 10000);
-          }, 
-          async () => {
-            try {
-              const downloadURL = await getDownloadURL(uploadTask.snapshot.ref);
-              let firestoreSuccess = false;
-
-              if (type === 'message') {
-                const { createdAt, seen, ...restData } = data;
-                const fieldName = file.type.startsWith('audio/') ? 'audioUrl' : 'videoUrl';
-                await addDoc(collection(db, 'messages'), {
-                  ...restData,
-                  [fieldName]: downloadURL,
-                  createdAt: serverTimestamp(),
-                  seen: false
-                });
-                firestoreSuccess = true;
-              }
-
-              if (firestoreSuccess) {
-                setActiveUploads(prev => prev.map(u => u.id === id ? { ...u, status: 'completed', progress: 100 } : u));
-                setTimeout(() => removeUpload(id), 5000);
-              }
-            } catch (e) {
+          uploadTask.on('state_changed', 
+            (snapshot) => {
+              const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
+              setActiveUploads(prev => prev.map(u => u.id === id ? { ...u, progress } : u));
+            }, 
+            (error) => {
+              console.error("Firebase Storage Error:", error);
               setActiveUploads(prev => prev.map(u => u.id === id ? { ...u, status: 'error' } : u));
+              setTimeout(() => removeUpload(id), 10000);
+              resolve(undefined);
+            }, 
+            async () => {
+              try {
+                const downloadURL = await getDownloadURL(uploadTask.snapshot.ref);
+                let firestoreSuccess = false;
+
+                if (data.skipFirestore) {
+                  setActiveUploads(prev => prev.map(u => u.id === id ? { ...u, status: 'completed', progress: 100 } : u));
+                  setTimeout(() => removeUpload(id), 5000);
+                  resolve(downloadURL);
+                  return;
+                }
+
+                if (type === 'message') {
+                  const { createdAt, seen, ...restData } = data;
+                  const fieldName = file.type.startsWith('audio/') ? 'audioUrl' : 'videoUrl';
+                  await addDoc(collection(db, 'messages'), {
+                    ...restData,
+                    [fieldName]: downloadURL,
+                    createdAt: serverTimestamp(),
+                    seen: false
+                  });
+                  firestoreSuccess = true;
+                }
+
+                if (firestoreSuccess) {
+                  setActiveUploads(prev => prev.map(u => u.id === id ? { ...u, status: 'completed', progress: 100 } : u));
+                  setTimeout(() => removeUpload(id), 5000);
+                  resolve(downloadURL);
+                } else {
+                  // If not handled by type-specific logic but uploaded, still return URL
+                  setActiveUploads(prev => prev.map(u => u.id === id ? { ...u, status: 'completed', progress: 100 } : u));
+                  setTimeout(() => removeUpload(id), 5000);
+                  resolve(downloadURL);
+                }
+              } catch (e) {
+                console.error("Firestore Upload Error after Storage:", e);
+                setActiveUploads(prev => prev.map(u => u.id === id ? { ...u, status: 'error' } : u));
+                resolve(undefined);
+              }
             }
-          }
-        );
-        return;
-      } catch (err) {
-        setActiveUploads(prev => prev.map(u => u.id === id ? { ...u, status: 'error' } : u));
-        return;
-      }
+          );
+        } catch (err) {
+          console.error("Firebase Storage Preparation Error:", err);
+          setActiveUploads(prev => prev.map(u => u.id === id ? { ...u, status: 'error' } : u));
+          resolve(undefined);
+        }
+      });
     }
 
     // Image Upload via Cloudinary

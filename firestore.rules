@@ -269,6 +269,18 @@ service cloud.firestore {
              (!('expiresAt' in data) || (data.expiresAt is timestamp));
     }
 
+    function isValidChatRoom(data) {
+      return (request.method == 'create' ? data.keys().hasAll(['name', 'participants', 'createdBy', 'isGroup', 'createdAt']) : true) &&
+             (!('name' in data) || (data.name is string && data.name.size() <= 200)) &&
+             (!('participants' in data) || (data.participants is list && data.participants.size() <= 200)) &&
+             (!('createdBy' in data) || (data.createdBy is string)) &&
+             (!('isGroup' in data) || (data.isGroup is bool)) &&
+             (!('lastMessage' in data) || (data.lastMessage is string && data.lastMessage.size() <= 2000)) &&
+             (!('lastTime' in data) || (data.lastTime is timestamp || data.lastTime is string)) &&
+             (!('photoURL' in data) || (data.photoURL is string)) &&
+             (!('createdAt' in data) || (request.method == 'create' ? data.createdAt == request.time : data.createdAt == existing().createdAt));
+    }
+
     // ===============================================================
     // Collection Rules
     // ===============================================================
@@ -337,10 +349,23 @@ service cloud.firestore {
     }
 
     match /messages/{messageId} {
-      allow get: if isSignedIn() && (resource == null || resource.data.roomId == 'global' || request.auth.uid in resource.data.participants);
-      allow list: if isSignedIn() && (resource.data.roomId == 'global' || request.auth.uid in resource.data.participants);
+      allow get: if isSignedIn() && (
+        resource == null || 
+        resource.data.roomId == 'global' || 
+        request.auth.uid in resource.data.participants || 
+        (resource.data.roomId != null && exists(/databases/$(database)/documents/chat_rooms/$(resource.data.roomId)) && request.auth.uid in get(/databases/$(database)/documents/chat_rooms/$(resource.data.roomId)).data.participants)
+      );
+      allow list: if isSignedIn() && (
+        resource.data.roomId == 'global' || 
+        request.auth.uid in resource.data.participants ||
+        (resource.data.roomId != null && exists(/databases/$(database)/documents/chat_rooms/$(resource.data.roomId)) && request.auth.uid in get(/databases/$(database)/documents/chat_rooms/$(resource.data.roomId)).data.participants)
+      );
       allow create: if isSignedIn() && isValidMessage(incoming());
-      allow update: if ((isSignedIn() && (existing().roomId == 'global' || request.auth.uid in existing().participants) && (
+      allow update: if ((isSignedIn() && (
+          existing().roomId == 'global' || 
+          request.auth.uid in existing().participants ||
+          (existing().roomId != null && exists(/databases/$(database)/documents/chat_rooms/$(existing().roomId)) && request.auth.uid in get(/databases/$(database)/documents/chat_rooms/$(existing().roomId)).data.participants)
+        ) && (
           incoming().diff(existing()).affectedKeys().hasOnly(['seen', 'reactions', 'deletedFor', 'clientCreatedAt'])
         )) || isAdmin());
       allow delete: if isOwner(existing().senderId) || isAdmin();
@@ -360,6 +385,13 @@ service cloud.firestore {
       allow create: if isSignedIn() && incoming().senderId == request.auth.uid;
       allow update: if isSignedIn() && (request.auth.uid == existing().senderId || request.auth.uid == existing().receiverId);
       allow delete: if isSignedIn() && (request.auth.uid == existing().senderId || request.auth.uid == existing().receiverId);
+    }
+
+    match /chat_rooms/{roomId} {
+      allow read: if isSignedIn() && (resource == null || request.auth.uid in resource.data.participants || isAdmin());
+      allow create: if isSignedIn() && isValidChatRoom(incoming());
+      allow update: if (isSignedIn() && (request.auth.uid in existing().participants || isAdmin()) && isValidChatRoom(incoming()));
+      allow delete: if isAdmin();
     }
 
     match /products/{productId} {

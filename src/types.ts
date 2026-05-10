@@ -55,6 +55,10 @@ export interface UserProfile {
     waterGlassCount?: number;
     lastWaterReset?: Timestamp | any;
   };
+  weight?: number;
+  height?: number;
+  fitnessGoal?: 'lose_weight' | 'gain_muscle' | 'stay_fit' | 'improve_endurance';
+  activityLevel?: 'sedentary' | 'light' | 'moderate' | 'active' | 'very_active';
   isGroup?: boolean;
   participants?: string[];
 }
