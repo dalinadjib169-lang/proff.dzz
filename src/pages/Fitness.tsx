@@ -50,10 +50,10 @@ export default function Fitness() {
   const [steps, setSteps] = useState(0);
   const [activeWorkout, setActiveWorkout] = useState(false);
   const [workoutTime, setWorkoutTime] = useState(0);
-  const [totalActivityMinutes, setTotalActivityMinutes] = useState(profile?.totalActivityMinutes || 0);
-  const [sleepHours, setSleepHours] = useState(profile?.sleepHours || 0);
-  const [sleepQuality, setSleepQuality] = useState(profile?.sleepQuality || 0);
-  const [deepSleepHours, setDeepSleepHours] = useState(profile?.deepSleepHours || 0);
+  const [totalActivityMinutes, setTotalActivityMinutes] = useState(0);
+  const [sleepHours, setSleepHours] = useState(0);
+  const [sleepQuality, setSleepQuality] = useState(0);
+  const [deepSleepHours, setDeepSleepHours] = useState(0);
   const [calories, setCalories] = useState(0);
   const [isMotionSupported, setIsMotionSupported] = useState(true);
 
@@ -508,12 +508,21 @@ export default function Fitness() {
                 className={`w-full py-6 rounded-[2rem] font-black text-sm transition-all flex items-center justify-center gap-3 active:scale-95 shadow-2xl relative group overflow-hidden ${
                   activeWorkout 
                   ? 'bg-red-500 text-white shadow-red-500/40' 
-                  : 'bg-gradient-to-r from-orange-500 via-red-500 to-pink-500 text-white shadow-red-500/40 hover:shadow-orange-500/60 border-t border-white/30'
+                  : 'bg-gradient-to-r from-amber-400 via-orange-500 to-red-600 text-white shadow-orange-500/50 border-t-2 border-white/40'
                 }`}
               >
                 {!activeWorkout && (
-                  <div className="absolute inset-0 bg-white/10 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" 
-                    style={{ background: 'linear-gradient(45deg, transparent, rgba(255,255,255,0.2), transparent)' }}
+                  <motion.div 
+                    animate={{ 
+                      x: ['-100%', '200%'],
+                    }}
+                    transition={{ 
+                      duration: 2,
+                      repeat: Infinity,
+                      ease: "linear",
+                      repeatDelay: 1
+                    }}
+                    className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent skew-x-12"
                   />
                 )}
                 {activeWorkout ? (
@@ -524,7 +533,7 @@ export default function Fitness() {
                 ) : (
                   <>
                     <Play className="w-5 h-5 fill-white group-hover:scale-110 transition-transform" />
-                    <span className="tracking-widest">بدأ جلسة تدريبية ملكية</span>
+                    <span className="tracking-[0.2em] font-black underline-offset-4 decoration-white/30 group-hover:underline">بدأ التحدي الرياضي الملكي</span>
                   </>
                 )}
               </motion.button>

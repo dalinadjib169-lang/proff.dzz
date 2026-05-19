@@ -59,6 +59,11 @@ export interface UserProfile {
   height?: number;
   fitnessGoal?: 'lose_weight' | 'gain_muscle' | 'stay_fit' | 'improve_endurance';
   activityLevel?: 'sedentary' | 'light' | 'moderate' | 'active' | 'very_active';
+  totalActivityMinutes?: number;
+  sleepHours?: number;
+  sleepQuality?: number;
+  deepSleepHours?: number;
+  age?: number;
   isGroup?: boolean;
   participants?: string[];
 }

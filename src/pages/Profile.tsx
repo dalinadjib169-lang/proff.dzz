@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { fetchPrayerTimes as getPrayerTimes } from '../lib/prayerService';
 import { useParams, Link } from 'react-router-dom';
 import { db, storage } from '../firebase';
 import { doc, getDoc, updateDoc, collection, query, where, orderBy, onSnapshot, addDoc, serverTimestamp, deleteDoc, arrayUnion, arrayRemove, limit, Timestamp, writeBatch, getDocs } from 'firebase/firestore';
@@ -76,13 +77,13 @@ export default function Profile() {
   const isOwner = loggedInProfile?.uid === uid;
 
   useEffect(() => {
-    if (profile?.wilaya && profile?.reminders?.prayer) {
-      fetch(`https://api.aladhan.com/v1/timingsByCity?city=${profile.wilaya}&country=Algeria&method=3`)
-        .then(res => res.json())
-        .then(data => {
-          if (data.code === 200) setPrayerTimes(data.data.timings);
-        });
-    }
+    const fetchTimes = async () => {
+      if (profile?.wilaya && profile?.reminders?.prayer) {
+        const times = await getPrayerTimes(profile.wilaya);
+        if (times) setPrayerTimes(times);
+      }
+    };
+    fetchTimes();
   }, [profile?.wilaya, profile?.reminders?.prayer]);
 
   useEffect(() => {

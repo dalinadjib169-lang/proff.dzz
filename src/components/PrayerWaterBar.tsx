@@ -15,19 +15,12 @@ import {
   BellOff
 } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
+import { fetchPrayerTimes, PrayerTimes } from '../lib/prayerService';
 import { doc, updateDoc } from 'firebase/firestore';
 import { db, isFirestoreConnected } from '../firebase';
 import { format } from 'date-fns';
 import { cn } from '../lib/utils';
 import { playSound } from '../lib/sounds';
-
-interface PrayerTimes {
-  Fajr: string;
-  Dhuhr: string;
-  Asr: string;
-  Maghrib: string;
-  Isha: string;
-}
 
 const ADHAN_URL = "https://www.islamcan.com/audio/adhan/azan1.mp3";
 const WATER_SOUND_URL = "https://assets.mixkit.co/active_storage/sfx/2013/2013-preview.mp3"; // Water splash/pour sound
@@ -75,7 +68,7 @@ export const PrayerWaterBar: React.FC = () => {
   };
 
   useEffect(() => {
-    fetchPrayerTimes(profile?.wilaya || 'Alger');
+    fetchPrayerTimesData(profile?.wilaya || 'Alger');
   }, [profile?.wilaya]);
 
   useEffect(() => {
@@ -88,49 +81,14 @@ export const PrayerWaterBar: React.FC = () => {
     return () => clearInterval(interval);
   }, [prayerTimes]);
 
-  const fetchPrayerTimes = async (wilaya: string) => {
+  const fetchPrayerTimesData = async (wilaya: string) => {
     try {
-      // Clean wilaya name for API
-      let city = wilaya;
-      if (city.includes('(') && city.includes(')')) {
-        city = city.match(/\(([^)]+)\)/)?.[1] || city;
-      } else if (city.includes('-')) {
-        city = city.split('-')[1].trim();
-      }
-      
-      // Normalize common names
-      if (city.toLowerCase() === 'alger') city = 'Algiers';
-      if (city.toLowerCase() === 'oran') city = 'Oran';
-      if (city.toLowerCase() === 'constantine') city = 'Constantine';
-      
-      const tryFetch = async (cityName: string) => {
-        const url = `https://api.aladhan.com/v1/timingsByCity?city=${encodeURIComponent(cityName)}&country=Algeria&method=3`;
-        const response = await fetch(url);
-        if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
-        return await response.json();
-      };
-
-      let data = await tryFetch(city);
-      
-      // Fallback if city name failed or returned error
-      if (data.code !== 200) {
-        console.warn(`Fetch for ${city} failed, trying Algiers fallback`);
-        data = await tryFetch('Algiers');
-      }
-
-      if (data.code === 200) {
-        setPrayerTimes(data.data.timings);
+      const times = await fetchPrayerTimes(wilaya);
+      if (times) {
+        setPrayerTimes(times);
       }
     } catch (error) {
-      console.error("Error fetching prayer times:", error);
-      // Last resort fallback to Algiers if everything fails
-      try {
-        const response = await fetch(`https://api.aladhan.com/v1/timingsByCity?city=Algiers&country=Algeria&method=3`);
-        const data = await response.json();
-        if (data.code === 200) setPrayerTimes(data.data.timings);
-      } catch (e) {
-        console.error("Last resort fetch failed:", e);
-      }
+      console.error("Error in PrayerWaterBar fetch:", error);
     }
   };
 

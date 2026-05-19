@@ -8,17 +8,19 @@ import { doc, updateDoc } from 'firebase/firestore';
 
 export function useBackgroundFeatures() {
   const { profile } = useAuth();
-  const [isWaterEnabled, setIsWaterEnabled] = useState(profile?.settings?.isWaterEnabled ?? false);
-  const [isAthanEnabled, setIsAthanEnabled] = useState(profile?.settings?.isAthanEnabled ?? false);
+  const [isWaterEnabled, setIsWaterEnabled] = useState(profile?.reminders?.water ?? false);
+  const [isAthanEnabled, setIsAthanEnabled] = useState(profile?.reminders?.prayer ?? false);
   const [waterReminderMinutes, setWaterReminderMinutes] = useState(profile?.settings?.waterReminderMinutes ?? 120);
   
   useEffect(() => {
-    if (profile?.settings) {
-      setIsWaterEnabled(profile.settings.isWaterEnabled ?? false);
-      setIsAthanEnabled(profile.settings.isAthanEnabled ?? false);
-      setWaterReminderMinutes(profile.settings.waterReminderMinutes ?? 120);
+    if (profile) {
+      setIsWaterEnabled(profile.reminders?.water ?? false);
+      setIsAthanEnabled(profile.reminders?.prayer ?? false);
+      if (profile.settings) {
+        setWaterReminderMinutes(profile.settings.waterReminderMinutes ?? 120);
+      }
     }
-  }, [profile?.settings]);
+  }, [profile]);
 
   const lastAthanPlayed = useRef<string | null>(null);
   const lastWaterPlayed = useRef<number | null>(null);
