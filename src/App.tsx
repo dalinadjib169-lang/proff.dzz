@@ -39,7 +39,6 @@ import { motion, AnimatePresence } from 'motion/react';
 import { WifiOff, X } from 'lucide-react';
 
 import { UploadProvider } from './hooks/useUpload';
-import InstallPrompt from './components/InstallPrompt';
 import { Toaster } from 'react-hot-toast';
 
 import { useTranslation } from './hooks/useTranslation';
@@ -182,7 +181,6 @@ export default function App() {
                   </motion.div>
                 )}
               </AnimatePresence>
-              <InstallPrompt />
               {loading ? (
               <div className="min-h-screen flex flex-col items-center justify-center bg-slate-950 p-8">
                 <div className="relative mb-8">

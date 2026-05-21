@@ -111,10 +111,7 @@ export default function Login() {
 
   const handlePwaAction = async () => {
     if (isStandalone) {
-      toast.success(
-        "إلغاء تثبيت التطبيق سهل وبسيط: اضغط على زر النقاط الثلاث (┋) بالأعلى داخل التطبيق ثم اختر 'إلغاء التثبيت' (Désinstaller).",
-        { duration: 6000 }
-      );
+      toast.success("التطبيق مثبت بالفعل على جهازك وتتصفحه الآن!");
       return;
     }
 
@@ -122,9 +119,9 @@ export default function Login() {
     if (!promptToUse) {
       const userAgent = window.navigator.userAgent.toLowerCase();
       if (/iphone|ipad|ipod/.test(userAgent)) {
-        toast.success("للتثبيت على آيفون: اضغط على زر المشاركة أسفل المتصفح ثم اختر 'إضافة للشاشة الرئيسية'");
+        toast.success("للتثبيت على آيفون: اضغط على زر المشاركة أسفل المتصفح ثم اختر 'إضافة للشاشة الرئيسية' 📱", { duration: 5000 });
       } else {
-        toast.success("اضغط على زر النقاط الثلاث (┋) أعلى المتصفح ثم اختر 'تثبيت التطبيق' للتثبيت السريع.");
+        toast.success("جاري تهيئة التثبيت الفوري... يرجى الانتظار ثوانٍ والضغط مجدداً! 🚀\n(أو اضغط على زر النقاط الثلاث ┋ بأعلى المتصفح ثم اختر 'تثبيت التطبيق')", { duration: 7000 });
       }
       return;
     }
@@ -136,9 +133,11 @@ export default function Login() {
         (window as any).deferredPrompt = null;
         setDeferredPrompt(null);
         setIsStandalone(true);
+        toast.success("تم تثبيت التطبيق بنجاح! شكراً لك.");
       }
     } catch (err) {
       console.error("PWA prompt error", err);
+      toast.error("فشل فتح نافذة التثبيت التلقائي");
     }
   };
 
@@ -341,21 +340,20 @@ export default function Login() {
 
           {/* App Branding Section */}
           <div className="flex flex-col items-center">
-            <div className="bg-purple-600 p-4 rounded-[2rem] mb-4 shadow-xl shadow-purple-500/20 relative group">
-              <GraduationCap className="w-10 h-10 md:w-12 md:h-12 text-white" />
-              <div className="absolute -top-2 -right-2 w-6 h-6 md:w-7 md:h-7 rounded-full overflow-hidden border-2 border-slate-900 shadow-lg">
-                <img src="https://flagcdn.com/w40/dz.png" className="w-full h-full object-cover" alt="Algeria" />
+            <div className="w-24 h-24 p-1 bg-gradient-to-br from-purple-600 to-indigo-600 rounded-[2rem] mb-4 shadow-xl shadow-purple-500/30 relative group overflow-hidden border border-purple-500/50">
+              <img 
+                src="/prof_dali_logo.png" 
+                className="w-full h-full object-cover rounded-[1.85rem]" 
+                alt="TeachDZ Logo" 
+                referrerPolicy="no-referrer"
+              />
+              <div className="absolute top-0 right-0 w-8 h-8 rounded-bl-2xl overflow-hidden border-b border-l border-slate-905 bg-slate-950/20 flex items-center justify-center">
+                <img src="https://flagcdn.com/w40/dz.png" className="w-5 h-3.5 object-cover rounded-sm shadow-sm" alt="Algeria" />
               </div>
             </div>
             
             <div className="flex items-center gap-3 mb-2">
-              <h1 className="text-3xl md:text-4xl font-black text-white tracking-tighter">Teac DZ</h1>
-              <img 
-                src="https://flagcdn.com/w40/dz.png" 
-                className="w-7 h-4 md:w-8 md:h-5 rounded-sm shadow-md border border-white/10" 
-                alt="Algeria" 
-                referrerPolicy="no-referrer"
-              />
+              <h1 className="text-3xl md:text-4xl font-black text-white tracking-tighter">TeachDZ</h1>
             </div>
             
             <div className="flex flex-col items-center gap-1">

@@ -454,68 +454,6 @@ export default function Settings() {
           </div>
         </section>
 
-        {/* PWA App Installation Section */}
-        <section className="bg-white dark:bg-slate-900 rounded-[2.5rem] p-8 shadow-xl border border-slate-100 dark:border-slate-800 space-y-6">
-          <div className="flex items-center gap-3 text-primary">
-            <Smartphone className="w-6 h-6 animate-bounce" />
-            <h2 className="text-xl font-black uppercase tracking-tight">إضافة اختصار وتثبيت التطبيق (تثبيت كـ تطبيق هاتف)</h2>
-          </div>
-          
-          <div className="p-5 bg-slate-50 dark:bg-slate-950/40 rounded-3xl border border-slate-100 dark:border-slate-800 flex flex-col md:flex-row items-center justify-between gap-6">
-            <div className="flex items-center gap-4">
-              <div className="w-16 h-16 rounded-2xl overflow-hidden ring-4 ring-primary/25 bg-slate-950 flex items-center justify-center shrink-0">
-                <img 
-                  src="/prof_dali_logo.png" 
-                  alt="TeachDZ Logo" 
-                  className="w-full h-full object-cover"
-                  referrerPolicy="no-referrer"
-                />
-              </div>
-              <div className="space-y-1">
-                <h3 className="text-base font-black text-slate-800 dark:text-white">تثبيت تطبيق TeachDZ على هاتفك</h3>
-                <p className="text-xs text-slate-500 max-w-lg leading-relaxed">تصفح المنصة بشكل أسرع وأسهل مباشرة من شاشتك الرئيسية دون الحاجة لمتصفح جوجل أو كتابة الرابط مجدداً!</p>
-              </div>
-            </div>
-            
-            <button
-              onClick={async () => {
-                const prompt = (window as any).deferredPrompt;
-                if (prompt) {
-                  prompt.prompt();
-                  const { outcome } = await prompt.userChoice;
-                  if (outcome === 'accepted') {
-                    (window as any).deferredPrompt = null;
-                    toast.success('تم تثبيت التطبيق بنجاح! شكراً لك.');
-                  }
-                } else {
-                  // Fallback detection
-                  const isStandalone = window.matchMedia('(display-mode: standalone)').matches || (window.navigator as any).standalone;
-                  if (isStandalone) {
-                    toast.success('التطبيق مثبت بالفعل على هاتفك وتتصفحه الآن!');
-                  } else {
-                    const userAgent = window.navigator.userAgent.toLowerCase();
-                    if (/iphone|ipad|ipod/.test(userAgent)) {
-                      toast('لتثبيت التطبيق على آيفون: اضغط على زر المشاركة (Share) في Safari أسفل الشاشة ثم اختر "إضافة إلى الشاشة الرئيسية" (Sur l\'écran d\'accueil)', {
-                        icon: '📱',
-                        duration: 8000,
-                      });
-                    } else {
-                      toast('لتثبيت التطبيق: اضغط على النقاط الثلاث في أعلى متصفح كروم ثم اختر "تثبيت" أو "إضافة إلى الشاشة الرئيسية"', {
-                        icon: '📱',
-                        duration: 8000,
-                      });
-                    }
-                  }
-                }
-              }}
-              className="w-full md:w-auto px-6 py-3 bg-primary hover:bg-primary/90 text-white rounded-2xl font-black text-xs uppercase tracking-widest flex items-center justify-center gap-2 transition-all shadow-lg shadow-primary/30 shrink-0"
-            >
-              <Download className="w-4 h-4" />
-              تثبيت التطبيق الآن
-            </button>
-          </div>
-        </section>
-
         {/* Background Services */}
         <section className="bg-white dark:bg-slate-900 rounded-[2.5rem] p-8 shadow-xl border border-slate-100 dark:border-slate-800 space-y-8">
           <div className="space-y-6">

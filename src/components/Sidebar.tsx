@@ -1,9 +1,11 @@
 import React, { useState, useEffect, memo } from 'react';
 import { NavLink, Link } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
-import { Home, User, Bell, Bookmark, Settings, Users, BookOpen, MessageSquare, TrendingUp, UserPlus, Sparkles, Wand2, CheckSquare, FileText, Image, Share2, ExternalLink, Zap, Car, ShoppingBag, Heart, Dumbbell } from 'lucide-react';
+import { Home, User, Bell, Bookmark, Settings, Users, BookOpen, MessageSquare, TrendingUp, UserPlus, Sparkles, Wand2, CheckSquare, FileText, Image, Share2, ExternalLink, Zap, Car, ShoppingBag, Heart, Dumbbell, LogOut } from 'lucide-react';
 import { cn } from '../lib/utils';
-import { db } from '../firebase';
+import { db, auth } from '../firebase';
+import { signOut } from 'firebase/auth';
+import { toast } from 'react-hot-toast';
 import { collection, query, where, onSnapshot, limit, orderBy } from 'firebase/firestore';
 import { handleFirestoreError, OperationType } from '../lib/firestore-errors';
 import { UserProfile } from '../types';
@@ -290,6 +292,22 @@ function Sidebar() {
         >
           <Share2 className="w-5 h-5 transition-transform group-hover:scale-110" />
           <span>Share App - مشاركة التطبيق</span>
+        </button>
+
+        <button
+          onClick={async () => {
+            try {
+              await signOut(auth);
+              toast.success("تم تسجيل الخروج بنجاح");
+            } catch (err) {
+              console.error("Logout error:", err);
+              toast.error("حدث خطأ أثناء تسجيل الخروج");
+            }
+          }}
+          className="w-full flex items-center gap-4 px-6 py-4 rounded-2xl font-bold text-red-400 hover:bg-red-500/10 hover:text-red-500 transition-all group border border-transparent hover:border-red-500/10 cursor-pointer mt-1"
+        >
+          <LogOut className="w-5 h-5 transition-transform group-hover:scale-110 text-red-400" />
+          <span>تسجيل الخروج</span>
         </button>
 
       </nav>

@@ -1,4 +1,4 @@
-import React, { memo, useState, useEffect } from 'react';
+import React, { memo } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { 
@@ -10,101 +10,26 @@ import {
   Mail, 
   ArrowLeft, 
   ArrowRight,
-  Download,
-  Smartphone
+  LogOut
 } from 'lucide-react';
 import { useUnreadMessages } from '../hooks/useUnreadMessages';
 import { cn } from '../lib/utils';
-import { memo as reactMemo } from 'react';
 import { toast } from 'react-hot-toast';
+import { signOut } from 'firebase/auth';
+import { auth } from '../firebase';
 
 function Navbar() {
   const { profile } = useAuth();
   const unreadMessagesCount = useUnreadMessages();
 
-  // PWA & Installation states
-  const [isStandalone, setIsStandalone] = useState(false);
-  const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
-
-  useEffect(() => {
-    // Check if running in standalone mode (installed app)
-    const checkStandalone = () => {
-      const standalone = window.matchMedia('(display-mode: standalone)').matches 
-        || (window.navigator as any).standalone 
-        || document.referrer.includes('android-app://');
-      setIsStandalone(standalone);
-    };
-
-    checkStandalone();
-
-    const mediaQuery = window.matchMedia('(display-mode: standalone)');
+  const handleLogout = async () => {
     try {
-      mediaQuery.addEventListener('change', checkStandalone);
-    } catch (e) {
-      console.warn(e);
-    }
-
-    // Periodically check and update deferred prompt from window object for immediate reactivity
-    const checkPromptInterval = setInterval(() => {
-      if ((window as any).deferredPrompt) {
-        setDeferredPrompt((window as any).deferredPrompt);
-      }
-    }, 500);
-
-    // Capture prompt event
-    const handlePrompt = () => {
-      if ((window as any).deferredPrompt) {
-        setDeferredPrompt((window as any).deferredPrompt);
-      }
-    };
-
-    window.addEventListener('pwa-prompt-available', handlePrompt);
-    window.addEventListener('beforeinstallprompt', handlePrompt);
-
-    return () => {
-      clearInterval(checkPromptInterval);
-      try {
-        mediaQuery.removeEventListener('change', checkStandalone);
-      } catch (e) {
-        console.warn(e);
-      }
-      window.removeEventListener('pwa-prompt-available', handlePrompt);
-      window.removeEventListener('beforeinstallprompt', handlePrompt);
-    };
-  }, []);
-
-  const handleInstallClick = async () => {
-    const promptToUse = deferredPrompt || (window as any).deferredPrompt;
-    if (!promptToUse) {
-      const userAgent = window.navigator.userAgent.toLowerCase();
-      if (/iphone|ipad|ipod/.test(userAgent)) {
-        toast.success("للتثبيت السريع: اضغط على زر المشاركة أسفل الشاشة ثم اختر 'إضافة للشاشة الرئيسية'");
-      } else {
-        toast.success("متصفحك لا يدعم التثبيت التلقائي الفوري، يرجى الضغط على زر الخيارات (┋) أعلى المتصفح ثم اختر 'تثبيت التطبيق' (Installer).");
-      }
-      return;
-    }
-    
-    try {
-      promptToUse.prompt();
-      const { outcome } = await promptToUse.userChoice;
-      
-      if (outcome === 'accepted') {
-        localStorage.setItem('pwa_teachdz_ver_v16_shown', 'true');
-        (window as any).deferredPrompt = null;
-        setDeferredPrompt(null);
-      }
+      await signOut(auth);
+      toast.success("تم تسجيل الخروج بنجاح");
     } catch (err) {
-      console.error("Installation prompt error:", err);
-      toast.error("حدث خطأ أثناء محاولة التثبيت الفوري.");
+      console.error("Logout error:", err);
+      toast.error("حدث خطأ أثناء تسجيل الخروج");
     }
-  };
-
-  const handleUninstallClick = () => {
-    toast.success(
-      "لإلغاء تثبيت التطبيق: اضغط على زر النقاط الثلاث (┋) بالأعلى في نافذة التطبيق ثم اختر 'إلغاء التثبيت' (Désinstaller)، أو اضغط مطولاً على أيقونة التطبيق على شاشة هاتفك واختر إلغاء التثبيت.",
-      { duration: 8050 }
-    );
   };
 
   return (
@@ -113,41 +38,12 @@ function Navbar() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
             <div className="flex items-center gap-4 sm:gap-6">
-              <Link to="/" className="flex items-center gap-2 group shrink-0">
-                <div className="bg-primary p-1.5 rounded-xl group-hover:scale-110 transition-transform shadow-lg shadow-primary/20">
-                  <GraduationCap className="w-6 h-6 text-white" />
+              <Link to="/" className="flex items-center gap-2.5 group shrink-0">
+                <div className="w-9 h-9 rounded-xl overflow-hidden ring-2 ring-primary/20 group-hover:ring-primary/40 group-hover:scale-105 transition-all shadow-lg bg-slate-900 border border-slate-850/50 shrink-0 flex items-center justify-center">
+                  <img src="/prof_dali_logo.png" className="w-full h-full object-cover" alt="TeachDZ" />
                 </div>
-                <span className="text-xl font-black text-white tracking-tight hidden xs:inline">Teac DZ</span>
+                <span className="text-lg sm:text-xl font-black text-white tracking-tight">TeachDZ</span>
               </Link>
-
-              {/* Dynamic Install / Uninstall Button next to logo */}
-              <div className="flex items-center">
-                {isStandalone ? (
-                  <button
-                    onClick={handleUninstallClick}
-                    className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-black text-amber-400 bg-amber-500/10 hover:bg-amber-500/20 rounded-xl border border-amber-500/20 active:scale-95 transition-all cursor-pointer shadow-lg shadow-amber-500/5 hover:-translate-y-0.5"
-                    title="إلغاء تثبيت التطبيق"
-                    id="pwa-uninstall-header-btn"
-                  >
-                    <Smartphone className="w-4 h-4 text-amber-400 animate-pulse" />
-                    <span>إلغاء التثبيت</span>
-                  </button>
-                ) : (
-                  <button
-                    onClick={handleInstallClick}
-                    className="relative flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-black text-white bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 rounded-xl active:scale-95 transition-all cursor-pointer shadow-xl shadow-purple-600/35 hover:-translate-y-0.5"
-                    title="تثبيت التطبيق على الشاشة الرئيسية"
-                    id="pwa-install-header-btn"
-                  >
-                    <span className="absolute -top-1 -left-1 flex h-2 w-2">
-                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-purple-400 opacity-75"></span>
-                      <span className="relative inline-flex rounded-full h-2 w-2 bg-purple-500"></span>
-                    </span>
-                    <Download className="w-4 h-4 animate-bounce shrink-0" />
-                    <span>تثبيت</span>
-                  </button>
-                )}
-              </div>
 
               <div className="hidden lg:flex items-center bg-slate-900 rounded-2xl px-4 py-2 w-64 group focus-within:ring-2 focus-within:ring-primary/50 transition-all border border-slate-800">
                 <Search className="w-4 h-4 text-slate-500 mr-2" />
@@ -216,6 +112,17 @@ function Navbar() {
                   <p className="text-[10px] font-medium text-slate-500 uppercase tracking-wider mt-1">Teacher</p>
                 </div>
               </Link>
+
+              {/* Log Out button in the header */}
+              <button
+                onClick={handleLogout}
+                className="p-2.5 text-red-400 hover:text-red-500 hover:bg-red-500/10 bg-slate-900 rounded-xl transition-all border border-slate-800 flex items-center justify-center gap-1.5 cursor-pointer"
+                title="تسجيل الخروج"
+                id="navbar-logout-btn"
+              >
+                <LogOut className="w-5 h-5" />
+                <span className="hidden xs:inline text-xs font-black">خروج</span>
+              </button>
 
               <button
                 onClick={() => {
