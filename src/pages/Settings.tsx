@@ -465,9 +465,9 @@ export default function Settings() {
             <div className="flex items-center gap-4">
               <div className="w-16 h-16 rounded-2xl overflow-hidden ring-4 ring-primary/25 bg-slate-950 flex items-center justify-center shrink-0">
                 <img 
-                  src="https://res.cloudinary.com/doaxziqm7/image/upload/v1714243644/logo_teach_dz.png" 
+                  src="/prof_dali_logo.png" 
                   alt="TeachDZ Logo" 
-                  className="w-12 h-12 object-contain"
+                  className="w-full h-full object-cover"
                   referrerPolicy="no-referrer"
                 />
               </div>

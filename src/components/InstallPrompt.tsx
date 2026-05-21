@@ -9,7 +9,7 @@ export default function InstallPrompt() {
 
   useEffect(() => {
     // 1. Check if the user has already dismissed this tutorial
-    const isTutorialShown = localStorage.getItem('pwa_new_install_tutorial_v1_shown') === 'true';
+    const isTutorialShown = localStorage.getItem('pwa_teachdz_install_guide_v3_shown') === 'true';
     const showImmediately = localStorage.getItem('pwa_show_immediately') === 'true';
 
     // If already shown and we don't need to force show it, then exit
@@ -83,7 +83,7 @@ export default function InstallPrompt() {
   }, []);
 
   const handleDismiss = () => {
-    localStorage.setItem('pwa_new_install_tutorial_v1_shown', 'true');
+    localStorage.setItem('pwa_teachdz_install_guide_v3_shown', 'true');
     setIsVisible(false);
   };
 
@@ -98,7 +98,7 @@ export default function InstallPrompt() {
     const { outcome } = await promptToUse.userChoice;
     
     if (outcome === 'accepted') {
-      localStorage.setItem('pwa_new_install_tutorial_v1_shown', 'true');
+      localStorage.setItem('pwa_teachdz_install_guide_v3_shown', 'true');
       (window as any).deferredPrompt = null;
       setDeferredPrompt(null);
     }
@@ -135,24 +135,24 @@ export default function InstallPrompt() {
           <div className="flex flex-col items-center text-center mt-4 mb-6">
             <div className="relative mb-4">
               <div className="absolute inset-0 bg-purple-500/20 rounded-[2rem] blur-xl animate-pulse"></div>
-              <div className="w-20 h-20 rounded-[2rem] overflow-hidden ring-4 ring-purple-500/30 bg-slate-950 flex items-center justify-center relative z-10 p-2">
+              <div className="w-20 h-20 rounded-[2rem] overflow-hidden ring-4 ring-purple-500/30 bg-slate-950 flex items-center justify-center relative z-10 p-0.5">
                 <img 
-                  src="https://res.cloudinary.com/doaxziqm7/image/upload/v1714243644/logo_teach_dz.png" 
+                  src="/prof_dali_logo.png" 
                   alt="TeachDZ Logo" 
-                  className="w-16 h-16 object-contain"
+                  className="w-full h-full object-cover"
                   referrerPolicy="no-referrer"
                 />
               </div>
-              <div className="absolute -bottom-1 -right-1 w-7 h-7 bg-purple-600 rounded-2xl border-4 border-slate-900 flex items-center justify-center text-white z-20">
+              <div className="absolute -bottom-1 -right-1 w-7 h-7 bg-purple-600 rounded-2xl border-4 border-slate-900 flex items-center justify-center text-white z-20 animate-bounce">
                 <Sparkles className="w-3.5 h-3.5 fill-white" />
               </div>
             </div>
 
             <h2 className="text-xl md:text-2xl font-black text-white px-2 tracking-tight">
-              أضف اختصار تطبيق TeachDZ على هاتفك
+              ثبّت تطبيق المعلم TeachDZ على هاتفك
             </h2>
-            <p className="text-xs text-slate-400 mt-2 max-w-sm px-4">
-              تصفح منصة التعليم والتشغيل بشكل أسرع وأسهل بنقرة واحدة مباشرة من شاشتك الرئيسية! دون الحاجة للمتصفح أو كتابة الرابط مجدداً.
+            <p className="text-xs text-slate-300 mt-2 max-w-sm px-4">
+              احصل على أيقونة البروفيسور المميزة على شاشتك الرئيسية، وتصفح منصتك فوراً بنقرة واحدة فائقة السرعة!
             </p>
           </div>
 
