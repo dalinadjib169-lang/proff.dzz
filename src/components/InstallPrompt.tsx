@@ -6,7 +6,7 @@ import { toast } from 'react-hot-toast';
 export default function InstallPrompt() {
   const [isVisible, setIsVisible] = useState(false);
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
-  const [deviceType, setDeviceType] = useState<'ios' | 'android' | 'desktop'>('desktop');
+  const [deviceType, setDeviceType] = useState<'ios' | 'android' | 'desktop' | 'inapp'>('desktop');
 
   useEffect(() => {
     // 1. Check if the user has already dismissed this tutorial
@@ -27,9 +27,18 @@ export default function InstallPrompt() {
       return;
     }
 
-    // 3. Detect device type
+    // 3. Detect device type & In-App Browser
+    const isIframe = window.self !== window.top;
+    const isFB = /fban|fbav/i.test(navigator.userAgent);
+    const isWhatsApp = /whatsapp/i.test(navigator.userAgent);
+    const isMessenger = /messenger/i.test(navigator.userAgent);
+    const isInstagram = /instagram/i.test(navigator.userAgent);
+    const isInAppBrowser = isFB || isWhatsApp || isMessenger || isInstagram || isIframe;
+
     const userAgent = window.navigator.userAgent.toLowerCase();
-    if (/iphone|ipad|ipod/.test(userAgent)) {
+    if (isInAppBrowser) {
+      setDeviceType('inapp');
+    } else if (/iphone|ipad|ipod/.test(userAgent)) {
       setDeviceType('ios');
     } else if (/android/.test(userAgent)) {
       setDeviceType('android');
@@ -188,6 +197,33 @@ export default function InstallPrompt() {
                     <p className="text-xs text-slate-100 font-bold">تثبيت فوري ومباشر</p>
                     <p className="text-[11px] text-slate-400">متصفحك يدعم التثبيت المباشر كـ تطبيق كامل. اضغط على الزر البنفسجي أدناه لإنشاء الاختصار فوراً!</p>
                   </div>
+                </div>
+              ) : deviceType === 'inapp' ? (
+                // In-App Browser warning and solutions
+                <div className="space-y-3 font-medium text-slate-200">
+                  <p className="text-amber-400 font-bold text-center">⚠️ تنبيه: متصفح التواصل يمنع التثبيت</p>
+                  <p className="text-xs text-slate-300">أنت تتصفح حالياً من داخل تطبيق تواصل (مثل ماسنجر، فيسبوك أو واتساب) المانع للتثبيت كاختصار.</p>
+                  <div className="flex items-start gap-3">
+                    <div className="w-7 h-7 bg-purple-500/10 text-purple-400 rounded-xl flex items-center justify-center shrink-0 font-mono text-xs font-black">١</div>
+                    <p className="text-xs text-slate-200">اضغط على زر <strong className="text-white">النقاط الثلاث ┋ أو أيقونة البوصلة/المتصفح</strong> في الزاوية بالأعلى.</p>
+                  </div>
+                  <div className="flex items-start gap-3">
+                    <div className="w-7 h-7 bg-purple-500/10 text-purple-400 rounded-xl flex items-center justify-center shrink-0 font-mono text-xs font-black">٢</div>
+                    <p className="text-xs text-slate-200">اختر <strong className="text-white">"الفتح في متصفح كروم / سفاري"</strong> (Ouvrir dans Chrome).</p>
+                  </div>
+                  <div className="flex items-start gap-3">
+                    <div className="w-7 h-7 bg-purple-500/10 text-purple-400 rounded-xl flex items-center justify-center shrink-0 font-mono text-xs font-black">٣</div>
+                    <p className="text-xs text-slate-200">اضغط زر التثبيت الذي سيظهر فوراً لتشغيل التطبيق والتمتع بالأيقونة الراقية على هاتفك!</p>
+                  </div>
+                  <button
+                    onClick={() => {
+                      navigator.clipboard.writeText("https://proff-dzz.vercel.app/");
+                      toast.success("تم نسخ رابط المنصة! افتحه في كروم الآن.");
+                    }}
+                    className="w-full py-2 bg-slate-800 hover:bg-slate-750 text-white font-extrabold rounded-2xl transition-all mt-1 flex items-center justify-center gap-1 text-xs"
+                  >
+                    نسخ رابط المنصة لتفتحه بمتصفحك المفضل 🔗
+                  </button>
                 </div>
               ) : deviceType === 'ios' ? (
                 // iOS Safary instructions

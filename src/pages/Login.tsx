@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { signInWithPopup, GoogleAuthProvider, signInWithEmailAndPassword, createUserWithEmailAndPassword, setPersistence, browserLocalPersistence, browserSessionPersistence, signOut, sendPasswordResetEmail } from 'firebase/auth';
 import { auth } from '../firebase';
 import { motion } from 'motion/react';
-import { BookOpen, GraduationCap, Mail, Lock, User, LogIn, RefreshCw, AlertCircle, Sparkles, UserCircle, KeyRound, CheckCircle2, Eye, EyeOff, ChevronRight, Download, Smartphone } from 'lucide-react';
+import { BookOpen, GraduationCap, Mail, Lock, User, LogIn, RefreshCw, AlertCircle, Sparkles, UserCircle, KeyRound, CheckCircle2, Eye, EyeOff, ChevronRight, Download, Smartphone, X, Share, HelpCircle } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-hot-toast';
 
@@ -63,6 +63,8 @@ export default function Login() {
   // PWA & Installation state logic on Login Page
   const [isStandalone, setIsStandalone] = useState(false);
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
+  const [showPwaGuide, setShowPwaGuide] = useState(false);
+  const [guideReason, setGuideReason] = useState<'ios' | 'inapp' | 'none_yet'>('none_yet');
 
   useEffect(() => {
     const checkStandalone = () => {
@@ -115,14 +117,33 @@ export default function Login() {
       return;
     }
 
+    // Check if running inside iframe or In-App Browsers
+    const isIframe = window.self !== window.top;
+    const isFB = /fban|fbav/i.test(navigator.userAgent);
+    const isWhatsApp = /whatsapp/i.test(navigator.userAgent);
+    const isMessenger = /messenger/i.test(navigator.userAgent);
+    const isInstagram = /instagram/i.test(navigator.userAgent);
+    const isInAppBrowser = isFB || isWhatsApp || isMessenger || isInstagram || isIframe;
+
+    if (isInAppBrowser) {
+      setGuideReason('inapp');
+      setShowPwaGuide(true);
+      return;
+    }
+
+    const userAgent = window.navigator.userAgent.toLowerCase();
+    const isIosDevice = /iphone|ipad|ipod/.test(userAgent);
+
+    if (isIosDevice) {
+      setGuideReason('ios');
+      setShowPwaGuide(true);
+      return;
+    }
+
     const promptToUse = deferredPrompt || (window as any).deferredPrompt;
     if (!promptToUse) {
-      const userAgent = window.navigator.userAgent.toLowerCase();
-      if (/iphone|ipad|ipod/.test(userAgent)) {
-        toast.success("للتثبيت على آيفون: اضغط على زر المشاركة أسفل المتصفح ثم اختر 'إضافة للشاشة الرئيسية' 📱", { duration: 5000 });
-      } else {
-        toast.success("جاري تهيئة التثبيت الفوري... يرجى الانتظار ثوانٍ والضغط مجدداً! 🚀\n(أو اضغط على زر النقاط الثلاث ┋ بأعلى المتصفح ثم اختر 'تثبيت التطبيق')", { duration: 7000 });
-      }
+      setGuideReason('none_yet');
+      setShowPwaGuide(true);
       return;
     }
 
@@ -134,10 +155,12 @@ export default function Login() {
         setDeferredPrompt(null);
         setIsStandalone(true);
         toast.success("تم تثبيت التطبيق بنجاح! شكراً لك.");
+        setShowPwaGuide(false);
       }
     } catch (err) {
       console.error("PWA prompt error", err);
-      toast.error("فشل فتح نافذة التثبيت التلقائي");
+      setGuideReason('none_yet');
+      setShowPwaGuide(true);
     }
   };
 
@@ -590,6 +613,86 @@ export default function Login() {
           </p>
         </div>
       </motion.div>
+
+      {/* Embedded PWA install helper modal & instructions */}
+      {showPwaGuide && (
+        <div className="fixed inset-0 bg-slate-950/90 backdrop-blur-md z-[1000] flex items-center justify-center p-4" dir="rtl">
+          <motion.div 
+            initial={{ scale: 0.9, opacity: 0, y: 20 }}
+            animate={{ scale: 1, opacity: 1, y: 0 }}
+            className="w-full max-w-sm bg-gradient-to-b from-slate-900 via-slate-900 to-slate-950 border border-slate-800 p-6 rounded-[2.5rem] shadow-[0_0_50px_rgba(139,92,246,0.15)] relative text-right flex flex-col gap-4 text-slate-200"
+          >
+            <button 
+              onClick={() => setShowPwaGuide(false)}
+              className="absolute top-4 left-4 p-2 bg-slate-800/40 hover:bg-slate-700 rounded-xl transition-all text-slate-400 hover:text-white"
+            >
+              <X className="w-4 h-4" />
+            </button>
+
+            <div className="flex flex-col items-center text-center mt-2">
+              <div className="w-16 h-16 rounded-2xl overflow-hidden ring-4 ring-purple-500/30 bg-slate-950 flex items-center justify-center mb-3">
+                <img src="/prof_dali_logo.png" className="w-full h-full object-cover" alt="TeachDZ" />
+              </div>
+              <h3 className="text-lg font-black text-white">تثبيت تطبيق المعلم TeachDZ 🇩🇿</h3>
+              <p className="text-xs text-slate-400 mt-1">تابع هذه الخطوات البسيطة لتثبيت التطبيق على شاشتك فوراً:</p>
+            </div>
+
+            <div className="bg-slate-950/60 border border-slate-800 rounded-2xl p-4 text-xs space-y-3 leading-relaxed">
+              {guideReason === 'inapp' && (
+                <>
+                  <p className="text-amber-400 font-bold text-center">⚠️ تنبيه: متصفح غير مدعوم للتثبيت</p>
+                  <p>أنت تتصفح حالياً من داخل تطبيق تواصل (مثل ماسنجر، فيسبوك أو واتساب) والذي يمنع التثبيت التلقائي للأيقونات.</p>
+                  <p className="font-bold text-white">الحل البسيط بمجرد كبسة واحدة:</p>
+                  <ol className="list-decimal list-inside space-y-1.5 text-slate-350">
+                    <li>اضغط على رمز <span className="text-amber-400 font-extrabold">النقاط الثلاث ┋ أو المربع بالأعلى</span>.</li>
+                    <li>اختر <span className="text-purple-400 font-extrabold">"الفتح في متصفح كروم / النظام"</span> (Ouvrir dans Chrome).</li>
+                    <li>اضغط زر <span className="text-purple-400 font-extrabold">تثبيت التطبيق (Installer)</span> الذي سيظهر لتثبيته فوراً!</li>
+                  </ol>
+                  <button
+                    onClick={() => {
+                      navigator.clipboard.writeText("https://proff-dzz.vercel.app/");
+                      toast.success("تم نسخ رابط المنصة! افتحه في متصفح كروم الآن.");
+                    }}
+                    className="w-full py-2 bg-slate-850 hover:bg-slate-800 text-white font-black rounded-xl transition-all mt-2 flex items-center justify-center gap-1.5 text-[11px]"
+                  >
+                    نسخ رابط المنصة لتفتحه في كروم 🔗
+                  </button>
+                </>
+              )}
+
+              {guideReason === 'ios' && (
+                <>
+                  <p className="text-purple-400 font-bold">📱 تثبيت فوري على آيفون وآيباد (Safari):</p>
+                  <ol className="list-decimal list-inside space-y-2 text-slate-300">
+                    <li>اضغط على زر المشاركة <span className="text-blue-400 font-extrabold">"Partager"</span> <Share className="w-3.5 h-3.5 inline mx-1" /> المتواجد أسفل المتصفح سفاري.</li>
+                    <li>قم بالتمرير للأسفل واختر <span className="text-emerald-400 font-extrabold">"إضافة للشاشة الرئيسية"</span> (Sur l'écran d'accueil) ➕.</li>
+                    <li>اضغط على <span className="text-white font-extrabold">"إضافة" (Ajouter)</span> لتظهر الأيقونة فوراً على شاشتك!</li>
+                  </ol>
+                </>
+              )}
+
+              {guideReason === 'none_yet' && (
+                <>
+                  <p className="text-purple-400 font-bold">📢 التثبيت بضغطة واحدة من كروم:</p>
+                  <p>إذا لم تظهر لك نافذة التثبيت التلقائية في كروم، يمكنك تفعيلها يدوياً:</p>
+                  <ol className="list-decimal list-inside space-y-1.5 text-slate-300">
+                    <li>اضغط على خيارات المتصفح الخاص بك <span className="text-amber-400 font-black">(النقاط الثلاث ┋ بالأعلى)</span>.</li>
+                    <li>اختر <span className="text-purple-400 font-black">"تثبيت التطبيق"</span> (Installer) أو <span className="text-purple-400 font-black">"إضافة إلى الشاشة الرئيسية"</span>.</li>
+                  </ol>
+                  <p className="text-[10px] text-slate-500 mt-2 leading-relaxed">يمكنك تشغيل الرابط الخارجي المباشر والتثبيت من متصفح كروم أو سفاري مجاناً في أي وقت: <a href="https://proff-dzz.vercel.app/" target="_blank" rel="noopener noreferrer" className="text-purple-500 underline ml-1">proff-dzz.vercel.app</a></p>
+                </>
+              )}
+            </div>
+
+            <button 
+              onClick={() => setShowPwaGuide(false)}
+              className="w-full py-3 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-505 text-white font-black rounded-xl text-xs transition-colors shadow-lg active:scale-95"
+            >
+              مفهوم، سأتابع التثبيت 👍
+            </button>
+          </motion.div>
+        </div>
+      )}
     </div>
   </div>
   );

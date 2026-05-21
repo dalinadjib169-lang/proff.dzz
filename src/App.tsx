@@ -39,6 +39,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { WifiOff, X } from 'lucide-react';
 
 import { UploadProvider } from './hooks/useUpload';
+import InstallPrompt from './components/InstallPrompt';
 import { Toaster } from 'react-hot-toast';
 
 import { useTranslation } from './hooks/useTranslation';
@@ -241,6 +242,7 @@ export default function App() {
                 {user && profile?.isProfileComplete && <Navbar />}
                 {user && profile?.isProfileComplete && <BottomNav />}
                 {user && profile && !profile.isProfileComplete && <CompleteProfile />}
+                {user && profile && <InstallPrompt />}
                 {/* Mobile Sidebar Toggle - Disconnected to free screen space */}
                 {/* {user && (
                   <div className="lg:hidden fixed left-0 top-1/2 -translate-y-1/2 z-[60]">
