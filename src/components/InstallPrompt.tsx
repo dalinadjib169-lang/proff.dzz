@@ -9,7 +9,7 @@ export default function InstallPrompt() {
 
   useEffect(() => {
     // 1. Check if the user has already dismissed this tutorial
-    const isTutorialShown = localStorage.getItem('pwa_tutorial_shown') === 'true';
+    const isTutorialShown = localStorage.getItem('pwa_new_install_tutorial_v1_shown') === 'true';
     const showImmediately = localStorage.getItem('pwa_show_immediately') === 'true';
 
     // If already shown and we don't need to force show it, then exit
@@ -65,10 +65,10 @@ export default function InstallPrompt() {
       setIsVisible(true);
       localStorage.removeItem('pwa_show_immediately');
     } else {
-      // Show this helpful guidance after 4 seconds to let the entry page load first
+      // Show this helpful guidance after 800ms to let the page render first
       const timer = setTimeout(() => {
         setIsVisible(true);
-      }, 4000);
+      }, 800);
       return () => {
         window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
         window.removeEventListener('pwa-prompt-available', handlePwaAvailable);
@@ -83,7 +83,7 @@ export default function InstallPrompt() {
   }, []);
 
   const handleDismiss = () => {
-    localStorage.setItem('pwa_tutorial_shown', 'true');
+    localStorage.setItem('pwa_new_install_tutorial_v1_shown', 'true');
     setIsVisible(false);
   };
 
@@ -98,7 +98,7 @@ export default function InstallPrompt() {
     const { outcome } = await promptToUse.userChoice;
     
     if (outcome === 'accepted') {
-      localStorage.setItem('pwa_tutorial_shown', 'true');
+      localStorage.setItem('pwa_new_install_tutorial_v1_shown', 'true');
       (window as any).deferredPrompt = null;
       setDeferredPrompt(null);
     }

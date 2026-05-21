@@ -161,7 +161,12 @@ export default function Home() {
               {/* Centered background text box - occupies the absolute full width of the composer wrapper */}
               <div 
                 className="relative rounded-2xl overflow-hidden transition-all shadow-2xl min-h-[220px] flex items-center justify-center p-6 md:p-10 border border-white/10" 
-                style={{ background: selectedBg, backgroundSize: 'cover', backgroundPosition: 'center' }}
+                style={{ 
+                  backgroundImage: selectedBg, 
+                  backgroundSize: 'cover', 
+                  backgroundPosition: 'center',
+                  backgroundRepeat: 'no-repeat'
+                }}
               >
                 {/* Visual shading overlay for image backgrounds to keep text extremely readable */}
                 {selectedBg.includes('url') && (
@@ -220,7 +225,12 @@ export default function Home() {
                       key={bg.value}
                       onClick={() => setSelectedBg(bg.value)}
                       className={`w-9 h-9 rounded-xl border-2 transition-all relative group overflow-hidden ${selectedBg === bg.value ? 'border-primary ring-2 ring-primary/20 scale-110 shadow-lg' : 'border-transparent hover:scale-105'}`}
-                      style={{ background: bg.value, backgroundSize: 'cover', backgroundPosition: 'center' }}
+                      style={{ 
+                        backgroundImage: bg.value, 
+                        backgroundSize: 'cover', 
+                        backgroundPosition: 'center',
+                        backgroundRepeat: 'no-repeat'
+                      }}
                       title={bg.label}
                     >
                       {bg.type === 'image' && (
