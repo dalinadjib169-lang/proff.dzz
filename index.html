@@ -23,10 +23,6 @@
         window.deferredPrompt = e;
         window.dispatchEvent(new CustomEvent('pwa-prompt-available'));
       });
-      window.addEventListener('appinstalled', () => {
-        localStorage.setItem('pwa_teachdz_ver_v16_shown', 'true');
-        localStorage.removeItem('pwa_show_immediately');
-      });
     </script>
   </head>
   <body>
