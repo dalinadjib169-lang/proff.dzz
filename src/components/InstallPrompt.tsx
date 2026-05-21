@@ -9,23 +9,27 @@ export default function InstallPrompt() {
   const [deviceType, setDeviceType] = useState<'ios' | 'android' | 'desktop' | 'inapp'>('desktop');
 
   useEffect(() => {
-    // 1. Check if the user has already dismissed this tutorial
-    const isTutorialShown = localStorage.getItem('pwa_teachdz_ver_v16_shown') === 'true';
-    const showImmediately = localStorage.getItem('pwa_show_immediately') === 'true';
-
-    // If already shown and we don't need to force show it, then exit
-    if (isTutorialShown && !showImmediately) {
-      return;
-    }
-
-    // 2. Check if already installed
+    // 1. Check if already installed (standalone mode)
     const isStandalone = window.matchMedia('(display-mode: standalone)').matches 
       || (window.navigator as any).standalone 
-      || document.referrer.includes('android-app://');
+      || document.referrer.includes('android-app://')
+      || window.location.search.includes('utm_source=pwa')
+      || window.location.search.includes('pwa=true');
 
     if (isStandalone) {
+      localStorage.setItem('pwa_teachdz_ver_v16_shown', 'true');
+      localStorage.removeItem('pwa_show_immediately');
       return;
     }
+
+    // 2. Check if the user has already dismissed or processed this tutorial/prompt
+    const isTutorialShown = localStorage.getItem('pwa_teachdz_ver_v16_shown') === 'true';
+    if (isTutorialShown) {
+      localStorage.removeItem('pwa_show_immediately');
+      return;
+    }
+
+    const showImmediately = localStorage.getItem('pwa_show_immediately') === 'true';
 
     // 3. Detect device type & In-App Browser
     const isIframe = window.self !== window.top;
