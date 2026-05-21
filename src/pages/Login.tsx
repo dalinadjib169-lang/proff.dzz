@@ -83,6 +83,15 @@ export default function Login() {
       console.warn(e);
     }
 
+    // Check if PWA is already installed on the device via the getInstalledRelatedApps API
+    if ((navigator as any).getInstalledRelatedApps) {
+      (navigator as any).getInstalledRelatedApps().then((apps: any[]) => {
+        if (apps && apps.length > 0) {
+          setIsStandalone(true);
+        }
+      }).catch((err: any) => console.log('Login page getInstalledRelatedApps check failed', err));
+    }
+
     // Periodically inspect window.deferredPrompt for immediate reactivity
     const checkPromptInterval = setInterval(() => {
       if ((window as any).deferredPrompt) {
@@ -96,8 +105,15 @@ export default function Login() {
       }
     };
 
+    const handleAppInstalled = () => {
+      setIsStandalone(true);
+      (window as any).deferredPrompt = null;
+      setDeferredPrompt(null);
+    };
+
     window.addEventListener('pwa-prompt-available', handlePrompt);
     window.addEventListener('beforeinstallprompt', handlePrompt);
+    window.addEventListener('appinstalled', handleAppInstalled);
 
     return () => {
       clearInterval(checkPromptInterval);
@@ -108,6 +124,7 @@ export default function Login() {
       }
       window.removeEventListener('pwa-prompt-available', handlePrompt);
       window.removeEventListener('beforeinstallprompt', handlePrompt);
+      window.removeEventListener('appinstalled', handleAppInstalled);
     };
   }, []);
 

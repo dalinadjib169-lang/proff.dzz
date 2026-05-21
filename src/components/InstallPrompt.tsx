@@ -40,19 +40,38 @@ export default function InstallPrompt() {
     const isInAppBrowser = isFB || isWhatsApp || isMessenger || isInstagram || isIframe;
 
     const userAgent = window.navigator.userAgent.toLowerCase();
+    let currentDevice: 'ios' | 'android' | 'desktop' | 'inapp' = 'desktop';
     if (isInAppBrowser) {
+      currentDevice = 'inapp';
       setDeviceType('inapp');
     } else if (/iphone|ipad|ipod/.test(userAgent)) {
+      currentDevice = 'ios';
       setDeviceType('ios');
     } else if (/android/.test(userAgent)) {
+      currentDevice = 'android';
       setDeviceType('android');
     } else {
+      currentDevice = 'desktop';
       setDeviceType('desktop');
     }
 
+    // Extra check: Check if PWA is already installed on the device via experimental but widely supported API
+    if ((navigator as any).getInstalledRelatedApps) {
+      (navigator as any).getInstalledRelatedApps().then((relatedApps: any[]) => {
+        if (relatedApps && relatedApps.length > 0) {
+          console.log("PWA already installed check passed: hiding prompt");
+          localStorage.setItem('pwa_teachdz_ver_v16_shown', 'true');
+          localStorage.removeItem('pwa_show_immediately');
+          setIsVisible(false);
+          return;
+        }
+      }).catch((err: any) => console.log('getInstalledRelatedApps failed', err));
+    }
+
     // 4. Check if prompt is already captured globally
-    if ((window as any).deferredPrompt) {
-      setDeferredPrompt((window as any).deferredPrompt);
+    const initialPrompt = (window as any).deferredPrompt;
+    if (initialPrompt) {
+      setDeferredPrompt(initialPrompt);
     }
 
     // 5. Register listeners for official PWA installer prompt
@@ -60,39 +79,66 @@ export default function InstallPrompt() {
       e.preventDefault();
       setDeferredPrompt(e);
       (window as any).deferredPrompt = e;
-      // If we got the prompt and we are showing immediately, make sure we show the modal automatically
-      setIsVisible(true);
+      
+      // If Android/Desktop, show the prompt as soon as it's ready and installable!
+      if (currentDevice === 'android' || currentDevice === 'desktop') {
+        setIsVisible(true);
+      }
     };
 
     const handlePwaAvailable = () => {
       if ((window as any).deferredPrompt) {
         setDeferredPrompt((window as any).deferredPrompt);
-        setIsVisible(true);
+        if (currentDevice === 'android' || currentDevice === 'desktop') {
+          setIsVisible(true);
+        }
       }
+    };
+
+    const handleAppInstalled = () => {
+      console.log('App was installed successfully');
+      localStorage.setItem('pwa_teachdz_ver_v16_shown', 'true');
+      localStorage.removeItem('pwa_show_immediately');
+      setDeferredPrompt(null);
+      (window as any).deferredPrompt = null;
+      setIsVisible(false);
     };
 
     window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
     window.addEventListener('pwa-prompt-available', handlePwaAvailable);
+    window.addEventListener('appinstalled', handleAppInstalled);
 
-    // If showImmediately (right after login/registration), show it instantly!
-    if (showImmediately) {
-      setIsVisible(true);
-      localStorage.removeItem('pwa_show_immediately');
-    } else {
-      // Show this helpful guidance after 800ms to let the page render first
+    // If iOS or In-App browser (which don't have beforeinstallprompt), we can show guidance after a delay:
+    if (currentDevice === 'ios' || currentDevice === 'inapp') {
       const timer = setTimeout(() => {
         setIsVisible(true);
-      }, 800);
+      }, showImmediately ? 200 : 1500);
+
       return () => {
         window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
         window.removeEventListener('pwa-prompt-available', handlePwaAvailable);
+        window.removeEventListener('appinstalled', handleAppInstalled);
         clearTimeout(timer);
       };
+    } else {
+      // For Android/Desktop: If we ALREADY have the deferredPrompt loaded on mount, we can show it!
+      if (initialPrompt) {
+        const timer = setTimeout(() => {
+          setIsVisible(true);
+        }, showImmediately ? 200 : 1000);
+        return () => {
+          window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+          window.removeEventListener('pwa-prompt-available', handlePwaAvailable);
+          window.removeEventListener('appinstalled', handleAppInstalled);
+          clearTimeout(timer);
+        };
+      }
     }
 
     return () => {
       window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
       window.removeEventListener('pwa-prompt-available', handlePwaAvailable);
+      window.removeEventListener('appinstalled', handleAppInstalled);
     };
   }, []);
 
