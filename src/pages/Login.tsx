@@ -1,9 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { signInWithPopup, GoogleAuthProvider, signInWithEmailAndPassword, createUserWithEmailAndPassword, setPersistence, browserLocalPersistence, browserSessionPersistence, signOut, sendPasswordResetEmail } from 'firebase/auth';
 import { auth } from '../firebase';
 import { motion } from 'motion/react';
-import { BookOpen, GraduationCap, Mail, Lock, User, LogIn, RefreshCw, AlertCircle, Sparkles, UserCircle, KeyRound, CheckCircle2, Eye, EyeOff, ChevronRight } from 'lucide-react';
+import { BookOpen, GraduationCap, Mail, Lock, User, LogIn, RefreshCw, AlertCircle, Sparkles, UserCircle, KeyRound, CheckCircle2, Eye, EyeOff, ChevronRight, Download, Smartphone } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { toast } from 'react-hot-toast';
 
 export default function Login() {
   const [loading, setLoading] = useState(false);
@@ -58,6 +59,88 @@ export default function Login() {
     };
     checkConnectivity();
   }, []);
+
+  // PWA & Installation state logic on Login Page
+  const [isStandalone, setIsStandalone] = useState(false);
+  const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
+
+  useEffect(() => {
+    const checkStandalone = () => {
+      const standalone = window.matchMedia('(display-mode: standalone)').matches 
+        || (window.navigator as any).standalone 
+        || document.referrer.includes('android-app://');
+      setIsStandalone(standalone);
+    };
+
+    checkStandalone();
+
+    const mediaQuery = window.matchMedia('(display-mode: standalone)');
+    try {
+      mediaQuery.addEventListener('change', checkStandalone);
+    } catch (e) {
+      console.warn(e);
+    }
+
+    // Periodically inspect window.deferredPrompt for immediate reactivity
+    const checkPromptInterval = setInterval(() => {
+      if ((window as any).deferredPrompt) {
+        setDeferredPrompt((window as any).deferredPrompt);
+      }
+    }, 500);
+
+    const handlePrompt = () => {
+      if ((window as any).deferredPrompt) {
+        setDeferredPrompt((window as any).deferredPrompt);
+      }
+    };
+
+    window.addEventListener('pwa-prompt-available', handlePrompt);
+    window.addEventListener('beforeinstallprompt', handlePrompt);
+
+    return () => {
+      clearInterval(checkPromptInterval);
+      try {
+        mediaQuery.removeEventListener('change', checkStandalone);
+      } catch (e) {
+        console.warn(e);
+      }
+      window.removeEventListener('pwa-prompt-available', handlePrompt);
+      window.removeEventListener('beforeinstallprompt', handlePrompt);
+    };
+  }, []);
+
+  const handlePwaAction = async () => {
+    if (isStandalone) {
+      toast.success(
+        "إلغاء تثبيت التطبيق سهل وبسيط: اضغط على زر النقاط الثلاث (┋) بالأعلى داخل التطبيق ثم اختر 'إلغاء التثبيت' (Désinstaller).",
+        { duration: 6000 }
+      );
+      return;
+    }
+
+    const promptToUse = deferredPrompt || (window as any).deferredPrompt;
+    if (!promptToUse) {
+      const userAgent = window.navigator.userAgent.toLowerCase();
+      if (/iphone|ipad|ipod/.test(userAgent)) {
+        toast.success("للتثبيت على آيفون: اضغط على زر المشاركة أسفل المتصفح ثم اختر 'إضافة للشاشة الرئيسية'");
+      } else {
+        toast.success("اضغط على زر النقاط الثلاث (┋) أعلى المتصفح ثم اختر 'تثبيت التطبيق' للتثبيت السريع.");
+      }
+      return;
+    }
+
+    try {
+      promptToUse.prompt();
+      const { outcome } = await promptToUse.userChoice;
+      if (outcome === 'accepted') {
+        (window as any).deferredPrompt = null;
+        setDeferredPrompt(null);
+        setIsStandalone(true);
+      }
+    } catch (err) {
+      console.error("PWA prompt error", err);
+    }
+  };
 
   const handleGoogleLogin = async () => {
     if (loading) return;
@@ -204,6 +287,37 @@ export default function Login() {
           animate={{ opacity: 1, y: 0 }}
           className="w-full bg-slate-900/40 backdrop-blur-3xl p-6 md:p-8 rounded-[3rem] shadow-2xl border border-slate-800/30 flex flex-col gap-y-6"
         >
+          {/* Simple Inline PWA Install/Uninstall button right on top-right of the login card */}
+          <div className="flex justify-end w-full -mb-2">
+            {isStandalone ? (
+              <button
+                type="button"
+                onClick={handlePwaAction}
+                className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-black text-amber-400 bg-amber-500/10 hover:bg-amber-500/20 rounded-xl border border-amber-500/25 active:scale-95 transition-all cursor-pointer shadow-lg shadow-amber-500/5 hover:-translate-y-0.5"
+                title="إلغاء التثبيت"
+                id="login-pwa-btn"
+              >
+                <Smartphone className="w-4 h-4 text-amber-400 animate-pulse" />
+                <span>إلغاء التثبيت (Désinstaller)</span>
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={handlePwaAction}
+                className="relative flex items-center gap-1.5 px-4 py-2 text-xs font-black text-white bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 rounded-xl active:scale-95 transition-all cursor-pointer shadow-xl shadow-purple-600/30 hover:-translate-y-0.5"
+                title="تثبيت التطبيق"
+                id="login-pwa-btn"
+              >
+                <span className="absolute -top-1 -left-1 flex h-2.5 w-2.5">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-purple-400 opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-purple-500"></span>
+                </span>
+                <Download className="w-4 h-4 animate-bounce shrink-0" />
+                <span>تثبيت التطبيق (Installer)</span>
+              </button>
+            )}
+          </div>
+
           {/* Religious Header Section */}
           <div className="text-center border-b border-slate-800/50 pb-6">
             <motion.h2 

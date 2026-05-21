@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Download, X, Smartphone, Share, PlusSquare, Sparkles, CheckCircle2, ChevronRight, HelpCircle } from 'lucide-react';
+import { toast } from 'react-hot-toast';
 
 export default function InstallPrompt() {
   const [isVisible, setIsVisible] = useState(false);
@@ -9,7 +10,7 @@ export default function InstallPrompt() {
 
   useEffect(() => {
     // 1. Check if the user has already dismissed this tutorial
-    const isTutorialShown = localStorage.getItem('pwa_teachdz_install_guide_v3_shown') === 'true';
+    const isTutorialShown = localStorage.getItem('pwa_teachdz_ver_v16_shown') === 'true';
     const showImmediately = localStorage.getItem('pwa_show_immediately') === 'true';
 
     // If already shown and we don't need to force show it, then exit
@@ -83,26 +84,41 @@ export default function InstallPrompt() {
   }, []);
 
   const handleDismiss = () => {
-    localStorage.setItem('pwa_teachdz_install_guide_v3_shown', 'true');
+    localStorage.setItem('pwa_teachdz_ver_v16_shown', 'true');
     setIsVisible(false);
   };
 
   const handleInstallClick = async () => {
     const promptToUse = deferredPrompt || (window as any).deferredPrompt;
     if (!promptToUse) {
-      handleDismiss();
+      // Prompt is null (common on iOS or before Chrome registers SW or during initial load)
+      if (deviceType === 'ios') {
+        toast.success("يرجى الضغط على زر المشاركة أسفل الشاشة ثم اختيار 'إضافة للشاشة الرئيسية'");
+      } else {
+        toast.success("اضغط على زر الخيارات (┋) أعلى المتصفح ثم اختر 'تثبيت التطبيق'");
+      }
       return;
     }
     
-    promptToUse.prompt();
-    const { outcome } = await promptToUse.userChoice;
-    
-    if (outcome === 'accepted') {
-      localStorage.setItem('pwa_teachdz_install_guide_v3_shown', 'true');
-      (window as any).deferredPrompt = null;
-      setDeferredPrompt(null);
+    try {
+      promptToUse.prompt();
+      const { outcome } = await promptToUse.userChoice;
+      
+      if (outcome === 'accepted') {
+        localStorage.setItem('pwa_teachdz_ver_v16_shown', 'true');
+        (window as any).deferredPrompt = null;
+        setDeferredPrompt(null);
+        setIsVisible(false);
+      }
+    } catch (err) {
+      console.error("Installation prompt error:", err);
+      // Fallback
+      if (deviceType === 'ios') {
+        toast.success("يرجى الضغط على زر المشاركة أسفل الشاشة ثم اختيار 'إضافة للشاشة الرئيسية'");
+      } else {
+        toast.success("اضغط على زر الخيارات (┋) أعلى المتصفح ثم اختر 'تثبيت التطبيق'");
+      }
     }
-    setIsVisible(false);
   };
 
   if (!isVisible) return null;
@@ -228,15 +244,14 @@ export default function InstallPrompt() {
 
           {/* Action buttons */}
           <div className="space-y-3">
-            {deferredPrompt && (
-              <button 
-                onClick={handleInstallClick}
-                className="w-full bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-505 text-white py-3.5 rounded-2xl text-xs font-black flex items-center justify-center gap-2 transition-all shadow-xl shadow-purple-600/35 hover:scale-[1.02] active:scale-[0.98]"
-              >
-                <Download className="w-4 h-4" />
-                تثبيت التطبيق الآن على الهاتف
-              </button>
-            )}
+            {/* Always visible installer button so the user can interact on first-time load immediately! */}
+            <button 
+              onClick={handleInstallClick}
+              className="w-full bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-505 text-white py-3.5 rounded-2xl text-xs font-black flex items-center justify-center gap-2 transition-all shadow-xl shadow-purple-600/35 hover:scale-[1.02] active:scale-[0.98]"
+            >
+              <Download className="w-4 h-4" />
+              تثبيت التطبيق الآن على الهاتف
+            </button>
 
             <button 
               onClick={handleDismiss}
