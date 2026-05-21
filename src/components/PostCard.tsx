@@ -102,6 +102,7 @@ export default function PostCard({ post, isGroupPost, groupId, onDelete }: { pos
   const [isInternalShareOpen, setIsInternalShareOpen] = useState(false);
   const reactionTimeoutRef = React.useRef<any>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const commentInputRef = useRef<HTMLTextAreaElement>(null);
 
   const collectionName = isGroupPost ? 'group_posts' : 'posts';
   const commentCollectionName = isGroupPost ? 'group_comments' : 'comments';
@@ -622,9 +623,13 @@ export default function PostCard({ post, isGroupPost, groupId, onDelete }: { pos
                   isPostOwner={profile?.uid === post.authorId}
                   canEdit={profile?.uid === c.authorId}
                   canDelete={profile?.uid === c.authorId}
+                  isGroupPost={isGroupPost}
                   onReply={(target) => {
                     setReplyTo(target);
-                    if (fileInputRef.current) fileInputRef.current.scrollIntoView({ behavior: 'smooth' });
+                    setTimeout(() => {
+                      commentInputRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                      commentInputRef.current?.focus();
+                    }, 100);
                   }}
                   onDelete={handleDeleteComment}
                 />
@@ -640,9 +645,13 @@ export default function PostCard({ post, isGroupPost, groupId, onDelete }: { pos
                       isPostOwner={profile?.uid === post.authorId}
                       canEdit={profile?.uid === reply.authorId}
                       canDelete={profile?.uid === reply.authorId}
+                      isGroupPost={isGroupPost}
                       onReply={() => {
                         setReplyTo(c); // Always reply to thread
-                        if (fileInputRef.current) fileInputRef.current.scrollIntoView({ behavior: 'smooth' });
+                        setTimeout(() => {
+                          commentInputRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                          commentInputRef.current?.focus();
+                        }, 100);
                       }}
                       onDelete={handleDeleteComment}
                     />
@@ -685,6 +694,7 @@ export default function PostCard({ post, isGroupPost, groupId, onDelete }: { pos
               </button>
               <div className="flex-1 relative">
                 <textarea 
+                  ref={commentInputRef}
                   value={newComment}
                   onChange={(e) => setNewComment(e.target.value)}
                   placeholder={replyTo ? "اكتب ردك..." : "اكتب تعليقاً..."}

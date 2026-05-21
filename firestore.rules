@@ -156,6 +156,8 @@ service cloud.firestore {
              (!('parentId' in data) || (data.parentId is string)) &&
              (!('replyTo' in data) || (data.replyTo is string)) &&
              (!('imageUrl' in data) || (data.imageUrl is string && data.imageUrl.size() <= 1000)) &&
+             (!('likes' in data) || (data.likes is list && data.likes.size() <= 10000)) &&
+             (!('reactions' in data) || (data.reactions is map)) &&
              (!('createdAt' in data) || (request.method == 'create' ? data.createdAt == request.time : data.createdAt == existing().createdAt));
     }
 
@@ -346,7 +348,10 @@ service cloud.firestore {
           incoming().diff(existing()).affectedKeys().hasOnly(['content']) &&
           incoming().authorId == existing().authorId &&
           incoming().postId == existing().postId
-        )) || isAdmin();
+        )) || (
+          // Social interactions (likes and reactions on comments)
+          isSignedIn() && incoming().diff(existing()).affectedKeys().hasOnly(['likes', 'reactions'])
+        ) || isAdmin();
       allow delete: if (isOwner(existing().authorId) || (isSignedIn() && exists(/databases/$(database)/documents/posts/$(existing().postId)) && get(/databases/$(database)/documents/posts/$(existing().postId)).data.authorId == request.auth.uid) || isAdmin());
     }
 
@@ -454,7 +459,8 @@ service cloud.firestore {
       allow list: if isSignedIn();
       allow create: if isSignedIn() && isValidComment(incoming());
       allow update: if isSignedIn() && (
-        (existing().authorId == request.auth.uid && isValidComment(incoming())) ||
+        (existing().authorId == request.auth.uid && isValidComment(incoming()) && incoming().diff(existing()).affectedKeys().hasOnly(['content'])) ||
+        (isSignedIn() && incoming().diff(existing()).affectedKeys().hasOnly(['likes', 'reactions'])) ||
         isAdmin()
       );
       allow delete: if (isSignedIn() && existing().authorId == request.auth.uid) || isAdmin();

@@ -18,6 +18,7 @@ interface CommentItemProps {
   canEdit?: boolean;
   isReply?: boolean;
   isPostOwner?: boolean;
+  isGroupPost?: boolean;
 }
 
 import ImageLightbox from './ImageLightbox';
@@ -30,7 +31,8 @@ export default function CommentItem({
   canDelete = false, 
   canEdit = false, 
   isReply = false,
-  isPostOwner = false
+  isPostOwner = false,
+  isGroupPost = false
 }: CommentItemProps) {
   const { profile } = useAuth();
   const [showMenu, setShowMenu] = useState(false);
@@ -40,6 +42,7 @@ export default function CommentItem({
   const [lightboxSrc, setLightboxSrc] = useState<string | null>(null);
   const pressTimer = useRef<any>(null);
 
+  const commentCollectionName = isGroupPost ? 'group_comments' : 'comments';
   const likes = comment.likes || [];
   const isLiked = profile?.uid ? likes.includes(profile.uid) : false;
 
@@ -49,7 +52,7 @@ export default function CommentItem({
     playSound('like');
     
     try {
-      await updateDoc(doc(db, 'comments', comment.id), {
+      await updateDoc(doc(db, commentCollectionName, comment.id), {
         likes: isLiked ? arrayRemove(profile.uid) : arrayUnion(profile.uid)
       });
     } catch (error) {
@@ -68,17 +71,17 @@ export default function CommentItem({
     }
 
     try {
-      await deleteDoc(doc(db, 'comments', comment.id));
+      await deleteDoc(doc(db, commentCollectionName, comment.id));
       playSound('notification');
     } catch (error) {
-      handleFirestoreError(error, OperationType.DELETE, `comments/${comment.id}`);
+      handleFirestoreError(error, OperationType.DELETE, `${commentCollectionName}/${comment.id}`);
     }
   };
 
   const handleUpdate = async () => {
     if (!editContent.trim()) return;
     try {
-      await updateDoc(doc(db, 'comments', comment.id), {
+      await updateDoc(doc(db, commentCollectionName, comment.id), {
         content: editContent,
         updatedAt: serverTimestamp()
       });
@@ -86,7 +89,7 @@ export default function CommentItem({
       setShowMenu(false);
       playSound('post');
     } catch (error) {
-      handleFirestoreError(error, OperationType.UPDATE, `comments/${comment.id}`);
+      handleFirestoreError(error, OperationType.UPDATE, `${commentCollectionName}/${comment.id}`);
     }
   };
 
