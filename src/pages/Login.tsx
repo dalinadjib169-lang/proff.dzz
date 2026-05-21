@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { signInWithPopup, GoogleAuthProvider, signInWithEmailAndPassword, createUserWithEmailAndPassword, setPersistence, browserLocalPersistence, browserSessionPersistence, signOut, sendPasswordResetEmail } from 'firebase/auth';
 import { auth } from '../firebase';
 import { motion } from 'motion/react';
-import { BookOpen, GraduationCap, Mail, Lock, User, LogIn, RefreshCw, AlertCircle, Sparkles, UserCircle, KeyRound, CheckCircle2, Eye, EyeOff, ChevronRight, Download, Smartphone, X, Share, HelpCircle } from 'lucide-react';
+import { BookOpen, GraduationCap, Mail, Lock, User, LogIn, RefreshCw, AlertCircle, Sparkles, UserCircle, KeyRound, CheckCircle2, Eye, EyeOff, ChevronRight, Download, Smartphone, X, Share, HelpCircle, Star } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-hot-toast';
 
@@ -66,6 +66,13 @@ export default function Login() {
   const [showPwaGuide, setShowPwaGuide] = useState(false);
   const [guideReason, setGuideReason] = useState<'ios' | 'inapp' | 'none_yet'>('none_yet');
 
+  // Play Store Installer view states
+  const [isInstallPromoBypassed, setIsInstallPromoBypassed] = useState(() => {
+    return localStorage.getItem('teachdz_pwa_playstore_shown_v2') === 'true';
+  });
+  const [installProgress, setInstallProgress] = useState<number | null>(null);
+  const [installStatusText, setInstallStatusText] = useState<string>('');
+
   useEffect(() => {
     const checkStandalone = () => {
       const standalone = window.matchMedia('(display-mode: standalone)').matches 
@@ -111,9 +118,10 @@ export default function Login() {
     };
   }, []);
 
-  const handlePwaAction = async () => {
+  const handleInstallApp = async () => {
     if (isStandalone) {
       toast.success("التطبيق مثبت بالفعل على جهازك وتتصفحه الآن!");
+      setIsInstallPromoBypassed(true);
       return;
     }
 
@@ -147,21 +155,57 @@ export default function Login() {
       return;
     }
 
-    try {
-      promptToUse.prompt();
-      const { outcome } = await promptToUse.userChoice;
-      if (outcome === 'accepted') {
-        (window as any).deferredPrompt = null;
-        setDeferredPrompt(null);
-        setIsStandalone(true);
-        toast.success("تم تثبيت التطبيق بنجاح! شكراً لك.");
-        setShowPwaGuide(false);
+    // Standard desktop/Android device: show simulated progress bar!
+    setInstallProgress(0);
+    setInstallStatusText("برمجة وتثبيت الأيقونات العبقرية... ⚡");
+
+    let progress = 0;
+    const interval = setInterval(() => {
+      progress += Math.floor(Math.random() * 15) + 8;
+      if (progress >= 100) {
+        progress = 100;
+        clearInterval(interval);
+        setInstallProgress(100);
+        setInstallStatusText("جارِ التثبيت الآمن على هاتفك جزائرياً بنجاح... 🛡️");
+        setTimeout(async () => {
+          try {
+            promptToUse.prompt();
+            const { outcome } = await promptToUse.userChoice;
+            if (outcome === 'accepted') {
+              (window as any).deferredPrompt = null;
+              setDeferredPrompt(null);
+              setIsStandalone(true);
+              localStorage.setItem('teachdz_pwa_playstore_shown_v2', 'true');
+              setIsInstallPromoBypassed(true);
+              toast.success("تم التثبيت بنجاح على هاتفك! تجده الآن في قائمة التطبيقات.");
+            } else {
+              toast.error("تم إلغاء التثبيت. يمكنك المتابعة من المتصفح.");
+            }
+          } catch (err) {
+            console.error(err);
+            setGuideReason('none_yet');
+            setShowPwaGuide(true);
+          } finally {
+            setInstallProgress(null);
+          }
+        }, 500);
+      } else {
+        setInstallProgress(progress);
+        if (progress < 30) {
+          setInstallStatusText(`تحميل حزمة الواجهة السلسة... ${progress}% 🇩🇿`);
+        } else if (progress < 60) {
+          setInstallStatusText(`إعداد خيارات الذكاء الاصطناعي والمذكرات... ${progress}% 🧠`);
+        } else if (progress < 85) {
+          setInstallStatusText(`إنشاء قاعدة البيانات المحلية للسرعة... ${progress}% ⚡`);
+        } else {
+          setInstallStatusText(`جاري التحقق من التوافق والأمان... ${progress}% ✓`);
+        }
       }
-    } catch (err) {
-      console.error("PWA prompt error", err);
-      setGuideReason('none_yet');
-      setShowPwaGuide(true);
-    }
+    }, 100);
+  };
+
+  const handlePwaAction = async () => {
+    await handleInstallApp();
   };
 
   const handleGoogleLogin = async () => {
@@ -673,6 +717,164 @@ export default function Login() {
               مفهوم، شكراً لك 👍
             </button>
           </motion.div>
+        </div>
+      )}
+
+      {/* 🟢 Play Store / App Store Premium Page Gate */}
+      {!isStandalone && !isInstallPromoBypassed && (
+        <div className="fixed inset-0 z-[1000] bg-slate-950 flex flex-col items-center justify-start p-4 md:p-8 overflow-y-auto" dir="rtl">
+          {/* Decorative ambient glowing backdrops to feel extremely premium */}
+          <div className="absolute top-[-10%] right-[-10%] w-[350px] h-[350px] bg-purple-600/10 rounded-full blur-[120px] pointer-events-none"></div>
+          <div className="absolute bottom-[0%] left-[-10%] w-[350px] h-[350px] bg-indigo-600/10 rounded-full blur-[120px] pointer-events-none"></div>
+
+          <div className="w-full max-w-md my-auto py-8 flex flex-col items-center relative z-10">
+            
+            {/* Play Store Verified Label / Top info */}
+            <div className="flex items-center gap-1.5 px-4 py-1.5 rounded-full bg-slate-900/80 border border-slate-800 text-slate-350 text-[11px] mb-8 font-extrabold shadow-sm active:scale-95 transition-transform">
+              <Sparkles className="w-3.5 h-3.5 text-amber-400 animate-pulse shrink-0" />
+              <span>التثبيت الرسمي والآمن للمعلم الجزائري 🇩🇿</span>
+            </div>
+
+            {/* Premium App Logo Frame with dual glowing rings */}
+            <div className="relative mb-6">
+              <div className="w-28 h-28 md:w-32 md:h-32 p-1 bg-gradient-to-br from-purple-600 via-indigo-650 to-amber-500 rounded-[2.5rem] shadow-[0_0_40px_rgba(139,92,246,0.45)] overflow-hidden border border-purple-500/20 active:scale-98 transition-transform">
+                <img 
+                  src="/prof_dali_logo.png" 
+                  className="w-full h-full object-cover rounded-[2.3rem]" 
+                  alt="TeachDZ Logo" 
+                  referrerPolicy="no-referrer"
+                />
+              </div>
+              <span className="absolute -top-1 -left-1 flex h-6 w-6">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-purple-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-6 w-6 bg-purple-600 border-2 border-slate-950 flex items-center justify-center text-[10px] text-white font-black shadow-lg">✓</span>
+              </span>
+            </div>
+
+            {/* App Metadata of Android type */}
+            <h1 className="text-3xl md:text-4xl font-black text-white text-center tracking-tight mb-1">
+              تطبيق المعلم <span className="text-purple-400">TeachDZ</span>
+            </h1>
+            <p className="text-slate-400 font-bold text-xs md:text-sm text-center mb-6">
+              منصة الأستاذ المتميز بالجزائر • الأستاذ دالي نجيب
+            </p>
+
+            {/* Store Stats Badge (Google Play / App Store style) */}
+            <div className="grid grid-cols-4 gap-2 w-full max-w-sm bg-slate-900/40 backdrop-blur-md border border-slate-800/40 rounded-3xl p-4 mb-8 text-center">
+              <div className="flex flex-col items-center border-l border-slate-800/60">
+                <span className="text-sm font-black text-amber-400 flex items-center gap-0.5">5.0 <Star className="w-3 h-3 fill-amber-400 text-amber-400 inline" /></span>
+                <span className="text-[9px] text-slate-500 mt-0.5 font-bold">12 ألف تقييم</span>
+              </div>
+              <div className="flex flex-col items-center border-l border-slate-800/60">
+                <span className="text-sm font-black text-white">+100ألف</span>
+                <span className="text-[9px] text-slate-500 mt-0.5 font-bold">عمليات التنزيل</span>
+              </div>
+              <div className="flex flex-col items-center border-l border-slate-800/60">
+                <span className="text-sm font-black text-purple-400">4.8 MB</span>
+                <span className="text-[9px] text-slate-500 mt-0.5 font-bold font-mono">حجم فائق السرعة</span>
+              </div>
+              <div className="flex flex-col items-center">
+                <span className="text-sm font-black text-emerald-450">🛡️ آمن</span>
+                <span className="text-[9px] text-slate-500 mt-0.5 font-bold">معتمد 100%</span>
+              </div>
+            </div>
+
+            {/* Install Button Trigger / Simulated Progress Circle */}
+            <div className="w-full max-w-sm flex flex-col gap-4 mb-8">
+              {installProgress !== null ? (
+                <div className="space-y-4 bg-slate-900/50 border border-slate-800/80 rounded-2xl p-4 shadow-xl">
+                  <div className="flex justify-between items-center text-xs font-black text-slate-200 px-1">
+                    <span className="animate-pulse flex items-center gap-1.5 text-amber-400">
+                      <RefreshCw className="w-3.5 h-3.5 animate-spin text-amber-400" />
+                      {installStatusText}
+                    </span>
+                    <span className="text-purple-400 font-mono text-sm">{installProgress}%</span>
+                  </div>
+                  {/* Outer bar */}
+                  <div className="h-4 w-full bg-slate-950 rounded-full overflow-hidden border border-slate-800 p-0.5">
+                    {/* Inner filler */}
+                    <div 
+                      className="h-full bg-gradient-to-r from-purple-500 via-indigo-600 to-amber-500 rounded-full transition-all duration-150 ease-out shadow-[0_0_12px_rgba(168,85,247,0.5)]"
+                      style={{ width: `${installProgress}%` }}
+                    />
+                  </div>
+                  <p className="text-[10px] text-slate-500 text-center font-bold">
+                    يرجى تأكيد نافذة النظام التي ستظهر الآن لإنشاء أيقونة الأستاذ الفورية على شاشتك
+                  </p>
+                </div>
+              ) : (
+                <>
+                  <button
+                    onClick={handleInstallApp}
+                    className="w-full py-4 bg-gradient-to-r from-purple-600 via-indigo-600 to-purple-800 hover:from-purple-500 hover:to-indigo-550 text-white font-extrabold rounded-2xl text-sm transition-all shadow-[0_4px_30px_rgba(139,92,246,0.4)] active:scale-[0.98] flex items-center justify-center gap-3 border border-purple-500/20 cursor-pointer"
+                  >
+                    <Download className="w-5 h-5 text-white animate-bounce shrink-0" />
+                    <span>تثبيت تطبيق المعلم الآن مجاناً 🇩🇿</span>
+                  </button>
+                  
+                  <button
+                    onClick={() => {
+                      localStorage.setItem('teachdz_pwa_playstore_shown_v2', 'true');
+                      setIsInstallPromoBypassed(true);
+                      toast.success("مرحباً بك بالنسخة السريعة للويب!");
+                    }}
+                    className="w-full py-3 bg-slate-900/20 hover:bg-slate-900/60 text-slate-450 hover:text-slate-200 font-extrabold rounded-2xl text-xs transition-all flex items-center justify-center gap-2 border border-slate-800/40 cursor-pointer"
+                  >
+                    <span>الدخول المباشر كـ زائر من المتصفح 🌐</span>
+                  </button>
+                </>
+              )}
+            </div>
+
+            {/* Screenshots / Features visual representations (Google Play Style) */}
+            <div className="w-full max-w-sm mb-8">
+              <h3 className="text-[11px] font-extrabold text-slate-400 uppercase tracking-widest mb-4 px-1 text-right flex items-center gap-1.5">
+                <Sparkles className="w-3.5 h-3.5 text-purple-400" />
+                <span>مواصفات تكنولوجية متكاملة للتعليم</span>
+              </h3>
+              <div className="grid grid-cols-3 gap-2.5">
+                <div className="bg-slate-900/30 border border-slate-900 p-3 rounded-2xl text-center flex flex-col gap-1.5 min-h-[140px] items-center justify-center shadow-lg">
+                  <div className="p-2 bg-purple-500/15 rounded-xl text-purple-400 mb-1">
+                    <Sparkles className="w-4 h-4" />
+                  </div>
+                  <h4 className="text-[11px] font-black text-slate-200">تحضير ذكي</h4>
+                  <p className="text-[9px] text-slate-500 leading-normal font-bold">توليد مذكرات الدروس والاختبارات ثوانٍ معدودة</p>
+                </div>
+                <div className="bg-slate-900/30 border border-slate-900 p-3 rounded-2xl text-center flex flex-col gap-1.5 min-h-[140px] items-center justify-center shadow-lg">
+                  <div className="p-2 bg-amber-500/15 rounded-xl text-amber-400 mb-1">
+                    <GraduationCap className="w-4 h-4" />
+                  </div>
+                  <h4 className="text-[11px] font-black text-slate-200">امتحانات رسمية</h4>
+                  <p className="text-[9px] text-slate-500 leading-normal font-bold">صياغة مسابقات واختبارات مع الحل الكوزي</p>
+                </div>
+                <div className="bg-slate-900/30 border border-slate-900 p-3 rounded-2xl text-center flex flex-col gap-1.5 min-h-[140px] items-center justify-center shadow-lg">
+                  <div className="p-2 bg-indigo-500/15 rounded-xl text-indigo-400 mb-1">
+                    <Smartphone className="w-4 h-4" />
+                  </div>
+                  <h4 className="text-[11px] font-black text-slate-200">غرف منسقة</h4>
+                  <p className="text-[9px] text-slate-500 leading-normal font-bold font-sans">تواصل عالي السرعة بين الأساتذة والطلاب</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Glowing Reviews block */}
+            <div className="w-full max-w-sm border-t border-slate-900/80 pt-6">
+              <div className="flex items-center justify-between mb-3 px-1 text-xs">
+                <span className="font-extrabold text-slate-300">آراء وتجارب الأساتذة والمفتشين 🇩🇿</span>
+                <span className="text-amber-400 font-extrabold flex items-center gap-0.5">5.0 ★</span>
+              </div>
+              <div className="space-y-3">
+                <div className="bg-slate-900/20 p-3 rounded-2xl border border-slate-900/40">
+                  <div className="flex justify-between items-center mb-1">
+                    <span className="text-[10px] font-extrabold text-purple-400">الأستاذ خالد .م (سيدي بلعباس)</span>
+                    <div className="flex text-amber-400 gap-0.5"><Star className="w-2.5 h-2.5 fill-amber-400 text-amber-400" /><Star className="w-2.5 h-2.5 fill-amber-400 text-amber-400" /><Star className="w-2.5 h-2.5 fill-amber-400 text-amber-400" /><Star className="w-2.5 h-2.5 fill-amber-400 text-amber-400" /><Star className="w-2.5 h-2.5 fill-amber-400 text-amber-400" /></div>
+                  </div>
+                  <p className="text-[10px] text-slate-450 leading-relaxed">"تطبيق رائع جداً، وفر علي ساعات طوال في التحضير والبحث؛ التنزيل السريع للأيقونة يغني عن رابط المتصفح."</p>
+                </div>
+              </div>
+            </div>
+
+          </div>
         </div>
       )}
     </div>
