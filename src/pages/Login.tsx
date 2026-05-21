@@ -376,7 +376,7 @@ export default function Login() {
             </div>
             
             <div className="flex items-center gap-3 mb-2">
-              <h1 className="text-3xl md:text-4xl font-black text-white tracking-tighter">TeachDZ</h1>
+              <h1 className="text-3xl md:text-4xl font-black bg-gradient-to-r from-white via-purple-300 to-indigo-300 bg-clip-text text-transparent tracking-tighter drop-shadow-[0_0_15px_rgba(168,85,247,0.75)] filter">TeachDZ</h1>
             </div>
             
             <div className="flex flex-col items-center gap-1">
@@ -634,52 +634,34 @@ export default function Login() {
                 <img src="/prof_dali_logo.png" className="w-full h-full object-cover" alt="TeachDZ" />
               </div>
               <h3 className="text-lg font-black text-white">تثبيت تطبيق المعلم TeachDZ 🇩🇿</h3>
-              <p className="text-xs text-slate-400 mt-1">تابع هذه الخطوات البسيطة لتثبيت التطبيق على شاشتك فوراً:</p>
+              <p className="text-xs text-slate-400 mt-1">تصفح منصتك فوراً بنقرة واحدة سريعة ومباشرة على شاشتك:</p>
             </div>
 
             <div className="bg-slate-950/60 border border-slate-800 rounded-2xl p-4 text-xs space-y-3 leading-relaxed">
-              {guideReason === 'inapp' && (
+              {guideReason === 'inapp' ? (
                 <>
-                  <p className="text-amber-400 font-bold text-center">⚠️ تنبيه: متصفح غير مدعوم للتثبيت</p>
-                  <p>أنت تتصفح حالياً من داخل تطبيق تواصل (مثل ماسنجر، فيسبوك أو واتساب) والذي يمنع التثبيت التلقائي للأيقونات.</p>
-                  <p className="font-bold text-white">الحل البسيط بمجرد كبسة واحدة:</p>
-                  <ol className="list-decimal list-inside space-y-1.5 text-slate-350">
-                    <li>اضغط على رمز <span className="text-amber-400 font-extrabold">النقاط الثلاث ┋ أو المربع بالأعلى</span>.</li>
+                  <p className="text-amber-400 font-bold text-center">⚠️ تنبيه: متصفح التواصل يمنع التثبيت</p>
+                  <p>أنت تتصفح حالياً من داخل تطبيق تواصل ماليء بالقيود. لإنشاء الاختصار بنجاح:</p>
+                  <ol className="list-decimal list-inside space-y-1 text-slate-350">
+                    <li>اضغط على زر <span className="text-amber-400 font-extrabold">النقاط الثلاث ┋ بالأعلى</span>.</li>
                     <li>اختر <span className="text-purple-400 font-extrabold">"الفتح في متصفح كروم / النظام"</span> (Ouvrir dans Chrome).</li>
-                    <li>اضغط زر <span className="text-purple-400 font-extrabold">تثبيت التطبيق (Installer)</span> الذي سيظهر لتثبيته فوراً!</li>
                   </ol>
                   <button
                     onClick={() => {
                       navigator.clipboard.writeText("https://proff-dzz.vercel.app/");
-                      toast.success("تم نسخ رابط المنصة! افتحه في متصفح كروم الآن.");
+                      toast.success("تم نسخ رابط المنصة! افتحه في كروم الآن.");
                     }}
                     className="w-full py-2 bg-slate-850 hover:bg-slate-800 text-white font-black rounded-xl transition-all mt-2 flex items-center justify-center gap-1.5 text-[11px]"
                   >
                     نسخ رابط المنصة لتفتحه في كروم 🔗
                   </button>
                 </>
-              )}
-
-              {guideReason === 'ios' && (
+              ) : (
                 <>
-                  <p className="text-purple-400 font-bold">📱 تثبيت فوري على آيفون وآيباد (Safari):</p>
-                  <ol className="list-decimal list-inside space-y-2 text-slate-300">
-                    <li>اضغط على زر المشاركة <span className="text-blue-400 font-extrabold">"Partager"</span> <Share className="w-3.5 h-3.5 inline mx-1" /> المتواجد أسفل المتصفح سفاري.</li>
-                    <li>قم بالتمرير للأسفل واختر <span className="text-emerald-400 font-extrabold">"إضافة للشاشة الرئيسية"</span> (Sur l'écran d'accueil) ➕.</li>
-                    <li>اضغط على <span className="text-white font-extrabold">"إضافة" (Ajouter)</span> لتظهر الأيقونة فوراً على شاشتك!</li>
-                  </ol>
-                </>
-              )}
-
-              {guideReason === 'none_yet' && (
-                <>
-                  <p className="text-purple-400 font-bold">📢 التثبيت بضغطة واحدة من كروم:</p>
-                  <p>إذا لم تظهر لك نافذة التثبيت التلقائية في كروم، يمكنك تفعيلها يدوياً:</p>
-                  <ol className="list-decimal list-inside space-y-1.5 text-slate-300">
-                    <li>اضغط على خيارات المتصفح الخاص بك <span className="text-amber-400 font-black">(النقاط الثلاث ┋ بالأعلى)</span>.</li>
-                    <li>اختر <span className="text-purple-400 font-black">"تثبيت التطبيق"</span> (Installer) أو <span className="text-purple-400 font-black">"إضافة إلى الشاشة الرئيسية"</span>.</li>
-                  </ol>
-                  <p className="text-[10px] text-slate-500 mt-2 leading-relaxed">يمكنك تشغيل الرابط الخارجي المباشر والتثبيت من متصفح كروم أو سفاري مجاناً في أي وقت: <a href="https://proff-dzz.vercel.app/" target="_blank" rel="noopener noreferrer" className="text-purple-500 underline ml-1">proff-dzz.vercel.app</a></p>
+                  <p className="text-purple-450 font-bold text-center">✨ منصة الأساتذة والطلاب الجزائرية</p>
+                  <p className="text-slate-300 text-center">
+                    متصفحك يدعم التثبيت المباشر بنقرة واحدة فقط. يرجى الضغط على زر التثبيت بالاختصار بالأعلى أو بخيارات المتصفح (┋) لإنشاء الأيقونة الأنيقة للبروفيسور على هاتفك فوراً!
+                  </p>
                 </>
               )}
             </div>
@@ -688,7 +670,7 @@ export default function Login() {
               onClick={() => setShowPwaGuide(false)}
               className="w-full py-3 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-505 text-white font-black rounded-xl text-xs transition-colors shadow-lg active:scale-95"
             >
-              مفهوم، سأتابع التثبيت 👍
+              مفهوم، شكراً لك 👍
             </button>
           </motion.div>
         </div>

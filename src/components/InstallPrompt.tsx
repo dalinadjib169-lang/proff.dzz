@@ -181,100 +181,35 @@ export default function InstallPrompt() {
             </p>
           </div>
 
-          {/* Core Walkthrough */}
-          <div className="space-y-4 mb-6">
-            <div className="bg-slate-950/60 rounded-3xl p-5 border border-slate-800/80 space-y-4">
-              <h4 className="font-bold text-sm text-purple-400 flex items-center gap-2">
-                <HelpCircle className="w-4 h-4" />
-                خطوات التثبيت السهلة:
-              </h4>
-
-              {deferredPrompt ? (
-                // Official installer path is active
-                <div className="flex items-start gap-3">
-                  <div className="w-7 h-7 bg-purple-500/10 text-purple-400 rounded-xl flex items-center justify-center shrink-0 font-mono text-xs font-black">١</div>
-                  <div className="space-y-1">
-                    <p className="text-xs text-slate-100 font-bold">تثبيت فوري ومباشر</p>
-                    <p className="text-[11px] text-slate-400">متصفحك يدعم التثبيت المباشر كـ تطبيق كامل. اضغط على الزر البنفسجي أدناه لإنشاء الاختصار فوراً!</p>
-                  </div>
-                </div>
-              ) : deviceType === 'inapp' ? (
-                // In-App Browser warning and solutions
-                <div className="space-y-3 font-medium text-slate-200">
-                  <p className="text-amber-400 font-bold text-center">⚠️ تنبيه: متصفح التواصل يمنع التثبيت</p>
-                  <p className="text-xs text-slate-300">أنت تتصفح حالياً من داخل تطبيق تواصل (مثل ماسنجر، فيسبوك أو واتساب) المانع للتثبيت كاختصار.</p>
-                  <div className="flex items-start gap-3">
-                    <div className="w-7 h-7 bg-purple-500/10 text-purple-400 rounded-xl flex items-center justify-center shrink-0 font-mono text-xs font-black">١</div>
-                    <p className="text-xs text-slate-200">اضغط على زر <strong className="text-white">النقاط الثلاث ┋ أو أيقونة البوصلة/المتصفح</strong> في الزاوية بالأعلى.</p>
-                  </div>
-                  <div className="flex items-start gap-3">
-                    <div className="w-7 h-7 bg-purple-500/10 text-purple-400 rounded-xl flex items-center justify-center shrink-0 font-mono text-xs font-black">٢</div>
-                    <p className="text-xs text-slate-200">اختر <strong className="text-white">"الفتح في متصفح كروم / سفاري"</strong> (Ouvrir dans Chrome).</p>
-                  </div>
-                  <div className="flex items-start gap-3">
-                    <div className="w-7 h-7 bg-purple-500/10 text-purple-400 rounded-xl flex items-center justify-center shrink-0 font-mono text-xs font-black">٣</div>
-                    <p className="text-xs text-slate-200">اضغط زر التثبيت الذي سيظهر فوراً لتشغيل التطبيق والتمتع بالأيقونة الراقية على هاتفك!</p>
-                  </div>
+          {/* Core Visual Presentation (Simplified without step-by-step text) */}
+          <div className="space-y-4 mb-6 text-center">
+            <div className="bg-slate-950/40 rounded-3xl p-5 border border-slate-800/60 shadow-inner">
+              {deviceType === 'inapp' ? (
+                <div className="space-y-3">
+                  <p className="text-amber-400 font-bold text-sm">⚠️ تنبيه: متصفح التواصل يمنع التثبيت المباشر</p>
+                  <p className="text-xs text-slate-300 leading-relaxed">
+                    أنت تتصفح حالياً من داخل تطبيق تواصل (مثل ماسنجر أو فيسبوك) المانع للتثبيت. يرجى فتح الرابط في متصفح النظام (أو نسخ الرابط وفتحه في كروم) لإنشاء الاختصار فوراً!
+                  </p>
                   <button
                     onClick={() => {
                       navigator.clipboard.writeText("https://proff-dzz.vercel.app/");
                       toast.success("تم نسخ رابط المنصة! افتحه في كروم الآن.");
                     }}
-                    className="w-full py-2 bg-slate-800 hover:bg-slate-750 text-white font-extrabold rounded-2xl transition-all mt-1 flex items-center justify-center gap-1 text-xs"
+                    className="w-full py-2 bg-slate-800/80 hover:bg-slate-750 text-white font-bold rounded-xl transition-all mt-1 flex items-center justify-center gap-1.5 text-xs border border-slate-700/50"
                   >
-                    نسخ رابط المنصة لتفتحه بمتصفحك المفضل 🔗
+                    نسخ رابط المنصة لتفتحه في متصفح كروم 🔗
                   </button>
                 </div>
-              ) : deviceType === 'ios' ? (
-                // iOS Safary instructions
-                <div className="space-y-3 font-medium">
-                  <div className="flex items-start gap-3">
-                    <div className="w-7 h-7 bg-purple-500/10 text-purple-400 rounded-xl flex items-center justify-center shrink-0 font-mono text-xs font-black">١</div>
-                    <div className="space-y-0.5">
-                      <p className="text-xs text-slate-200">اضغط على زر المشاركة <strong className="text-white">"Partager"</strong> أو أيقونة <Share className="w-4 h-4 inline mx-1 text-blue-400" /> في متصفح Safari أسفل شاشة الهاتف.</p>
-                    </div>
-                  </div>
-                  <div className="flex items-start gap-3">
-                    <div className="w-7 h-7 bg-purple-500/10 text-purple-400 rounded-xl flex items-center justify-center shrink-0 font-mono text-xs font-black">٢</div>
-                    <div className="space-y-0.5">
-                      <p className="text-xs text-slate-200">قم بالتمرير لأسفل القائمة قليلاً ثم اختر <strong className="text-white">"Sur l'écran d'accueil"</strong> أو <strong className="text-white">"إضافة إلى الشاشة الرئيسية"</strong> <PlusSquare className="w-4 h-4 inline mx-1 text-emerald-500" />.</p>
-                    </div>
-                  </div>
-                  <div className="flex items-start gap-3">
-                    <div className="w-7 h-7 bg-purple-500/10 text-purple-400 rounded-xl flex items-center justify-center shrink-0 font-mono text-xs font-black">٣</div>
-                    <div className="space-y-0.5">
-                      <p className="text-xs text-slate-200">اضغط على <strong className="text-white">"إضافة/Ajouter"</strong> في الأعلى لتجد الاختصار بأيقونة المنصة على شاشتك الرئيسية.</p>
-                    </div>
-                  </div>
-                </div>
               ) : (
-                // Android Chrome / Others instructions
-                <div className="space-y-3 font-medium">
-                  <div className="flex items-start gap-3">
-                    <div className="w-7 h-7 bg-purple-500/10 text-purple-400 rounded-xl flex items-center justify-center shrink-0 font-mono text-xs font-black">١</div>
-                    <div className="space-y-0.5">
-                      <p className="text-xs text-slate-200">اضغط على زر النقاط الثلاث <strong className="text-white">┋</strong> في أعلى يسار أو يمين المتصفح (Chrome).</p>
-                    </div>
-                  </div>
-                  <div className="flex items-start gap-3">
-                    <div className="w-7 h-7 bg-purple-500/10 text-purple-400 rounded-xl flex items-center justify-center shrink-0 font-mono text-xs font-black">٢</div>
-                    <div className="space-y-0.5">
-                      <p className="text-xs text-slate-200">بحث عن خيار <strong className="text-white">"تثبيت التطبيق" (Installer l'application)</strong> أو <strong className="text-white">"إضافة إلى الشاشة الرئيسية"</strong>.</p>
-                    </div>
-                  </div>
-                  <div className="flex items-start gap-3">
-                    <div className="w-7 h-7 bg-purple-500/10 text-purple-400 rounded-xl flex items-center justify-center shrink-0 font-mono text-xs font-black">٣</div>
-                    <div className="space-y-0.5">
-                      <p className="text-xs text-slate-200">اضغط تأكيد وسيتم تثبيت التطبيق وتظهر أيقونة المنصة فوراً على شاشتك للوصول السريع!</p>
-                    </div>
-                  </div>
-                </div>
+                <p className="text-xs text-slate-300 leading-relaxed py-1">
+                  منصتك التعليمية المتكاملة جاهزة الآن لتكون على هاتفكم بلمسة واحدة. اضغط على الزر أدناه لتثبيت التطبيق مباشرة والاستمتاع بالأيقونة الرسمية المميزة للبروفيسور وسرعة التصفح الفائقة!
+                </p>
               )}
             </div>
             
-            <div className="flex items-center gap-2 text-[10px] text-slate-500 font-bold px-2">
+            <div className="flex items-center justify-center gap-2 text-[10px] text-slate-500 font-bold px-2">
               <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />
-              <span>ستظهر هذه الرسالة التوضيحية لمرة واحدة فقط لتسهيل دخولك لاحقاً.</span>
+              <span>ستظهر هذه النافذة لمرة واحدة فقط لتسهيل وصولك واختصار خطواتك.</span>
             </div>
           </div>
 
