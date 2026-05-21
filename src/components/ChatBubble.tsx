@@ -930,7 +930,7 @@ export default function ChatBubble() {
     
     if (!participantsValue) return;
 
-    const q = activeChat.isGroup || activeChat.uid === 'global' ? 
+    const q = activeChat.uid === 'global' ? 
       query(
         collection(db, 'messages'),
         where('roomId', '==', roomId),
@@ -940,7 +940,7 @@ export default function ChatBubble() {
       query(
         collection(db, 'messages'),
         where('roomId', '==', roomId),
-        where('participants', 'array-contains', participantsValue),
+        where('participants', 'array-contains', profile.uid),
         orderBy('createdAt', 'desc'),
         limit(100)
       );

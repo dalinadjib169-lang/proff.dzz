@@ -110,7 +110,17 @@ service cloud.firestore {
              (!('usage' in data) || (data.usage is map)) &&
              (!('reminders' in data) || (data.reminders is map)) &&
              (!('peerId' in data) || (data.peerId is string && data.peerId.size() <= 200)) &&
-             (!('settings' in data) || (data.settings is map));
+             (!('settings' in data) || (data.settings is map)) &&
+             (!('weight' in data) || (data.weight is number)) &&
+             (!('height' in data) || (data.height is number)) &&
+             (!('age' in data) || (data.age is number)) &&
+             (!('totalActivityMinutes' in data) || (data.totalActivityMinutes is number)) &&
+             (!('sleepHours' in data) || (data.sleepHours is number)) &&
+             (!('sleepQuality' in data) || (data.sleepQuality is number)) &&
+             (!('deepSleepHours' in data) || (data.deepSleepHours is number)) &&
+             (!('updatedAt' in data) || (data.updatedAt is timestamp)) &&
+             (!('isGroup' in data) || (data.isGroup is bool)) &&
+             (!('participants' in data) || (data.participants is list));
     }
 
     function isValidUserPrivateData(data) {
@@ -296,7 +306,7 @@ service cloud.firestore {
       allow get: if isSignedIn();
       allow list: if isSignedIn();
       allow create: if isOwner(userId) && isValidUserProfile(incoming());
-      allow update: if (isOwner(userId) && (
+      allow update: if (isOwner(userId) && isValidUserProfile(incoming()) && (
           incoming().uid == existing().uid &&
           (incoming().createdAt == existing().createdAt || !('createdAt' in incoming()))
         )) || (

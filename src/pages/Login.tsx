@@ -91,6 +91,7 @@ export default function Login() {
       const result = await signInWithPopup(auth, provider);
       
       console.log("Google Login successful for user:", result.user.email);
+      localStorage.setItem('pwa_show_immediately', 'true');
     } catch (err: any) {
       console.error("Google Login Error:", err);
       const currentDomain = window.location.hostname;
@@ -155,8 +156,10 @@ export default function Login() {
           lastName: lastName || 'جديد',
           phone: authMethod === 'phone' ? phone : null
         }));
+        localStorage.setItem('pwa_show_immediately', 'true');
       } else {
         await signInWithEmailAndPassword(auth, finalEmail, password);
+        localStorage.setItem('pwa_show_immediately', 'true');
       }
     } catch (err: any) {
       console.error("Email Auth Error:", err);
