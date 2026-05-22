@@ -150,58 +150,34 @@ export default function Login() {
 
     const promptToUse = deferredPrompt || (window as any).deferredPrompt;
     if (!promptToUse) {
-      setGuideReason('none_yet');
-      setShowPwaGuide(true);
+      // If prompt is not available yet (first second of landing), show a helpful Toast and wait for user's next click
+      toast.loading("جاري ربط متفصحك بمثبت التطبيقات... انقر مجدداً لتثبيت فوري الآن 🚀", { id: 'pwa-init', duration: 2500 });
+      if ((window as any).deferredPrompt) {
+        setDeferredPrompt((window as any).deferredPrompt);
+      }
       return;
     }
 
-    // Standard desktop/Android device: show simulated progress bar!
-    setInstallProgress(0);
-    setInstallStatusText("برمجة وتثبيت الأيقونات العبقرية... ⚡");
-
-    let progress = 0;
-    const interval = setInterval(() => {
-      progress += Math.floor(Math.random() * 15) + 8;
-      if (progress >= 100) {
-        progress = 100;
-        clearInterval(interval);
-        setInstallProgress(100);
-        setInstallStatusText("جارِ التثبيت الآمن على هاتفك جزائرياً بنجاح... 🛡️");
-        setTimeout(async () => {
-          try {
-            promptToUse.prompt();
-            const { outcome } = await promptToUse.userChoice;
-            if (outcome === 'accepted') {
-              (window as any).deferredPrompt = null;
-              setDeferredPrompt(null);
-              setIsStandalone(true);
-              localStorage.setItem('teachdz_pwa_playstore_shown_v2', 'true');
-              setIsInstallPromoBypassed(true);
-              toast.success("تم التثبيت بنجاح على هاتفك! تجده الآن في قائمة التطبيقات.");
-            } else {
-              toast.error("تم إلغاء التثبيت. يمكنك المتابعة من المتصفح.");
-            }
-          } catch (err) {
-            console.error(err);
-            setGuideReason('none_yet');
-            setShowPwaGuide(true);
-          } finally {
-            setInstallProgress(null);
-          }
-        }, 500);
+    // Standard desktop/Android device: Synchronous trigger directly upon user click!
+    try {
+      // Instantly call the browser's native PWA installation dialog
+      await promptToUse.prompt();
+      const { outcome } = await promptToUse.userChoice;
+      if (outcome === 'accepted') {
+        (window as any).deferredPrompt = null;
+        setDeferredPrompt(null);
+        setIsStandalone(true);
+        localStorage.setItem('teachdz_pwa_playstore_shown_v2', 'true');
+        setIsInstallPromoBypassed(true);
+        toast.success("تم تثبيت التطبيق بنجاح! ستجد الأيقونة مضافة لهاتفك الآن.");
       } else {
-        setInstallProgress(progress);
-        if (progress < 30) {
-          setInstallStatusText(`تحميل حزمة الواجهة السلسة... ${progress}% 🇩🇿`);
-        } else if (progress < 60) {
-          setInstallStatusText(`إعداد خيارات الذكاء الاصطناعي والمذكرات... ${progress}% 🧠`);
-        } else if (progress < 85) {
-          setInstallStatusText(`إنشاء قاعدة البيانات المحلية للسرعة... ${progress}% ⚡`);
-        } else {
-          setInstallStatusText(`جاري التحقق من التوافق والأمان... ${progress}% ✓`);
-        }
+        toast.error("تم إلغاء التثبيت. يمكنك الاستمرار بالمتصفح أو المحاولة لاحقاً.");
       }
-    }, 100);
+    } catch (err) {
+      console.error("Direct PWA installer prompt triggered failure:", err);
+      setGuideReason('none_yet');
+      setShowPwaGuide(true);
+    }
   };
 
   const handlePwaAction = async () => {
@@ -609,25 +585,6 @@ export default function Login() {
           )}
         </form>
 
-        <div className="my-6 flex items-center gap-4">
-          <div className="h-px flex-1 bg-slate-800/50"></div>
-          <span className="text-slate-600 text-sm font-medium uppercase tracking-wider">or</span>
-          <div className="h-px flex-1 bg-slate-800/50"></div>
-        </div>
-
-        <button
-          onClick={handleGoogleLogin}
-          disabled={loading}
-          className={`w-full py-3 bg-slate-950/50 border border-slate-800/50 hover:bg-slate-900/50 text-white font-bold rounded-xl transition-all flex items-center justify-center gap-3 ${loading ? 'opacity-50 cursor-not-allowed' : 'active:scale-[0.98]'}`}
-        >
-          {loading ? (
-            <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-          ) : (
-            <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" className="w-5 h-5" alt="Google" />
-          )}
-          {loading ? 'Authenticating...' : 'Continue with Google'}
-        </button>
-
         <p className="mt-8 text-center text-slate-500 font-medium">
           {isRegister ? 'لديك حساب بالفعل؟' : "ليس لديك حساب؟"}{' '}
           <button
@@ -700,9 +657,18 @@ export default function Login() {
                     نسخ رابط المنصة لتفتحه في كروم 🔗
                   </button>
                 </>
+              ) : guideReason === 'ios' ? (
+                <>
+                  <p className="text-purple-400 font-bold text-center">🍏 هواتف الأبل (Safari iPhone):</p>
+                  <ol className="list-decimal list-inside space-y-2 text-slate-350">
+                    <li>اضغط على زر <span className="text-purple-400 font-extrabold">المشاركة (Share)</span> بأسفل شاشة سفاري.</li>
+                    <li>قم بالتمرير لأسفل واختر <span className="text-white font-extrabold">"إضافة للشاشة الرئيسية"</span> (Sur l'écran d'accueil).</li>
+                    <li>أكد الإضافة كأيقونة مستقلة فوراً!</li>
+                  </ol>
+                </>
               ) : (
                 <>
-                  <p className="text-purple-450 font-bold text-center">✨ منصة الأساتذة والطلاب الجزائرية</p>
+                  <p className="text-purple-455 font-bold text-center">✨ منصة الأساتذة والطلاب الجزائرية</p>
                   <p className="text-slate-300 text-center">
                     متصفحك يدعم التثبيت المباشر بنقرة واحدة فقط. يرجى الضغط على زر التثبيت بالاختصار بالأعلى أو بخيارات المتصفح (┋) لإنشاء الأيقونة الأنيقة للبروفيسور على هاتفك فوراً!
                   </p>
@@ -725,12 +691,12 @@ export default function Login() {
         <div className="fixed inset-0 z-[1000] bg-slate-950 flex flex-col items-center justify-start p-4 md:p-8 overflow-y-auto" dir="rtl">
           {/* Decorative ambient glowing backdrops to feel extremely premium */}
           <div className="absolute top-[-10%] right-[-10%] w-[350px] h-[350px] bg-purple-600/10 rounded-full blur-[120px] pointer-events-none"></div>
-          <div className="absolute bottom-[0%] left-[-10%] w-[350px] h-[350px] bg-indigo-600/10 rounded-full blur-[120px] pointer-events-none"></div>
+          <div className="absolute bottom-[0%] left-[-10%] w-[350px] h-[350px] bg-indigo-650/10 rounded-full blur-[120px] pointer-events-none"></div>
 
           <div className="w-full max-w-md my-auto py-8 flex flex-col items-center relative z-10">
             
             {/* Play Store Verified Label / Top info */}
-            <div className="flex items-center gap-1.5 px-4 py-1.5 rounded-full bg-slate-900/80 border border-slate-800 text-slate-350 text-[11px] mb-8 font-extrabold shadow-sm active:scale-95 transition-transform">
+            <div className="flex items-center gap-1.5 px-4 py-1.5 rounded-full bg-slate-900/80 border border-slate-800 text-slate-300 text-[11px] mb-8 font-extrabold shadow-sm active:scale-95 transition-transform">
               <Sparkles className="w-3.5 h-3.5 text-amber-400 animate-pulse shrink-0" />
               <span>التثبيت الرسمي والآمن للمعلم الجزائري 🇩🇿</span>
             </div>
@@ -761,7 +727,7 @@ export default function Login() {
 
             {/* Store Stats Badge (Google Play / App Store style) */}
             <div className="grid grid-cols-4 gap-2 w-full max-w-sm bg-slate-900/40 backdrop-blur-md border border-slate-800/40 rounded-3xl p-4 mb-8 text-center">
-              <div className="flex flex-col items-center border-l border-slate-800/60">
+              <div className="flex flex-col items-center border-l border-slate-800/60 font-medium">
                 <span className="text-sm font-black text-amber-400 flex items-center gap-0.5">5.0 <Star className="w-3 h-3 fill-amber-400 text-amber-400 inline" /></span>
                 <span className="text-[9px] text-slate-500 mt-0.5 font-bold">12 ألف تقييم</span>
               </div>
@@ -779,51 +745,26 @@ export default function Login() {
               </div>
             </div>
 
-            {/* Install Button Trigger / Simulated Progress Circle */}
+            {/* Install Button Trigger */}
             <div className="w-full max-w-sm flex flex-col gap-4 mb-8">
-              {installProgress !== null ? (
-                <div className="space-y-4 bg-slate-900/50 border border-slate-800/80 rounded-2xl p-4 shadow-xl">
-                  <div className="flex justify-between items-center text-xs font-black text-slate-200 px-1">
-                    <span className="animate-pulse flex items-center gap-1.5 text-amber-400">
-                      <RefreshCw className="w-3.5 h-3.5 animate-spin text-amber-400" />
-                      {installStatusText}
-                    </span>
-                    <span className="text-purple-400 font-mono text-sm">{installProgress}%</span>
-                  </div>
-                  {/* Outer bar */}
-                  <div className="h-4 w-full bg-slate-950 rounded-full overflow-hidden border border-slate-800 p-0.5">
-                    {/* Inner filler */}
-                    <div 
-                      className="h-full bg-gradient-to-r from-purple-500 via-indigo-600 to-amber-500 rounded-full transition-all duration-150 ease-out shadow-[0_0_12px_rgba(168,85,247,0.5)]"
-                      style={{ width: `${installProgress}%` }}
-                    />
-                  </div>
-                  <p className="text-[10px] text-slate-500 text-center font-bold">
-                    يرجى تأكيد نافذة النظام التي ستظهر الآن لإنشاء أيقونة الأستاذ الفورية على شاشتك
-                  </p>
-                </div>
-              ) : (
-                <>
-                  <button
-                    onClick={handleInstallApp}
-                    className="w-full py-4 bg-gradient-to-r from-purple-600 via-indigo-600 to-purple-800 hover:from-purple-500 hover:to-indigo-550 text-white font-extrabold rounded-2xl text-sm transition-all shadow-[0_4px_30px_rgba(139,92,246,0.4)] active:scale-[0.98] flex items-center justify-center gap-3 border border-purple-500/20 cursor-pointer"
-                  >
-                    <Download className="w-5 h-5 text-white animate-bounce shrink-0" />
-                    <span>تثبيت تطبيق المعلم الآن مجاناً 🇩🇿</span>
-                  </button>
-                  
-                  <button
-                    onClick={() => {
-                      localStorage.setItem('teachdz_pwa_playstore_shown_v2', 'true');
-                      setIsInstallPromoBypassed(true);
-                      toast.success("مرحباً بك بالنسخة السريعة للويب!");
-                    }}
-                    className="w-full py-3 bg-slate-900/20 hover:bg-slate-900/60 text-slate-450 hover:text-slate-200 font-extrabold rounded-2xl text-xs transition-all flex items-center justify-center gap-2 border border-slate-800/40 cursor-pointer"
-                  >
-                    <span>الدخول المباشر كـ زائر من المتصفح 🌐</span>
-                  </button>
-                </>
-              )}
+              <button
+                onClick={handleInstallApp}
+                className="w-full py-4 bg-gradient-to-r from-purple-600 via-indigo-650 to-purple-800 hover:from-purple-500 hover:to-indigo-550 text-white font-extrabold rounded-2xl text-sm transition-all shadow-[0_4px_30px_rgba(139,92,246,0.4)] active:scale-[0.98] flex items-center justify-center gap-3 border border-purple-500/20 cursor-pointer"
+              >
+                <Download className="w-5 h-5 text-white animate-bounce shrink-0" />
+                <span>تثبيت تطبيق المعلم الآن مجاناً 🇩🇿</span>
+              </button>
+              
+              <button
+                onClick={() => {
+                  localStorage.setItem('teachdz_pwa_playstore_shown_v2', 'true');
+                  setIsInstallPromoBypassed(true);
+                  toast.success("مرحباً بك بالنسخة السريعة للويب!");
+                }}
+                className="w-full py-3 bg-slate-900/20 hover:bg-slate-900/60 text-slate-455 hover:text-slate-200 font-extrabold rounded-2xl text-xs transition-all flex items-center justify-center gap-2 border border-slate-800/40 cursor-pointer"
+              >
+                <span>الدخول المباشر كـ زائر من المتصفح 🌐</span>
+              </button>
             </div>
 
             {/* Screenshots / Features visual representations (Google Play Style) */}
