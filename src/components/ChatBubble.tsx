@@ -95,8 +95,8 @@ const ChatTrigger = ({ isOpen, setIsOpen, emojiState, activeChat, profile, unrea
   profile: any,
   unreadCount: number
 }) => {
-  // Use generic icon by default. Only show photo for active chat.
-  const triggerImage = activeChat?.photoURL || null;
+  // Use activeChat profile picture if selected, otherwise fallback to the logged-in user's profile picture
+  const triggerImage = activeChat ? (activeChat.photoURL || null) : (profile?.photoURL || null);
 
   return (
     <motion.div
@@ -1792,25 +1792,25 @@ export default function ChatBubble() {
                       </div>
                     )}
                     
-                    <div className="flex flex-row flex-wrap gap-1 items-center justify-center max-w-[60px] sm:max-w-[70px]">
+                    <div className="flex flex-row flex-wrap gap-1.5 items-center justify-center max-w-[80px] sm:max-w-[95px]">
                       <button
                         onClick={() => window.dispatchEvent(new CustomEvent('show-soul-medicine'))}
-                        className="p-1 sm:p-1.5 rounded-lg bg-emerald-500/10 text-emerald-500 hover:bg-emerald-500 hover:text-white transition-all active:scale-95 border border-emerald-500/20 shadow-lg shadow-emerald-500/5 group/soul"
+                        className="p-1.5 sm:p-2 rounded-xl bg-emerald-500/10 text-emerald-500 hover:bg-emerald-500 hover:text-white transition-all active:scale-95 border border-emerald-500/20 shadow-lg shadow-emerald-500/5 group/soul"
                         title="دواء الروح - الآيات والأذكار"
                       >
-                        <Heart className="w-3 h-3 sm:w-3.5 sm:h-3.5 group-hover/soul:animate-pulse" />
+                        <Heart className="w-4 h-4 sm:w-5 sm:h-5 group-hover/soul:animate-pulse" />
                       </button>
 
                       <button
                         onClick={() => setIsSelectingFriend(!isSelectingFriend)}
-                        className={`p-1 sm:p-1.5 rounded-lg transition-all active:scale-95 border shadow-lg ${
+                        className={`p-2.5 sm:p-3 rounded-xl transition-all active:scale-95 border shadow-lg ${
                           isSelectingFriend 
-                            ? 'bg-blue-500 text-white border-blue-400' 
+                            ? 'bg-blue-500 text-white border-blue-400 shadow-blue-500/20' 
                             : 'bg-blue-500/10 text-blue-400 hover:bg-blue-500/20 border-blue-500/20 shadow-blue-500/5'
                         }`}
                         title="اختيار زميل للمحادثة"
                       >
-                        <Plus className={`w-3 h-3 sm:w-3.5 sm:h-3.5 transition-transform duration-300 ${isSelectingFriend ? 'rotate-45' : ''}`} />
+                        <Plus className={`w-5 h-5 sm:w-6 sm:h-6 transition-transform duration-300 ${isSelectingFriend ? 'rotate-45' : ''}`} />
                       </button>
 
                       <div className="flex items-center gap-1 px-1 py-0.5 rounded-full bg-slate-900 border border-slate-800" title="Stream Engine Status">
@@ -1861,14 +1861,14 @@ export default function ChatBubble() {
                       </button>
                     <button
                         onClick={() => setIsSelectingFriend(!isSelectingFriend)}
-                        className={`p-2 rounded-xl transition-all border active:scale-95 ${
+                        className={`p-3.5 sm:p-4 rounded-2xl transition-all border active:scale-95 shadow-lg ${
                           isSelectingFriend
-                            ? 'bg-blue-500 text-white border-blue-400'
-                            : 'bg-blue-500/10 text-blue-400 hover:bg-blue-500 hover:text-white border-blue-500/10'
+                            ? 'bg-blue-500 text-white border-blue-400 shadow-blue-500/20'
+                            : 'bg-blue-500/10 text-blue-400 hover:bg-blue-500 hover:text-white border-blue-500/10 shadow-blue-500/5'
                         }`}
                         title="البحث عن زملاء"
                       >
-                        <Plus className={`w-5 h-5 transition-transform duration-300 ${isSelectingFriend ? 'rotate-45' : ''}`} />
+                        <Plus className={`w-7 h-7 transition-transform duration-300 ${isSelectingFriend ? 'rotate-45' : ''}`} />
                       </button>
                       <button 
                         onClick={() => setIsOpen(false)} 
@@ -2266,11 +2266,11 @@ export default function ChatBubble() {
                                 setSearchTerm('');
                               }
                             }}
-                            className="flex flex-col items-center gap-1 min-w-[60px] group"
+                            className="flex flex-col items-center gap-1 min-w-[75px] group"
                           >
                             <div className="relative">
-                              <div className="w-12 h-12 rounded-2xl bg-purple-500/10 border-2 border-dashed border-purple-500/30 flex items-center justify-center group-hover:bg-purple-500/20 group-hover:scale-105 group-hover:border-purple-500 transition-all shadow-lg shadow-purple-500/5">
-                                <Plus className="w-6 h-6 text-purple-400 group-hover:rotate-90 transition-transform duration-500" />
+                              <div className="w-16 h-16 rounded-2xl bg-purple-500/10 border-2 border-dashed border-purple-500/30 flex items-center justify-center group-hover:bg-purple-500/20 group-hover:scale-105 group-hover:border-purple-500 transition-all shadow-lg shadow-purple-500/5">
+                                <Plus className="w-9 h-9 text-purple-400 group-hover:rotate-90 transition-transform duration-500" />
                               </div>
                             </div>
                             <span className="text-[9px] font-black text-slate-500 text-center uppercase tracking-tighter group-hover:text-purple-400 transition-colors">زميل جديد</span>

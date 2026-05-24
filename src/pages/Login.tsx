@@ -585,6 +585,26 @@ export default function Login() {
           )}
         </form>
 
+        <div className="my-6 flex items-center gap-4">
+          <div className="h-px flex-1 bg-slate-800/50"></div>
+          <span className="text-slate-600 text-xs font-black uppercase tracking-wider">أو</span>
+          <div className="h-px flex-1 bg-slate-800/50"></div>
+        </div>
+
+        <button
+          type="button"
+          onClick={handleGoogleLogin}
+          disabled={loading}
+          className={`w-full py-3.5 bg-slate-950/40 border border-slate-800/60 hover:bg-slate-900/55 text-white font-extrabold rounded-xl transition-all flex items-center justify-center gap-3 ${loading ? 'opacity-50 cursor-not-allowed' : 'active:scale-[0.98]'}`}
+        >
+          {loading ? (
+            <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+          ) : (
+            <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" className="w-5 h-5" alt="Google" />
+          )}
+          <span>{loading ? 'جاري التحقق...' : (isRegister ? 'إنشاء حساب سريع عبر Google 🇩🇿' : 'تسجيل الدخول السريع عبر Google 🇩🇿')}</span>
+        </button>
+
         <p className="mt-8 text-center text-slate-500 font-medium">
           {isRegister ? 'لديك حساب بالفعل؟' : "ليس لديك حساب؟"}{' '}
           <button
