@@ -63,6 +63,7 @@ import { formatDistanceToNow } from 'date-fns';
 import { Link } from 'react-router-dom';
 import { handleFirestoreError, OperationType } from '../lib/firestore-errors';
 import { playSound } from '../lib/sounds';
+import { displayNotification } from '../lib/notifications';
 import { useUpload } from '../hooks/useUpload';
 import AgoraRTC, { IAgoraRTCClient, ICameraVideoTrack, IMicrophoneAudioTrack, IAgoraRTCRemoteUser } from 'agora-rtc-sdk-ng';
 
@@ -423,7 +424,14 @@ export default function ChatBubble() {
       where('seen', '==', false)
     );
 
+    let isFirstLoad = true;
     const unsubscribe = onSnapshot(q, { includeMetadataChanges: true }, (snapshot) => {
+      // Ignore initial snapshot of already existing unread messages on mount/load
+      if (isFirstLoad) {
+        isFirstLoad = false;
+        return;
+      }
+
       const hasNewMessage = snapshot.docChanges().some(
         change => change.type === 'added' && change.doc.data().senderId !== profile.uid
       );
@@ -431,13 +439,13 @@ export default function ChatBubble() {
         playSound('message');
         
         // Background Notification for messages
-        if (document.visibilityState !== 'visible' && Notification.permission === 'granted') {
+        if (document.visibilityState !== 'visible') {
           const latestDoc = snapshot.docChanges().find(c => c.type === 'added')?.doc;
           if (latestDoc) {
             const data = latestDoc.data();
-            new Notification(`رسالة جديدة من ${data.senderName}`, {
+            displayNotification(`رسالة جديدة من ${data.senderName}`, {
               body: data.text || 'أرسل لك ملفاً/صورة',
-              icon: '/logo.png',
+              icon: '/prof_dali_logo.png',
               tag: 'new-message'
             });
           }
@@ -836,10 +844,10 @@ export default function ChatBubble() {
             ringtoneRef.current = playSound('ringtone', true);
             
             // Background Notification for calls
-            if (document.visibilityState !== 'visible' && Notification.permission === 'granted') {
-              new Notification(`مكالمة واردة من ${callData.senderName}`, {
+            if (document.visibilityState !== 'visible') {
+              displayNotification(`مكالمة واردة من ${callData.senderName}`, {
                 body: `يتصل بك الآن (${callData.type === 'video' ? 'فيديو' : 'صوت'})`,
-                icon: '/logo.png',
+                icon: '/prof_dali_logo.png',
                 tag: `call-${callData.id}`,
                 requireInteraction: true // Keep it until user acts
               });

@@ -35,6 +35,7 @@ import { auth, db, onConnectionChange } from './firebase';
 import { signOut } from 'firebase/auth';
 import { collection, query, where, orderBy, limit, onSnapshot } from 'firebase/firestore';
 import { playSound } from './lib/sounds';
+import { displayNotification } from './lib/notifications';
 import { motion, AnimatePresence } from 'motion/react';
 import { WifiOff, X } from 'lucide-react';
 
@@ -139,11 +140,47 @@ export default function App() {
       
       if (!snapshot.empty) {
         const newNotif = snapshot.docs[0].data();
-        // Only play if it was created in the last 10 seconds (avoid processing old unread ones as "new")
+        // Only play if it was created in the last 15 seconds (avoid processing old unread ones as "new")
         const now = Date.now();
         const createdAt = newNotif.createdAt?.toMillis?.() || 0;
-        if (now - createdAt < 10000) {
+        
+        // If it's very recent or just synced, trigger it
+        if (createdAt === 0 || (now - createdAt < 15000)) {
           playSound('notification');
+
+          // Standard push notification to show on mobile external slide menu or lock screen
+          let actionText = '';
+          switch (newNotif.type) {
+            case 'like':
+              actionText = 'أعجب بمنشورك الجديد 🇩🇿';
+              break;
+            case 'comment':
+              actionText = `علّق على منشورك: "${newNotif.message || ''}"`;
+              break;
+            case 'follow':
+              actionText = 'بدأ في متابعتك الآن 🤝';
+              break;
+            case 'market_interest':
+              actionText = 'مهتم بمنتجك المعروض في السوق 🛒';
+              break;
+            case 'group_invite':
+              actionText = 'دعاك للانضمام إلى مجموعة تعليمية 👥';
+              break;
+            case 'group_request':
+              actionText = 'يريد الانضمام إلى مجموعتك التعليمية 👥';
+              break;
+            case 'group_accepted':
+              actionText = 'قبل طلب انضمامك للمجموعة التعليمية 🎉';
+              break;
+            default:
+              actionText = newNotif.message || 'لديك تفاعل جديد في التطبيق';
+          }
+
+          displayNotification(newNotif.senderName || 'تنبيه جديد', {
+            body: actionText,
+            icon: '/prof_dali_logo.png',
+            tag: `notif-${snapshot.docs[0].id}`
+          });
         }
       }
     }, (error) => {

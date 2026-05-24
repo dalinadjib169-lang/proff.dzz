@@ -5,6 +5,7 @@ import { toast } from 'react-hot-toast';
 import { useAuth } from './useAuth';
 import { db } from '../firebase';
 import { doc, updateDoc } from 'firebase/firestore';
+import { requestNotificationPermission, displayNotification } from '../lib/notifications';
 
 export function useBackgroundFeatures() {
   const { profile } = useAuth();
@@ -48,9 +49,7 @@ export function useBackgroundFeatures() {
     }
     
     // Request Notification Permissions
-    if ('Notification' in window && Notification.permission !== 'granted') {
-      Notification.requestPermission();
-    }
+    requestNotificationPermission();
   }, []);
 
   // Prayer Times Monitoring
@@ -115,24 +114,20 @@ export function useBackgroundFeatures() {
     
     const name = pNames[prayerName] || prayerName;
     
-    if (Notification.permission === 'granted') {
-      new Notification(`حان الآن موعد أذان ${name}`, {
-        body: 'اذكر الله وصل على النبي محمد صلى الله عليه وسلم',
-        icon: '/logo.png'
-      });
-    }
+    displayNotification(`حان الآن موعد أذان ${name}`, {
+      body: 'اذكر الله وصل على النبي محمد صلى الله عليه وسلم',
+      icon: '/logo.png'
+    });
     
     athanSound.current.play().catch(e => console.log('Audio blocked', e));
     toast.success(`حان وقت الصلاة: ${name}`);
   };
 
   const playWaterReminder = () => {
-    if (Notification.permission === 'granted') {
-      new Notification('تذكير: اشرب الماء', {
-        body: 'حافظ على رطوبة جسمك وصحتك، اشرب كوباً من الماء الآن.',
-        icon: '/logo.png'
-      });
-    }
+    displayNotification('تذكير: اشرب الماء', {
+      body: 'حافظ على رطوبة جسمك وصحتك، اشرب كوباً من الماء الآن.',
+      icon: '/logo.png'
+    });
     waterSound.current.play().catch(e => console.error('Audio blocked', e));
     toast('💦 حان وقت شرب الماء!', { icon: '🥛' });
   };
