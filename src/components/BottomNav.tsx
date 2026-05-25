@@ -18,8 +18,8 @@ function BottomNav() {
   ];
 
   return (
-    <div className="lg:hidden fixed bottom-0 left-0 right-0 z-[110] px-3 pb-4 pointer-events-none select-none">
-      <div className="bg-slate-900/40 backdrop-blur-xl border border-white/10 rounded-2xl flex items-center justify-around shadow-2xl shadow-black/80 max-w-sm mx-auto pointer-events-auto overflow-hidden">
+    <div className="lg:hidden fixed bottom-0 left-1/2 -translate-x-1/2 z-[110] w-[calc(100%-24px)] max-w-sm pb-4 pointer-events-auto select-none">
+      <div className="bg-slate-900/90 backdrop-blur-xl border border-white/10 rounded-2xl flex items-center justify-around shadow-2xl shadow-black/80 w-full overflow-hidden">
         {navItems.map((item) => (
           item.external ? (
             <a

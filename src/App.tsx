@@ -306,18 +306,19 @@ export default function App() {
 
         {/* Side Toggle Handle */}
         {user && profile?.isProfileComplete && (
-          <div className="lg:hidden fixed left-0 top-1/2 -translate-y-1/2 z-[60]">
+          <div className="lg:hidden fixed left-0 top-1/2 -translate-y-1/2 z-[120]">
             <motion.button
-              whileHover={{ scale: 1.1, x: 2 }}
+              whileHover={{ scale: 1.1, x: 4 }}
               whileTap={{ scale: 0.9 }}
               onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-              className="bg-primary/20 backdrop-blur-md text-primary p-1.5 rounded-r-xl shadow-lg border-y border-r border-primary/30 flex items-center justify-center cursor-pointer transition-colors"
+              className="bg-primary text-white p-3 rounded-r-2xl shadow-xl shadow-primary/20 flex items-center justify-center cursor-pointer transition-colors border-y border-r border-primary/30"
+              title="القائمة الجانبية"
             >
               <motion.div
-                animate={{ x: isSidebarOpen ? 0 : [0, 2, 0] }}
+                animate={{ x: isSidebarOpen ? 0 : [0, 3, 0] }}
                 transition={{ repeat: isSidebarOpen ? 0 : Infinity, duration: 2 }}
               >
-                {isSidebarOpen ? <ChevronLeft className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
+                {isSidebarOpen ? <ChevronLeft className="w-5 h-5 animate-pulse" /> : <ChevronRight className="w-5 h-5 animate-pulse" />}
               </motion.div>
             </motion.button>
           </div>
