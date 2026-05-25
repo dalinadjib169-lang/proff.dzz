@@ -134,7 +134,7 @@ service cloud.firestore {
       return (request.method == 'create' ? data.keys().hasAll(['authorId', 'authorName', 'authorPhoto', 'content', 'likes', 'commentCount', 'createdAt']) : true) &&
              (!('authorId' in data) || data.authorId == request.auth.uid) &&
              (!('authorName' in data) || (data.authorName is string && data.authorName.size() > 0)) &&
-             (!('authorPhoto' in data) || (data.authorPhoto is string)) &&
+             (!('authorPhoto' in data) || (data.authorPhoto is string || data.authorPhoto == null)) &&
              (!('content' in data) || (data.content is string && data.content.size() > 0 && data.content.size() <= 5000)) &&
              (!('likes' in data) || (data.likes is list && data.likes.size() <= 10000)) &&
              (!('commentCount' in data) || (data.commentCount is int && data.commentCount >= 0)) &&

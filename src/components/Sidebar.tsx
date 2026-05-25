@@ -13,7 +13,7 @@ import { playSound } from '../lib/sounds';
 
 import { useTranslation } from '../hooks/useTranslation';
 
-function Sidebar() {
+function Sidebar({ onItemClick }: { onItemClick?: () => void }) {
   const { profile } = useAuth();
   const { t } = useTranslation();
   const [unreadCount, setUnreadCount] = useState(0);
@@ -106,7 +106,8 @@ function Sidebar() {
     <div className="sticky top-24 space-y-8">
       <Link 
         to={profile?.uid ? `/profile/${profile.uid}` : '/profile/loading'}
-        className="bg-slate-900/10 backdrop-blur-3xl rounded-3xl p-6 shadow-2xl border border-white/5 overflow-hidden relative block hover:border-primary/50 transition-all group"
+        onClick={onItemClick}
+        className="bg-slate-900 rounded-3xl p-6 shadow-2xl border border-white/5 overflow-hidden relative block hover:border-primary/50 transition-all group"
       >
         <div className="absolute top-0 left-0 w-full h-20 bg-primary/10"></div>
         <div className="relative z-10 flex flex-col items-center">
@@ -186,6 +187,7 @@ function Sidebar() {
             <NavLink
               key={item.path}
               to={item.path}
+              onClick={onItemClick}
             className={({ isActive }) => cn(
               "flex items-center justify-between px-6 py-4 rounded-2xl font-bold transition-all group",
               isActive 
@@ -205,12 +207,13 @@ function Sidebar() {
           </NavLink>
         )))}
 
-        {/* Premium Shortcuts - Consolidated to internal tools to enforce limits */}
+         {/* Premium Shortcuts - Consolidated to internal tools to enforce limits */}
         {isPremium && (
           <div className="py-2 space-y-1 mt-4 border-t border-slate-800/50">
             <p className="px-6 py-2 text-[10px] font-black text-slate-500 uppercase tracking-widest">Premium Assistant</p>
             <NavLink 
               to="/premium-tools" 
+              onClick={onItemClick}
               className={({ isActive }) => cn(
                 "flex items-center gap-4 px-6 py-3 rounded-2xl font-bold transition-all group",
                 isActive ? "bg-purple-600/20 text-purple-400" : "text-slate-400 hover:bg-purple-600/10 hover:text-purple-400"
@@ -221,6 +224,7 @@ function Sidebar() {
             </NavLink>
             <NavLink 
               to="/premium-tools" 
+              onClick={onItemClick}
               className={({ isActive }) => cn(
                 "flex items-center gap-4 px-6 py-3 rounded-2xl font-bold transition-all group",
                 isActive ? "bg-purple-600/20 text-purple-400" : "text-slate-400 hover:bg-purple-600/10 hover:text-purple-400"
@@ -231,6 +235,7 @@ function Sidebar() {
             </NavLink>
             <NavLink 
               to="/premium-tools" 
+              onClick={onItemClick}
               className={({ isActive }) => cn(
                 "flex items-center gap-4 px-6 py-3 rounded-2xl font-bold transition-all group",
                 isActive ? "bg-purple-600/20 text-purple-400" : "text-slate-400 hover:bg-purple-600/10 hover:text-purple-400"
@@ -249,6 +254,7 @@ function Sidebar() {
             } else {
               window.dispatchEvent(new CustomEvent('show-chat'));
             }
+            onItemClick?.();
           }}
           className="w-full flex items-center gap-4 px-6 py-4 rounded-2xl font-bold text-slate-500 hover:bg-slate-900 hover:text-purple-400 transition-all group"
         >
@@ -257,7 +263,10 @@ function Sidebar() {
         </button>
 
         <button
-          onClick={() => window.dispatchEvent(new CustomEvent('show-chat'))}
+          onClick={() => {
+            window.dispatchEvent(new CustomEvent('show-chat'));
+            onItemClick?.();
+          }}
           className="w-full flex items-center gap-4 px-6 py-4 rounded-2xl font-bold text-slate-500 hover:bg-slate-900 hover:text-purple-400 transition-all group"
         >
           <MessageSquare className="w-5 h-5 transition-transform group-hover:scale-110" />
@@ -278,15 +287,14 @@ function Sidebar() {
                   console.log('Share canceled by user');
                 } else {
                   console.error('Error sharing:', error);
-                  // Fallback to clipboard if share fails for other reasons
                   navigator.clipboard.writeText(window.location.origin);
                 }
               }
             } else {
               navigator.clipboard.writeText(window.location.origin);
-              // Instead of alert, we could use a toast or just a console log
               console.log('App link copied to clipboard!');
             }
+            onItemClick?.();
           }}
           className="w-full flex items-center gap-4 px-6 py-4 rounded-2xl font-bold text-slate-500 hover:bg-slate-900 hover:text-purple-400 transition-all group"
         >
@@ -299,6 +307,7 @@ function Sidebar() {
             try {
               await signOut(auth);
               toast.success("تم تسجيل الخروج بنجاح");
+              onItemClick?.();
             } catch (err) {
               console.error("Logout error:", err);
               toast.error("حدث خطأ أثناء تسجيل الخروج");
@@ -312,7 +321,7 @@ function Sidebar() {
 
       </nav>
 
-      <div className="bg-slate-900/20 backdrop-blur-3xl rounded-3xl p-6 shadow-2xl border border-slate-800/30">
+      <div className="bg-slate-900 rounded-3xl p-6 shadow-2xl border border-slate-800/60">
         <div className="flex items-center gap-3 mb-6">
           <div className="bg-primary/10 p-2 rounded-xl">
             <TrendingUp className="w-5 h-5 text-primary" />
@@ -327,7 +336,10 @@ function Sidebar() {
           {colleagues.map((colleague) => (
             <div 
               key={colleague.uid} 
-              onClick={() => window.dispatchEvent(new CustomEvent('show-chat', { detail: colleague }))}
+              onClick={() => {
+                window.dispatchEvent(new CustomEvent('show-chat', { detail: colleague }));
+                onItemClick?.();
+              }}
               className="flex items-center justify-between group cursor-pointer hover:bg-slate-800/50 p-2 rounded-xl transition-all"
             >
               <div className="flex items-center gap-3">
@@ -374,12 +386,13 @@ function Sidebar() {
         </button>
       </div>
 
-      <div className="bg-primary/20 backdrop-blur-2xl rounded-3xl p-6 text-white overflow-hidden relative group border border-primary/20 shadow-2xl">
+      <div className="bg-primary/20 rounded-3xl p-6 text-white overflow-hidden relative group border border-primary/20 shadow-2xl">
         <div className="absolute -right-4 -bottom-4 w-24 h-24 bg-primary rounded-full opacity-30 group-hover:scale-150 transition-transform duration-700"></div>
         <h4 className="font-black text-lg mb-2 relative z-10">Premium Teac</h4>
         <p className="text-white/80 text-xs font-medium mb-4 relative z-10">Get access to exclusive teaching materials and AI tools.</p>
         <Link 
           to="/premium-tools"
+          onClick={onItemClick}
           className="w-full py-2.5 bg-white text-primary font-black rounded-xl text-sm hover:bg-slate-50 transition-colors relative z-10 block text-center"
         >
           {profile?.premiumUntil && profile.premiumUntil.toDate() > new Date() ? 'Go to Tools' : 'Upgrade Now'}

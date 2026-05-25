@@ -157,8 +157,8 @@ export default function GroupDetails() {
       await addDoc(collection(db, 'group_posts'), {
         groupId,
         authorId: user.uid,
-        authorName: profile.displayName,
-        authorPhoto: profile.photoURL,
+        authorName: profile.displayName || 'أستاذ',
+        authorPhoto: profile.photoURL || '',
         content: newPost,
         imageUrl: postImage || null,
         likes: [],

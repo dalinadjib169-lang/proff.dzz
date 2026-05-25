@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { useState, useEffect } from 'react';
 import { useAuth } from './hooks/useAuth';
 import Login from './pages/Login';
@@ -45,6 +45,14 @@ import { Toaster } from 'react-hot-toast';
 
 import { useTranslation } from './hooks/useTranslation';
 import { useBackgroundFeatures } from './hooks/useBackgroundFeatures';
+
+function RouteTracker({ onChange }: { onChange: () => void }) {
+  const location = useLocation();
+  useEffect(() => {
+    onChange();
+  }, [location.pathname, onChange]);
+  return null;
+}
 
 export default function App() {
   const { user, profile, loading, error, retry } = useAuth();
@@ -194,6 +202,7 @@ export default function App() {
     <ErrorBoundary>
       <UploadProvider>
         <Router>
+          <RouteTracker onChange={() => setIsSidebarOpen(false)} />
           <Toaster position="top-center" gutter={8} toastOptions={{ duration: 4000, style: { background: '#0f172a', color: '#f1f5f9', border: '1px solid #1e293b' } }} />
           <div className="min-h-screen bg-slate-950 text-slate-100 selection:bg-primary/30 relative">
             {profile?.appBackground && (
@@ -323,7 +332,7 @@ export default function App() {
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               onClick={() => setIsSidebarOpen(false)}
-              className="fixed inset-0 bg-slate-950/60 backdrop-blur-sm z-[70] lg:hidden"
+              className="fixed inset-0 bg-slate-950/75 z-[70] lg:hidden"
             />
           )}
           {user && isSidebarOpen && (
@@ -332,8 +341,8 @@ export default function App() {
               initial={{ x: '-100%' }}
               animate={{ x: 0 }}
               exit={{ x: '-100%' }}
-              transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-              className="fixed left-0 top-0 bottom-0 w-[300px] bg-slate-950/40 backdrop-blur-3xl z-[80] lg:hidden overflow-y-auto p-6 border-r border-slate-800/30"
+              transition={{ type: 'tween', duration: 0.18, ease: 'easeOut' }}
+              className="fixed left-0 top-0 bottom-0 w-[300px] bg-slate-950 z-[80] lg:hidden overflow-y-auto p-6 border-r border-slate-800/50"
             >
               <div className="flex items-center justify-between mb-8">
                 <div className="flex items-center gap-2">
@@ -347,7 +356,7 @@ export default function App() {
                   <ChevronLeft className="w-6 h-6" />
                 </button>
               </div>
-              <Sidebar />
+              <Sidebar onItemClick={() => setIsSidebarOpen(false)} />
             </motion.div>
           )}
         </AnimatePresence>
