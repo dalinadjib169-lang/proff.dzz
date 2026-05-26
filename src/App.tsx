@@ -310,63 +310,56 @@ export default function App() {
         {/* Side Toggle Handle */}
         {user && profile?.isProfileComplete && (
           <div 
-            className="lg:hidden fixed top-1/2 -translate-y-1/2 z-[120] transition-all duration-300 ease-out"
+            className="lg:hidden fixed left-0 top-1/2 -translate-y-1/2 z-[140] transition-all duration-300 ease-out"
             style={{ left: isSidebarOpen ? '300px' : '0px' }}
           >
-            <motion.button
-              whileHover={{ scale: 1.1, x: isSidebarOpen ? -4 : 4 }}
-              whileTap={{ scale: 0.9 }}
+            <button
               onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-              className="bg-primary text-white p-3 rounded-r-2xl shadow-xl shadow-primary/20 flex items-center justify-center cursor-pointer transition-colors border-y border-r border-primary/30"
+              className="bg-primary text-white p-3 rounded-r-2xl shadow-xl shadow-primary/20 flex items-center justify-center cursor-pointer transition-colors border-y border-r border-primary/30 active:scale-95"
               title="القائمة الجانبية"
             >
-              <motion.div
-                animate={{ x: isSidebarOpen ? 0 : [0, 3, 0] }}
-                transition={{ repeat: isSidebarOpen ? 0 : Infinity, duration: 2 }}
+              <div
+                className="transition-transform duration-300"
+                style={{ transform: isSidebarOpen ? 'rotate(180deg)' : 'rotate(0deg)' }}
               >
                 {isSidebarOpen ? <ChevronLeft className="w-5 h-5" /> : <ChevronRight className="w-5 h-5 animate-pulse" />}
-              </motion.div>
-            </motion.button>
+              </div>
+            </button>
           </div>
         )}
 
-        {/* Mobile Sidebar Overlay */}
-        <AnimatePresence>
-          {user && isSidebarOpen && (
-            <motion.div
-              key="sidebar-overlay"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
+        {/* Mobile Sidebar Overlay & Panel */}
+        {user && (
+          <>
+            {/* Overlay */}
+            <div
               onClick={() => setIsSidebarOpen(false)}
-              className="fixed inset-0 bg-slate-950/75 z-[70] lg:hidden"
+              className={`fixed inset-0 bg-slate-950/75 z-[130] lg:hidden transition-opacity duration-300 ease-in-out ${
+                isSidebarOpen ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"
+              }`}
             />
-          )}
-          {user && isSidebarOpen && (
-            <motion.div
-              key="sidebar-panel"
-              initial={{ x: '-100%' }}
-              animate={{ x: 0 }}
-              exit={{ x: '-100%' }}
-              transition={{ type: 'tween', duration: 0.18, ease: 'easeOut' }}
-              className="fixed left-0 top-0 bottom-0 w-[300px] bg-slate-950 z-[80] lg:hidden overflow-y-auto p-6 border-r border-slate-800/50"
+            {/* Panel */}
+            <div
+              className={`fixed left-0 top-0 bottom-0 w-[300px] bg-slate-950 z-[135] lg:hidden overflow-y-auto p-6 border-r border-slate-800/50 transition-transform duration-300 ease-in-out ${
+                isSidebarOpen ? "translate-x-0" : "-translate-x-full"
+              }`}
             >
               <div className="flex items-center justify-between mb-8">
                 <div className="flex items-center gap-2">
                   <GraduationCap className="w-8 h-8 text-primary shadow-[0_0_15px_rgba(var(--primary-rgb),0.5)]" />
-                  <span className="text-xl font-black text-white">Teac DZ</span>
+                  <span className="text-xl font-black text-white">Teach DZ</span>
                 </div>
                 <button 
                   onClick={() => setIsSidebarOpen(false)} 
-                  className="p-2.5 bg-slate-900 rounded-xl text-slate-400 hover:text-white transition-all shadow-lg shadow-black/20"
+                  className="p-2.5 bg-slate-900 rounded-xl text-slate-400 hover:text-white transition-all shadow-lg shadow-black/20 cursor-pointer"
                 >
                   <X className="w-6 h-6" />
                 </button>
               </div>
               <Sidebar onItemClick={() => setIsSidebarOpen(false)} />
-            </motion.div>
-          )}
-        </AnimatePresence>
+            </div>
+          </>
+        )}
 
                 <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-4 sm:py-8 pb-24 lg:pb-8">
                   <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 lg:gap-8">
