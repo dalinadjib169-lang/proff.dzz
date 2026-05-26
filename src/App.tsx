@@ -136,7 +136,7 @@ export default function App() {
       where('recipientId', '==', profile.uid),
       where('read', '==', false),
       orderBy('createdAt', 'desc'),
-      limit(1)
+      limit(10)
     );
 
     let isFirstLoad = true;
@@ -146,51 +146,54 @@ export default function App() {
         return;
       }
       
-      if (!snapshot.empty) {
-        const newNotif = snapshot.docs[0].data();
-        // Only play if it was created in the last 15 seconds (avoid processing old unread ones as "new")
-        const now = Date.now();
-        const createdAt = newNotif.createdAt?.toMillis?.() || 0;
-        
-        // If it's very recent or just synced, trigger it
-        if (createdAt === 0 || (now - createdAt < 15000)) {
-          playSound('notification');
+      snapshot.docChanges().forEach((change) => {
+        if (change.type === 'added') {
+          const newNotif = change.doc.data();
+          if (newNotif.senderId === profile.uid) return; // avoid self-triggers
 
-          // Standard push notification to show on mobile external slide menu or lock screen
-          let actionText = '';
-          switch (newNotif.type) {
-            case 'like':
-              actionText = 'أعجب بمنشورك الجديد 🇩🇿';
-              break;
-            case 'comment':
-              actionText = `علّق على منشورك: "${newNotif.message || ''}"`;
-              break;
-            case 'follow':
-              actionText = 'بدأ في متابعتك الآن 🤝';
-              break;
-            case 'market_interest':
-              actionText = 'مهتم بمنتجك المعروض في السوق 🛒';
-              break;
-            case 'group_invite':
-              actionText = 'دعاك للانضمام إلى مجموعة تعليمية 👥';
-              break;
-            case 'group_request':
-              actionText = 'يريد الانضمام إلى مجموعتك التعليمية 👥';
-              break;
-            case 'group_accepted':
-              actionText = 'قبل طلب انضمامك للمجموعة التعليمية 🎉';
-              break;
-            default:
-              actionText = newNotif.message || 'لديك تفاعل جديد في التطبيق';
+          const now = Date.now();
+          const createdAt = newNotif.createdAt?.toMillis?.() || 0;
+          
+          // If it's very recent or just locally created (createdAt === 0), trigger it
+          if (createdAt === 0 || (now - createdAt < 15000)) {
+            playSound('notification');
+
+            // Standard push notification to show on mobile external slide menu or lock screen
+            let actionText = '';
+            switch (newNotif.type) {
+              case 'like':
+                actionText = 'أعجب بمنشورك الجديد 🇩🇿';
+                break;
+              case 'comment':
+                actionText = `علّق على منشورك: "${newNotif.message || ''}"`;
+                break;
+              case 'follow':
+                actionText = 'بدأ في متابعتك الآن 🤝';
+                break;
+              case 'market_interest':
+                actionText = 'مهتم بمنتجك المعروض في السوق 🛒';
+                break;
+              case 'group_invite':
+                actionText = 'دعاك للانضمام إلى مجموعة تعليمية 👥';
+                break;
+              case 'group_request':
+                actionText = 'يريد الانضمام إلى مجموعتك التعليمية 👥';
+                break;
+              case 'group_accepted':
+                actionText = 'قبل طلب انضمامك للمجموعة التعليمية 🎉';
+                break;
+              default:
+                actionText = newNotif.message || 'لديك تفاعل جديد في التطبيق';
+            }
+
+            displayNotification(newNotif.senderName || 'تنبيه جديد', {
+              body: actionText,
+              icon: '/prof_dali_logo.png',
+              tag: `notif-${change.doc.id}`
+            });
           }
-
-          displayNotification(newNotif.senderName || 'تنبيه جديد', {
-            body: actionText,
-            icon: '/prof_dali_logo.png',
-            tag: `notif-${snapshot.docs[0].id}`
-          });
         }
-      }
+      });
     }, (error) => {
       console.warn("Global notification listener error:", error);
     });
@@ -204,7 +207,7 @@ export default function App() {
         <Router>
           <RouteTracker onChange={() => setIsSidebarOpen(false)} />
           <Toaster position="top-center" gutter={8} toastOptions={{ duration: 4000, style: { background: '#0f172a', color: '#f1f5f9', border: '1px solid #1e293b' } }} />
-          <div className="min-h-screen bg-slate-950 text-slate-100 selection:bg-primary/30 relative">
+          <div className="min-h-screen bg-slate-950 text-slate-100 selection:bg-primary/30 relative overflow-x-hidden w-full">
             {profile?.appBackground && (
               <img 
                 src={profile.appBackground}
@@ -286,7 +289,7 @@ export default function App() {
               <>
                 {/* Profile completion is now optional, users can edit it from their profile page anytime */}
                 {user && profile?.isProfileComplete && <Navbar />}
-                {user && profile?.isProfileComplete && <BottomNav />}
+                {user && profile?.isProfileComplete && <BottomNav onToggleSidebar={() => setIsSidebarOpen(prev => !prev)} />}
                 {user && profile && !profile.isProfileComplete && <CompleteProfile />}
                 {user && profile && <InstallPrompt />}
                 {/* Mobile Sidebar Toggle - Disconnected to free screen space */}
@@ -306,9 +309,12 @@ export default function App() {
 
         {/* Side Toggle Handle */}
         {user && profile?.isProfileComplete && (
-          <div className="lg:hidden fixed left-0 top-1/2 -translate-y-1/2 z-[120]">
+          <div 
+            className="lg:hidden fixed top-1/2 -translate-y-1/2 z-[120] transition-all duration-300 ease-out"
+            style={{ left: isSidebarOpen ? '300px' : '0px' }}
+          >
             <motion.button
-              whileHover={{ scale: 1.1, x: 4 }}
+              whileHover={{ scale: 1.1, x: isSidebarOpen ? -4 : 4 }}
               whileTap={{ scale: 0.9 }}
               onClick={() => setIsSidebarOpen(!isSidebarOpen)}
               className="bg-primary text-white p-3 rounded-r-2xl shadow-xl shadow-primary/20 flex items-center justify-center cursor-pointer transition-colors border-y border-r border-primary/30"
@@ -318,7 +324,7 @@ export default function App() {
                 animate={{ x: isSidebarOpen ? 0 : [0, 3, 0] }}
                 transition={{ repeat: isSidebarOpen ? 0 : Infinity, duration: 2 }}
               >
-                {isSidebarOpen ? <ChevronLeft className="w-5 h-5 animate-pulse" /> : <ChevronRight className="w-5 h-5 animate-pulse" />}
+                {isSidebarOpen ? <ChevronLeft className="w-5 h-5" /> : <ChevronRight className="w-5 h-5 animate-pulse" />}
               </motion.div>
             </motion.button>
           </div>
@@ -354,7 +360,7 @@ export default function App() {
                   onClick={() => setIsSidebarOpen(false)} 
                   className="p-2.5 bg-slate-900 rounded-xl text-slate-400 hover:text-white transition-all shadow-lg shadow-black/20"
                 >
-                  <ChevronLeft className="w-6 h-6" />
+                  <X className="w-6 h-6" />
                 </button>
               </div>
               <Sidebar onItemClick={() => setIsSidebarOpen(false)} />

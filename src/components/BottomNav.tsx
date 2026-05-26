@@ -5,7 +5,11 @@ import { Home, Bell, MessageSquare, User, Sparkles, Image, Menu, Car, ShoppingBa
 import { useAuth } from '../hooks/useAuth';
 import { useUnreadMessages } from '../hooks/useUnreadMessages';
 
-function BottomNav() {
+interface BottomNavProps {
+  onToggleSidebar?: () => void;
+}
+
+function BottomNav({ onToggleSidebar }: BottomNavProps) {
   const { profile } = useAuth();
   const unreadMessagesCount = useUnreadMessages();
 
@@ -14,12 +18,12 @@ function BottomNav() {
     { icon: Wand2, label: 'Generator', path: 'https://pro-mat-1243.vercel.app/', external: true },
     { icon: ShoppingBag, label: 'Market', path: '/market', external: false },
     { icon: Zap, label: 'Corrector', path: 'https://mosa7i7-ai.vercel.app/', external: true },
-    { icon: Menu, label: 'Menu', path: '#', external: false, onClick: (e: any) => { e.preventDefault(); window.dispatchEvent(new CustomEvent('toggle-sidebar')); } },
+    { icon: Menu, label: 'Menu', path: '#', external: false, onClick: (e: any) => { e.preventDefault(); onToggleSidebar?.(); } },
   ];
 
   return (
-    <div className="lg:hidden fixed bottom-0 left-1/2 -translate-x-1/2 z-[110] w-[calc(100%-24px)] max-w-sm pb-4 pointer-events-auto select-none">
-      <div className="bg-slate-900/90 backdrop-blur-xl border border-white/10 rounded-2xl flex items-center justify-around shadow-2xl shadow-black/80 w-full overflow-hidden">
+    <div className="lg:hidden fixed bottom-0 left-0 right-0 z-[110] flex justify-center pb-4 px-3 pointer-events-auto select-none">
+      <div className="bg-slate-900/90 backdrop-blur-xl border border-white/10 rounded-2xl flex items-center justify-around shadow-2xl shadow-black/80 w-full max-w-sm overflow-hidden">
         {navItems.map((item) => (
           item.external ? (
             <a
