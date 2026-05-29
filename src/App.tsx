@@ -61,6 +61,7 @@ export default function App() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isSoulMedOpen, setIsSoulMedOpen] = useState(false);
   const [isOnline, setIsOnline] = useState(true);
+  const isRtl = profile?.settings?.language === 'ar' || document.documentElement.dir === 'rtl';
 
   useEffect(() => {
     return onConnectionChange(setIsOnline);
@@ -310,19 +311,33 @@ export default function App() {
         {/* Side Toggle Handle */}
         {user && profile?.isProfileComplete && (
           <div 
-            className="lg:hidden fixed left-0 top-1/2 -translate-y-1/2 z-[140] transition-all duration-300 ease-out"
-            style={{ left: isSidebarOpen ? '300px' : '0px' }}
+            className="lg:hidden fixed top-1/2 -translate-y-1/2 z-[140] transition-all duration-300 ease-out"
+            style={isRtl ? {
+              right: isSidebarOpen ? '300px' : '0px',
+              left: 'auto'
+            } : {
+              left: isSidebarOpen ? '300px' : '0px',
+              right: 'auto'
+            }}
           >
             <button
               onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-              className="bg-primary text-white p-3 rounded-r-2xl shadow-xl shadow-primary/20 flex items-center justify-center cursor-pointer transition-colors border-y border-r border-primary/30 active:scale-95"
+              className={`bg-primary text-white p-3 shadow-xl shadow-primary/20 flex items-center justify-center cursor-pointer transition-colors border-y border-primary/30 active:scale-95 ${
+                isRtl 
+                  ? 'rounded-l-2xl border-l' 
+                  : 'rounded-r-2xl border-r'
+              }`}
               title="القائمة الجانبية"
             >
               <div
                 className="transition-transform duration-300"
                 style={{ transform: isSidebarOpen ? 'rotate(180deg)' : 'rotate(0deg)' }}
               >
-                {isSidebarOpen ? <ChevronLeft className="w-5 h-5" /> : <ChevronRight className="w-5 h-5 animate-pulse" />}
+                {isRtl ? (
+                  isSidebarOpen ? <ChevronRight className="w-5 h-5" /> : <ChevronLeft className="w-5 h-5 animate-pulse" />
+                ) : (
+                  isSidebarOpen ? <ChevronLeft className="w-5 h-5" /> : <ChevronRight className="w-5 h-5 animate-pulse" />
+                )}
               </div>
             </button>
           </div>
@@ -340,8 +355,16 @@ export default function App() {
             />
             {/* Panel */}
             <div
-              className={`fixed left-0 top-0 bottom-0 w-[300px] bg-slate-950 z-[135] lg:hidden overflow-y-auto p-6 border-r border-slate-800/50 transition-transform duration-300 ease-in-out ${
-                isSidebarOpen ? "translate-x-0" : "-translate-x-full"
+              className={`fixed top-0 bottom-0 w-[300px] bg-slate-950 z-[135] lg:hidden overflow-y-auto p-6 transition-transform duration-300 ease-in-out ${
+                isRtl 
+                  ? "right-0 border-l border-slate-800/50" 
+                  : "left-0 border-r border-slate-800/50"
+              } ${
+                isSidebarOpen 
+                  ? "translate-x-0" 
+                  : isRtl 
+                    ? "translate-x-full" 
+                    : "-translate-x-full"
               }`}
             >
               <div className="flex items-center justify-between mb-8">
