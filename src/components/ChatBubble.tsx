@@ -88,16 +88,36 @@ interface Message {
 }
 
 // Emoji & Profile Trigger Component
-const ChatTrigger = ({ isOpen, setIsOpen, emojiState, activeChat, profile, unreadCount }: { 
+const ChatTrigger = ({ 
+  isOpen, 
+  setIsOpen, 
+  emojiState, 
+  activeChat, 
+  profile, 
+  unreadCount,
+  unreadMessages = [],
+  users = []
+}: { 
   isOpen: boolean, 
   setIsOpen: (v: boolean) => void, 
   emojiState: string,
   activeChat: any,
   profile: any,
-  unreadCount: number
+  unreadCount: number,
+  unreadMessages?: any[],
+  users?: any[]
 }) => {
-  // Use activeChat profile picture if selected, otherwise fallback to the logged-in user's profile picture
-  const triggerImage = activeChat ? (activeChat.photoURL || null) : (profile?.photoURL || null);
+  // Find sender of the latest unread message if chat is closed
+  let unreadSender: any = null;
+  if (!isOpen && unreadMessages && unreadMessages.length > 0) {
+    const latestMsg = unreadMessages[unreadMessages.length - 1];
+    unreadSender = users.find(u => u.uid === latestMsg.senderId);
+  }
+
+  // Use activeChat profile picture if selected, or unread sender picture, otherwise fallback to logged-in user
+  const triggerImage = activeChat 
+    ? (activeChat.photoURL || null) 
+    : (unreadSender ? (unreadSender.photoURL || null) : (profile?.photoURL || null));
 
   return (
     <motion.div
@@ -115,6 +135,24 @@ const ChatTrigger = ({ isOpen, setIsOpen, emojiState, activeChat, profile, unrea
         transition={{ repeat: Infinity, duration: 3 }}
       />
       
+      {/* Floating unread message alert (Sender name & avatar alert) */}
+      {!isOpen && unreadSender && (
+        <motion.div
+          initial={{ opacity: 0, x: 20, scale: 0.9 }}
+          animate={{ opacity: 1, x: 0, scale: 1 }}
+          className="absolute right-24 bottom-2 sm:bottom-4 bg-slate-950/95 border border-purple-500/50 backdrop-blur-md text-white px-3 py-2 rounded-2xl shadow-xl flex items-center gap-2.5 w-48 z-30"
+          style={{ direction: 'rtl' }}
+        >
+          <div className="w-7 h-7 rounded-lg overflow-hidden shrink-0 ring-2 ring-purple-500/30">
+            <img src={unreadSender.photoURL || '/prof_dali_logo.png'} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+          </div>
+          <div className="flex-1 min-w-0 text-right">
+            <p className="text-[11px] font-black text-purple-400 truncate">{unreadSender.displayName}</p>
+            <p className="text-[9px] text-slate-300 truncate">أرسل رسالة جديدة 💬</p>
+          </div>
+        </motion.div>
+      )}
+
       <div className="relative w-16 h-16 sm:w-20 sm:h-20 z-10">
         {/* Neon Orbit Line */}
         <motion.div 
@@ -178,6 +216,7 @@ export default function ChatBubble() {
   const [users, setUsers] = useState<UserProfile[]>([]);
   const [conversations, setConversations] = useState<any[]>([]);
   const [messages, setMessages] = useState<any[]>([]);
+  const [unreadMessages, setUnreadMessages] = useState<any[]>([]);
 
   // Fetch recent conversations and groups for the lobby
   useEffect(() => {
@@ -426,6 +465,11 @@ export default function ChatBubble() {
 
     let isFirstLoad = true;
     const unsubscribe = onSnapshot(q, { includeMetadataChanges: true }, (snapshot) => {
+      const msgs = snapshot.docs
+        .map(doc => ({ id: doc.id, ...doc.data() }))
+        .filter((m: any) => m.senderId !== profile.uid);
+      setUnreadMessages(msgs);
+
       // Ignore initial snapshot of already existing unread messages on mount/load
       if (isFirstLoad) {
         isFirstLoad = false;
@@ -438,14 +482,66 @@ export default function ChatBubble() {
       if (hasNewMessage) {
         playSound('message');
         
-        // Background Notification for messages
-        if (document.visibilityState !== 'visible') {
-          const latestDoc = snapshot.docChanges().find(c => c.type === 'added')?.doc;
-          if (latestDoc) {
-            const data = latestDoc.data();
+        // Find the newest message added
+        const latestChange = snapshot.docChanges().find(c => c.type === 'added' && c.doc.data().senderId !== profile.uid);
+        if (latestChange) {
+          const data = latestChange.doc.data();
+          const senderUser = users.find(u => u.uid === data.senderId);
+          const senderPhoto = senderUser?.photoURL || '/prof_dali_logo.png';
+
+          // Show elegant in-app Custom Toast so user can immediately see who sent the message
+          toast.custom(
+            (t) => (
+              <div
+                className={`${
+                  t.visible ? 'animate-fade-in' : 'opacity-0 scale-95'
+                } max-w-sm w-full bg-slate-950/95 border border-purple-500/50 backdrop-blur-md shadow-2xl rounded-3xl pointer-events-auto flex p-4 transition-all duration-300`}
+                style={{ direction: 'rtl' }}
+              >
+                <div className="flex-1 w-0">
+                  <div className="flex items-start">
+                    <div className="flex-shrink-0 pt-0.5">
+                      <img
+                        className="h-10 w-10 rounded-xl object-cover ring-2 ring-purple-500/30"
+                        src={senderPhoto}
+                        alt=""
+                        referrerPolicy="no-referrer"
+                      />
+                    </div>
+                    <div className="mr-3 flex-1 text-right">
+                      <p className="text-sm font-bold text-white">
+                        {data.senderName}
+                      </p>
+                      <p className="mt-1 text-xs text-slate-300 line-clamp-1 font-sans">
+                        {data.text || '💬 أرسل لك ملفاً/صوت/صورة'}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+                <div className="flex border-r border-slate-800 pr-3 mr-3 items-center">
+                  <button
+                    onClick={() => {
+                      toast.dismiss(t.id);
+                      if (senderUser) {
+                        setActiveChat(senderUser);
+                        setIsOpen(true);
+                      }
+                    }}
+                    className="w-full border border-transparent p-2 flex items-center justify-center text-xs font-black text-purple-400 hover:text-purple-300"
+                  >
+                    عرض
+                  </button>
+                </div>
+              </div>
+            ),
+            { duration: 4500 }
+          );
+
+          // Background Notification for messages
+          if (document.visibilityState !== 'visible') {
             displayNotification(`رسالة جديدة من ${data.senderName}`, {
               body: data.text || 'أرسل لك ملفاً/صورة',
-              icon: '/prof_dali_logo.png',
+              icon: senderPhoto,
               tag: 'new-message'
             });
           }
@@ -456,7 +552,7 @@ export default function ChatBubble() {
     });
 
     return unsubscribe;
-  }, [profile]);
+  }, [profile, users]);
 
   useEffect(() => {
     if (unreadCount > 0 && !isOpen) {
@@ -3027,6 +3123,8 @@ export default function ChatBubble() {
           activeChat={activeChat}
           profile={profile}
           unreadCount={unreadCount}
+          unreadMessages={unreadMessages}
+          users={users}
         />
           {!isOpen && unreadCount > 0 && (
             <div className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 rounded-full border-2 border-slate-950 flex items-center justify-center text-[10px] font-black text-white animate-bounce">
