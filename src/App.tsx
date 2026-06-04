@@ -60,11 +60,14 @@ export default function App() {
 
   useEffect(() => {
     const handleToggle = () => setIsSidebarOpen(prev => !prev);
+    const handleClose = () => setIsSidebarOpen(false);
     const handleSoulMed = () => setIsSoulMedOpen(prev => !prev);
     window.addEventListener('toggle-sidebar', handleToggle);
+    window.addEventListener('close-sidebar', handleClose);
     window.addEventListener('show-soul-medicine', handleSoulMed);
     return () => {
       window.removeEventListener('toggle-sidebar', handleToggle);
+      window.removeEventListener('close-sidebar', handleClose);
       window.removeEventListener('show-soul-medicine', handleSoulMed);
     };
   }, []);

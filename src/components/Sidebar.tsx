@@ -42,9 +42,6 @@ function Sidebar() {
     );
 
     const unsubscribe = onSnapshot(q, (snapshot) => {
-      if (snapshot.size > unreadCount) {
-        playSound('notification');
-      }
       setUnreadCount(snapshot.size);
     }, (error) => {
       handleFirestoreError(error, OperationType.LIST, 'notifications');
@@ -65,7 +62,7 @@ function Sidebar() {
       unsubscribe();
       unsubscribeUsers();
     };
-  }, [profile, unreadCount]);
+  }, [profile]);
 
   const isOnline = (lastSeen: any) => {
     if (lastSeen === true) return true;
@@ -81,6 +78,13 @@ function Sidebar() {
   };
 
   const isPremium = (profile?.email === 'dalinadjib1990@gmail.com') || (profile?.premiumUntil ? profile.premiumUntil.toDate() > new Date() : false);
+
+  const handleSidebarClick = (e: React.MouseEvent<HTMLDivElement>) => {
+    const target = e.target as HTMLElement;
+    if (target.closest('a') || target.closest('button')) {
+      window.dispatchEvent(new CustomEvent('close-sidebar'));
+    }
+  };
 
   const navItems = [
     { icon: Home, label: t('home'), path: '/' },
@@ -103,7 +107,7 @@ function Sidebar() {
   ];
 
   return (
-    <div className="sticky top-24 space-y-8">
+    <div className="sticky top-24 space-y-8" onClick={handleSidebarClick}>
       <Link 
         to={profile?.uid ? `/profile/${profile.uid}` : '/profile/loading'}
         className="bg-slate-900/10 backdrop-blur-3xl rounded-3xl p-6 shadow-2xl border border-white/5 overflow-hidden relative block hover:border-primary/50 transition-all group"

@@ -7,7 +7,7 @@ const SOUND_URLS = {
   like: 'https://assets.mixkit.co/active_storage/sfx/2358/2358-preview.mp3',
   comment: 'https://assets.mixkit.co/active_storage/sfx/2360/2360-preview.mp3',
   post: 'https://assets.mixkit.co/active_storage/sfx/2359/2359-preview.mp3',
-  notification: 'https://assets.mixkit.co/active_storage/sfx/2357/2357-preview.mp3',
+  notification: 'https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3',
   call: 'https://assets.mixkit.co/active_storage/sfx/2361/2361-preview.mp3',
   ringtone: 'https://assets.mixkit.co/active_storage/sfx/1359/1359-preview.mp3',
   adhan: 'https://www.islamcan.com/audio/adhan/azan1.mp3',

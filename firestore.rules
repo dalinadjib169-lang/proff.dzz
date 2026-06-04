@@ -152,10 +152,10 @@ service cloud.firestore {
       return (request.method == 'create' ? data.keys().hasAll(['postId', 'authorId', 'authorName', 'authorPhoto', 'content', 'createdAt']) : true) &&
              (!('authorId' in data) || data.authorId == request.auth.uid) &&
              (!('postId' in data) || data.postId is string) &&
-             (!('content' in data) || (data.content is string && (data.content.size() > 0 || ('imageUrl' in data)) && data.content.size() <= 2000)) &&
-             (!('parentId' in data) || (data.parentId is string)) &&
-             (!('replyTo' in data) || (data.replyTo is string)) &&
-             (!('imageUrl' in data) || (data.imageUrl is string && data.imageUrl.size() <= 1000)) &&
+             (!('content' in data) || (data.content is string && data.content.size() <= 2000)) &&
+             (!('parentId' in data) || (data.parentId is string || data.parentId == null)) &&
+             (!('replyTo' in data) || (data.replyTo is string || data.replyTo == null)) &&
+             (!('imageUrl' in data) || (data.imageUrl is string || data.imageUrl == null || data.imageUrl.size() <= 1000)) &&
              (!('likes' in data) || (data.likes is list && data.likes.size() <= 10000)) &&
              (!('reactions' in data) || (data.reactions is map)) &&
              (!('createdAt' in data) || (request.method == 'create' ? data.createdAt == request.time : data.createdAt == existing().createdAt));
@@ -352,7 +352,7 @@ service cloud.firestore {
           // Social interactions (likes and reactions on comments)
           isSignedIn() && incoming().diff(existing()).affectedKeys().hasOnly(['likes', 'reactions'])
         ) || isAdmin();
-      allow delete: if (isOwner(existing().authorId) || (isSignedIn() && exists(/databases/$(database)/documents/posts/$(existing().postId)) && get(/databases/$(database)/documents/posts/$(existing().postId)).data.authorId == request.auth.uid) || isAdmin());
+      allow delete: if isSignedIn() && (existing().authorId == request.auth.uid || isAdmin());
     }
 
     match /notifications/{notificationId} {
@@ -463,7 +463,7 @@ service cloud.firestore {
         (isSignedIn() && incoming().diff(existing()).affectedKeys().hasOnly(['likes', 'reactions'])) ||
         isAdmin()
       );
-      allow delete: if (isSignedIn() && existing().authorId == request.auth.uid) || isAdmin();
+      allow delete: if isSignedIn() && (existing().authorId == request.auth.uid || isAdmin());
     }
 
     match /discussions/{topicId} {
