@@ -104,8 +104,8 @@ export default function InternalShareModal({ post, isOpen, onClose }: InternalSh
       await addDoc(collection(db, 'group_posts'), {
         groupId: targetGroup.id,
         authorId: profile.uid,
-        authorName: profile.displayName || 'أستاذ',
-        authorPhoto: profile.photoURL || '',
+        authorName: profile.displayName,
+        authorPhoto: profile.photoURL,
         content: `شاركت منشوراً:\n${post.content.substring(0, 100)}${post.content.length > 100 ? '...' : ''}`,
         imageUrl: post.imageUrl || null,
         sharedPostId: post.id,

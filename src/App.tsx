@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { useState, useEffect } from 'react';
 import { useAuth } from './hooks/useAuth';
 import Login from './pages/Login';
@@ -46,14 +46,6 @@ import { Toaster } from 'react-hot-toast';
 import { useTranslation } from './hooks/useTranslation';
 import { useBackgroundFeatures } from './hooks/useBackgroundFeatures';
 
-function RouteTracker({ onChange }: { onChange: () => void }) {
-  const location = useLocation();
-  useEffect(() => {
-    onChange();
-  }, [location.pathname, onChange]);
-  return null;
-}
-
 export default function App() {
   const { user, profile, loading, error, retry } = useAuth();
   useBackgroundFeatures();
@@ -61,7 +53,6 @@ export default function App() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isSoulMedOpen, setIsSoulMedOpen] = useState(false);
   const [isOnline, setIsOnline] = useState(true);
-  const isRtl = profile?.settings?.language === 'ar' || document.documentElement.dir === 'rtl';
 
   useEffect(() => {
     return onConnectionChange(setIsOnline);
@@ -137,7 +128,7 @@ export default function App() {
       where('recipientId', '==', profile.uid),
       where('read', '==', false),
       orderBy('createdAt', 'desc'),
-      limit(10)
+      limit(1)
     );
 
     let isFirstLoad = true;
@@ -147,54 +138,51 @@ export default function App() {
         return;
       }
       
-      snapshot.docChanges().forEach((change) => {
-        if (change.type === 'added') {
-          const newNotif = change.doc.data();
-          if (newNotif.senderId === profile.uid) return; // avoid self-triggers
+      if (!snapshot.empty) {
+        const newNotif = snapshot.docs[0].data();
+        // Only play if it was created in the last 15 seconds (avoid processing old unread ones as "new")
+        const now = Date.now();
+        const createdAt = newNotif.createdAt?.toMillis?.() || 0;
+        
+        // If it's very recent or just synced, trigger it
+        if (createdAt === 0 || (now - createdAt < 15000)) {
+          playSound('notification');
 
-          const now = Date.now();
-          const createdAt = newNotif.createdAt?.toMillis?.() || 0;
-          
-          // If it's very recent or just locally created (createdAt === 0), trigger it
-          if (createdAt === 0 || (now - createdAt < 15000)) {
-            playSound('notification');
-
-            // Standard push notification to show on mobile external slide menu or lock screen
-            let actionText = '';
-            switch (newNotif.type) {
-              case 'like':
-                actionText = 'أعجب بمنشورك الجديد 🇩🇿';
-                break;
-              case 'comment':
-                actionText = `علّق على منشورك: "${newNotif.message || ''}"`;
-                break;
-              case 'follow':
-                actionText = 'بدأ في متابعتك الآن 🤝';
-                break;
-              case 'market_interest':
-                actionText = 'مهتم بمنتجك المعروض في السوق 🛒';
-                break;
-              case 'group_invite':
-                actionText = 'دعاك للانضمام إلى مجموعة تعليمية 👥';
-                break;
-              case 'group_request':
-                actionText = 'يريد الانضمام إلى مجموعتك التعليمية 👥';
-                break;
-              case 'group_accepted':
-                actionText = 'قبل طلب انضمامك للمجموعة التعليمية 🎉';
-                break;
-              default:
-                actionText = newNotif.message || 'لديك تفاعل جديد في التطبيق';
-            }
-
-            displayNotification(newNotif.senderName || 'تنبيه جديد', {
-              body: actionText,
-              icon: '/prof_dali_logo.png',
-              tag: `notif-${change.doc.id}`
-            });
+          // Standard push notification to show on mobile external slide menu or lock screen
+          let actionText = '';
+          switch (newNotif.type) {
+            case 'like':
+              actionText = 'أعجب بمنشورك الجديد 🇩🇿';
+              break;
+            case 'comment':
+              actionText = `علّق على منشورك: "${newNotif.message || ''}"`;
+              break;
+            case 'follow':
+              actionText = 'بدأ في متابعتك الآن 🤝';
+              break;
+            case 'market_interest':
+              actionText = 'مهتم بمنتجك المعروض في السوق 🛒';
+              break;
+            case 'group_invite':
+              actionText = 'دعاك للانضمام إلى مجموعة تعليمية 👥';
+              break;
+            case 'group_request':
+              actionText = 'يريد الانضمام إلى مجموعتك التعليمية 👥';
+              break;
+            case 'group_accepted':
+              actionText = 'قبل طلب انضمامك للمجموعة التعليمية 🎉';
+              break;
+            default:
+              actionText = newNotif.message || 'لديك تفاعل جديد في التطبيق';
           }
+
+          displayNotification(newNotif.senderName || 'تنبيه جديد', {
+            body: actionText,
+            icon: '/prof_dali_logo.png',
+            tag: `notif-${snapshot.docs[0].id}`
+          });
         }
-      });
+      }
     }, (error) => {
       console.warn("Global notification listener error:", error);
     });
@@ -206,9 +194,8 @@ export default function App() {
     <ErrorBoundary>
       <UploadProvider>
         <Router>
-          <RouteTracker onChange={() => setIsSidebarOpen(false)} />
           <Toaster position="top-center" gutter={8} toastOptions={{ duration: 4000, style: { background: '#0f172a', color: '#f1f5f9', border: '1px solid #1e293b' } }} />
-          <div className="min-h-screen bg-slate-950 text-slate-100 selection:bg-primary/30 relative overflow-x-hidden w-full">
+          <div className="min-h-screen bg-slate-950 text-slate-100 selection:bg-primary/30 relative">
             {profile?.appBackground && (
               <img 
                 src={profile.appBackground}
@@ -290,7 +277,7 @@ export default function App() {
               <>
                 {/* Profile completion is now optional, users can edit it from their profile page anytime */}
                 {user && profile?.isProfileComplete && <Navbar />}
-                {user && profile?.isProfileComplete && <BottomNav onToggleSidebar={() => setIsSidebarOpen(prev => !prev)} />}
+                {user && profile?.isProfileComplete && <BottomNav />}
                 {user && profile && !profile.isProfileComplete && <CompleteProfile />}
                 {user && profile && <InstallPrompt />}
                 {/* Mobile Sidebar Toggle - Disconnected to free screen space */}
@@ -310,79 +297,60 @@ export default function App() {
 
         {/* Side Toggle Handle */}
         {user && profile?.isProfileComplete && (
-          <div 
-            className="lg:hidden fixed top-1/2 -translate-y-1/2 z-[140] transition-all duration-300 ease-out"
-            style={isRtl ? {
-              right: isSidebarOpen ? '300px' : '0px',
-              left: 'auto'
-            } : {
-              left: isSidebarOpen ? '300px' : '0px',
-              right: 'auto'
-            }}
-          >
-            <button
+          <div className="lg:hidden fixed left-0 top-1/2 -translate-y-1/2 z-[60]">
+            <motion.button
+              whileHover={{ scale: 1.1, x: 2 }}
+              whileTap={{ scale: 0.9 }}
               onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-              className={`bg-primary text-white p-3 shadow-xl shadow-primary/20 flex items-center justify-center cursor-pointer transition-colors border-y border-primary/30 active:scale-95 ${
-                isRtl 
-                  ? 'rounded-l-2xl border-l' 
-                  : 'rounded-r-2xl border-r'
-              }`}
-              title="القائمة الجانبية"
+              className="bg-primary/20 backdrop-blur-md text-primary p-1.5 rounded-r-xl shadow-lg border-y border-r border-primary/30 flex items-center justify-center cursor-pointer transition-colors"
             >
-              <div
-                className="transition-transform duration-300"
-                style={{ transform: isSidebarOpen ? 'rotate(180deg)' : 'rotate(0deg)' }}
+              <motion.div
+                animate={{ x: isSidebarOpen ? 0 : [0, 2, 0] }}
+                transition={{ repeat: isSidebarOpen ? 0 : Infinity, duration: 2 }}
               >
-                {isRtl ? (
-                  isSidebarOpen ? <ChevronRight className="w-5 h-5" /> : <ChevronLeft className="w-5 h-5 animate-pulse" />
-                ) : (
-                  isSidebarOpen ? <ChevronLeft className="w-5 h-5" /> : <ChevronRight className="w-5 h-5 animate-pulse" />
-                )}
-              </div>
-            </button>
+                {isSidebarOpen ? <ChevronLeft className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
+              </motion.div>
+            </motion.button>
           </div>
         )}
 
-        {/* Mobile Sidebar Overlay & Panel */}
-        {user && (
-          <>
-            {/* Overlay */}
-            <div
+        {/* Mobile Sidebar Overlay */}
+        <AnimatePresence>
+          {user && isSidebarOpen && (
+            <motion.div
+              key="sidebar-overlay"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
               onClick={() => setIsSidebarOpen(false)}
-              className={`fixed inset-0 bg-slate-950/75 z-[130] lg:hidden transition-opacity duration-300 ease-in-out ${
-                isSidebarOpen ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"
-              }`}
+              className="fixed inset-0 bg-slate-950/60 backdrop-blur-sm z-[70] lg:hidden"
             />
-            {/* Panel */}
-            <div
-              className={`fixed top-0 bottom-0 w-[300px] bg-slate-950 z-[135] lg:hidden overflow-y-auto p-6 transition-transform duration-300 ease-in-out ${
-                isRtl 
-                  ? "right-0 border-l border-slate-800/50" 
-                  : "left-0 border-r border-slate-800/50"
-              } ${
-                isSidebarOpen 
-                  ? "translate-x-0" 
-                  : isRtl 
-                    ? "translate-x-full" 
-                    : "-translate-x-full"
-              }`}
+          )}
+          {user && isSidebarOpen && (
+            <motion.div
+              key="sidebar-panel"
+              initial={{ x: '-100%' }}
+              animate={{ x: 0 }}
+              exit={{ x: '-100%' }}
+              transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+              className="fixed left-0 top-0 bottom-0 w-[300px] bg-slate-950/40 backdrop-blur-3xl z-[80] lg:hidden overflow-y-auto p-6 border-r border-slate-800/30"
             >
               <div className="flex items-center justify-between mb-8">
                 <div className="flex items-center gap-2">
                   <GraduationCap className="w-8 h-8 text-primary shadow-[0_0_15px_rgba(var(--primary-rgb),0.5)]" />
-                  <span className="text-xl font-black text-white">Teach DZ</span>
+                  <span className="text-xl font-black text-white">Teac DZ</span>
                 </div>
                 <button 
                   onClick={() => setIsSidebarOpen(false)} 
-                  className="p-2.5 bg-slate-900 rounded-xl text-slate-400 hover:text-white transition-all shadow-lg shadow-black/20 cursor-pointer"
+                  className="p-2.5 bg-slate-900 rounded-xl text-slate-400 hover:text-white transition-all shadow-lg shadow-black/20"
                 >
-                  <X className="w-6 h-6" />
+                  <ChevronLeft className="w-6 h-6" />
                 </button>
               </div>
-              <Sidebar onItemClick={() => setIsSidebarOpen(false)} />
-            </div>
-          </>
-        )}
+              <Sidebar />
+            </motion.div>
+          )}
+        </AnimatePresence>
 
                 <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-4 sm:py-8 pb-24 lg:pb-8">
                   <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 lg:gap-8">

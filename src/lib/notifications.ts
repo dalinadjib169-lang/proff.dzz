@@ -30,7 +30,7 @@ export async function displayNotification(title: string, options: CustomNotifica
   }
 
   // Ensure default icon and badge are loaded
-  const mergedOptions: any = {
+  const mergedOptions: NotificationOptions = {
     icon: '/prof_dali_logo.png',
     badge: '/prof_dali_logo.png',
     vibrate: [200, 100, 200, 100, 300],

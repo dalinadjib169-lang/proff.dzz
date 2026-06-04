@@ -247,8 +247,8 @@ export default function PostCard({ post, isGroupPost, groupId, onDelete }: { pos
         await addDoc(collection(db, commentCollectionName), {
           postId: post.id,
           authorId: profile.uid,
-          authorName: profile.displayName || 'أستاذ',
-          authorPhoto: profile.photoURL || '',
+          authorName: profile.displayName,
+          authorPhoto: profile.photoURL,
           content: text,
           imageUrl,
           parentId: isReply ? (replyTo.parentId || replyTo.id) : null,
@@ -356,8 +356,8 @@ export default function PostCard({ post, isGroupPost, groupId, onDelete }: { pos
       const postUrl = window.location.origin + '/post/' + post.id;
       await addDoc(collection(db, 'posts'), {
         authorId: profile.uid,
-        authorName: profile.displayName || 'أستاذ',
-        authorPhoto: profile.photoURL || '',
+        authorName: profile.displayName,
+        authorPhoto: profile.photoURL,
         content: post.content,
         imageUrl: post.imageUrl || '',
         republishedFrom: post.id,

@@ -95,21 +95,11 @@
     --bg-main: transparent;
   }
 
-  html, body {
-    overflow-x: hidden;
-    width: 100%;
-    margin: 0;
-    padding: 0;
-  }
-
   body {
     background-color: var(--bg-main, #020617);
     color: var(--text-color-current);
     font-size: var(--font-size-current);
     font-family: var(--font-family-current);
-    overflow-x: hidden;
-    position: relative;
-    width: 100%;
   }
 
   .bg-slate-900 {
