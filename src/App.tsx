@@ -38,6 +38,7 @@ import { playSound } from './lib/sounds';
 import { displayNotification } from './lib/notifications';
 import { motion, AnimatePresence } from 'motion/react';
 import { WifiOff, X } from 'lucide-react';
+import AcademicLoader from './components/AcademicLoader';
 
 import { UploadProvider } from './hooks/useUpload';
 import InstallPrompt from './components/InstallPrompt';
@@ -53,6 +54,26 @@ export default function App() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isSoulMedOpen, setIsSoulMedOpen] = useState(false);
   const [isOnline, setIsOnline] = useState(true);
+  const [loadingProgress, setLoadingProgress] = useState(0);
+
+  useEffect(() => {
+    if (loading) {
+      setLoadingProgress(0);
+      const interval = setInterval(() => {
+        setLoadingProgress(prev => {
+          if (prev >= 98) {
+            clearInterval(interval);
+            return 98;
+          }
+          const step = Math.floor(Math.random() * 8) + 3;
+          return Math.min(prev + step, 98);
+        });
+      }, 70);
+      return () => clearInterval(interval);
+    } else {
+      setLoadingProgress(100);
+    }
+  }, [loading]);
 
   useEffect(() => {
     return onConnectionChange(setIsOnline);
@@ -223,23 +244,8 @@ export default function App() {
                 )}
               </AnimatePresence>
               {loading ? (
-              <div className="min-h-screen flex flex-col items-center justify-center bg-slate-950 p-8">
-                <div className="relative mb-8">
-                  <div className="absolute inset-0 bg-primary/20 blur-3xl rounded-full animate-pulse"></div>
-                  <div className="relative animate-spin rounded-full h-16 w-16 border-t-2 border-b-2 border-primary"></div>
-                </div>
-                <h2 className="text-xl font-black text-white mb-2 animate-pulse">{t('connecting')}</h2>
-                <p className="text-slate-500 text-sm max-w-xs text-center">
-                  If this takes more than 10 seconds, please check your internet connection or refresh the page.
-                </p>
-                <button 
-                  onClick={() => window.location.reload()}
-                  className="mt-8 px-6 py-2 bg-slate-900 hover:bg-slate-800 text-slate-400 text-xs font-bold rounded-xl transition-all border border-slate-800"
-                >
-                  {t('refresh')}
-                </button>
-              </div>
-            ) : user && !profile ? (
+                <AcademicLoader progress={loadingProgress} />
+              ) : user && !profile ? (
               <div className="min-h-screen flex flex-col items-center justify-center bg-slate-950 p-8 text-center">
                 <div className="animate-bounce mb-6">
                   <GraduationCap className="w-16 h-16 text-primary" />

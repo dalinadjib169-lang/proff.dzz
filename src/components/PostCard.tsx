@@ -247,8 +247,8 @@ export default function PostCard({ post, isGroupPost, groupId, onDelete }: { pos
         await addDoc(collection(db, commentCollectionName), {
           postId: post.id,
           authorId: profile.uid,
-          authorName: profile.displayName,
-          authorPhoto: profile.photoURL,
+          authorName: profile.displayName || 'مستشار دواء الروح',
+          authorPhoto: profile.photoURL || '',
           content: text,
           imageUrl,
           parentId: isReply ? (replyTo.parentId || replyTo.id) : null,
