@@ -96,7 +96,9 @@ const ChatTrigger = ({
   profile, 
   unreadCount,
   unreadMessages = [],
-  users = []
+  users = [],
+  cachedUsers = {},
+  onClearActiveChat
 }: { 
   isOpen: boolean, 
   setIsOpen: (v: boolean) => void, 
@@ -105,13 +107,15 @@ const ChatTrigger = ({
   profile: any,
   unreadCount: number,
   unreadMessages?: any[],
-  users?: any[]
+  users?: any[],
+  cachedUsers?: {[uid: string]: any},
+  onClearActiveChat?: () => void
 }) => {
   // Find sender of the latest unread message if chat is closed
   let unreadSender: any = null;
   if (!isOpen && unreadMessages && unreadMessages.length > 0) {
     const latestMsg = unreadMessages[unreadMessages.length - 1];
-    unreadSender = users.find(u => u.uid === latestMsg.senderId);
+    unreadSender = users.find(u => u.uid === latestMsg.senderId) || cachedUsers[latestMsg.senderId];
   }
 
   // Use activeChat profile picture if selected, or unread sender picture, otherwise fallback to logged-in user
@@ -181,6 +185,21 @@ const ChatTrigger = ({
           )}
         </div>
 
+        {activeChat && onClearActiveChat && (
+          <motion.button
+            whileHover={{ scale: 1.25, rotate: 90 }}
+            whileTap={{ scale: 0.8 }}
+            onClick={(e) => {
+              e.stopPropagation();
+              onClearActiveChat();
+            }}
+            title="إنهاء المحكمة"
+            className="absolute -bottom-2.5 left-1/2 -translate-x-1/2 w-6 h-6 bg-red-600 hover:bg-red-700 border-2 border-slate-900 text-white rounded-full flex items-center justify-center shadow-lg hover:shadow-red-500/50 z-30 pointer-events-auto cursor-pointer transition-all"
+          >
+            <X className="w-3.5 h-3.5" />
+          </motion.button>
+        )}
+
         {unreadCount > 0 && !isOpen && (
           <motion.div 
             initial={{ scale: 0 }}
@@ -217,6 +236,30 @@ export default function ChatBubble() {
   const [conversations, setConversations] = useState<any[]>([]);
   const [messages, setMessages] = useState<any[]>([]);
   const [unreadMessages, setUnreadMessages] = useState<any[]>([]);
+  const [cachedUsers, setCachedUsers] = useState<{[uid: string]: any}>({});
+
+  // Resolve missing user profiles for unread messages senders
+  useEffect(() => {
+    if (!unreadMessages || unreadMessages.length === 0) return;
+    const missingUids = unreadMessages
+      .map(m => m.senderId)
+      .filter(uid => uid && uid !== profile?.uid && !users.find(u => u.uid === uid) && !cachedUsers[uid]);
+
+    if (missingUids.length === 0) return;
+
+    missingUids.forEach(async (uid) => {
+      try {
+        const docRef = doc(db, 'users', uid);
+        const docSnap = await getDoc(docRef);
+        if (docSnap.exists()) {
+          const userData = { uid: docSnap.id, ...docSnap.data() };
+          setCachedUsers(prev => ({ ...prev, [uid]: userData }));
+        }
+      } catch (e) {
+        console.error("Error fetching missing user profile:", e);
+      }
+    });
+  }, [unreadMessages, users, profile?.uid]);
 
   // Fetch recent conversations and groups for the lobby
   useEffect(() => {
@@ -3111,21 +3154,27 @@ export default function ChatBubble() {
           whileHover={{ scale: 1.05 }}
           whileTap={{ scale: 0.9 }}
           onClick={() => {
-            setIsOpen(!isOpen);
+            if (activeChat) {
+              setActiveChat(null);
+            } else {
+              setIsOpen(!isOpen);
+            }
             playSound('message');
           }}
           className={`relative group cursor-pointer transition-transform ${isOpen && isMobile ? 'scale-0' : 'scale-100'}`}
         >
-        <ChatTrigger 
-          isOpen={isOpen} 
-          setIsOpen={() => {}} 
-          emojiState={emojiState} 
-          activeChat={activeChat}
-          profile={profile}
-          unreadCount={unreadCount}
-          unreadMessages={unreadMessages}
-          users={users}
-        />
+          <ChatTrigger 
+            isOpen={isOpen} 
+            setIsOpen={() => {}} 
+            emojiState={emojiState} 
+            activeChat={activeChat}
+            profile={profile}
+            unreadCount={unreadCount}
+            unreadMessages={unreadMessages}
+            users={users}
+            cachedUsers={cachedUsers}
+            onClearActiveChat={() => setActiveChat(null)}
+          />
           {!isOpen && unreadCount > 0 && (
             <div className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 rounded-full border-2 border-slate-950 flex items-center justify-center text-[10px] font-black text-white animate-bounce">
               {unreadCount}
