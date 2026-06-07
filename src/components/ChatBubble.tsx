@@ -185,21 +185,6 @@ const ChatTrigger = ({
           )}
         </div>
 
-        {activeChat && onClearActiveChat && (
-          <motion.button
-            whileHover={{ scale: 1.25, rotate: 90 }}
-            whileTap={{ scale: 0.8 }}
-            onClick={(e) => {
-              e.stopPropagation();
-              onClearActiveChat();
-            }}
-            title="إنهاء المحكمة"
-            className="absolute -bottom-2.5 left-1/2 -translate-x-1/2 w-6 h-6 bg-red-600 hover:bg-red-700 border-2 border-slate-900 text-white rounded-full flex items-center justify-center shadow-lg hover:shadow-red-500/50 z-30 pointer-events-auto cursor-pointer transition-all"
-          >
-            <X className="w-3.5 h-3.5" />
-          </motion.button>
-        )}
-
         {unreadCount > 0 && !isOpen && (
           <motion.div 
             initial={{ scale: 0 }}
@@ -1861,23 +1846,34 @@ export default function ChatBubble() {
             <div className={`shrink-0 bg-slate-900/60 backdrop-blur-xl border-b border-white/10 transition-all ${isMobile && isKeyboardOpen ? 'p-1' : 'p-2 sm:p-3'}`}>
               {activeChat ? (
                 <div className="flex items-center gap-2 sm:gap-4 h-24 sm:h-28" dir="rtl">
-                  {/* Exit/Profile (Right) */}
-                  <div 
-                    onClick={() => setIsOpen(false)}
-                    className="flex-shrink-0 group/profile flex items-center gap-2 cursor-pointer bg-white/5 hover:bg-orange-500/10 rounded-2xl p-1 sm:p-1.5 border border-white/10 hover:border-orange-500/30 transition-all active:scale-95 shadow-lg"
-                  >
-                    <div className="relative">
-                      <img 
-                        src={activeChat.photoURL || `https://ui-avatars.com/api/?name=${encodeURIComponent(activeChat.displayName || 'U')}&background=random`} 
-                        className={`rounded-xl object-cover border-2 border-white/20 shadow-2xl group-hover/profile:border-orange-500/50 ${isMobile && isKeyboardOpen ? 'w-10 h-10' : 'w-12 h-12 sm:w-14 sm:h-14'}`} 
-                        referrerPolicy="no-referrer"
-                        alt={activeChat.displayName}
-                      />
-                      <div className={`absolute -bottom-1 -right-1 rounded-full border-2 border-slate-900 ${isOnline(activeChat.uid === 'global' || activeChat.isGroup ? null : activeChat.lastSeen) ? 'bg-green-500' : 'bg-slate-500'} ${isMobile && isKeyboardOpen ? 'w-3 h-3' : 'w-4 h-4'}`}></div>
-                      <div className="absolute inset-0 bg-orange-500/0 group-hover/profile:bg-orange-500/20 rounded-xl transition-all flex items-center justify-center">
-                        <X className="w-5 h-5 text-white opacity-0 group-hover/profile:opacity-100 transition-opacity" />
+                  {/* Exit/Profile (Right) with specialized close button underneath */}
+                  <div className="flex flex-col items-center gap-1.5 flex-shrink-0">
+                    <div 
+                      onClick={() => setIsOpen(false)}
+                      title="اضغط للإغلاق"
+                      className="group/profile flex items-center justify-center cursor-pointer bg-white/5 hover:bg-red-500/10 rounded-2xl p-1 border border-white/10 hover:border-red-500/30 transition-all active:scale-95 shadow-lg"
+                    >
+                      <div className="relative">
+                        <img 
+                          src={activeChat.photoURL || `https://ui-avatars.com/api/?name=${encodeURIComponent(activeChat.displayName || 'U')}&background=random`} 
+                          className={`rounded-xl object-cover border-2 border-white/20 shadow-2xl group-hover/profile:border-red-500/50 ${isMobile && isKeyboardOpen ? 'w-10 h-10' : 'w-12 h-12 sm:w-14 sm:h-14'}`} 
+                          referrerPolicy="no-referrer"
+                          alt={activeChat.displayName}
+                        />
+                        <div className={`absolute -bottom-1 -right-1 rounded-full border-2 border-slate-900 ${isOnline(activeChat.uid === 'global' || activeChat.isGroup ? null : activeChat.lastSeen) ? 'bg-green-500' : 'bg-slate-500'} ${isMobile && isKeyboardOpen ? 'w-3 h-3' : 'w-4 h-4'}`}></div>
+                        <div className="absolute inset-0 bg-red-500/20 group-hover/profile:bg-red-500/40 rounded-xl transition-all flex items-center justify-center">
+                          <X className="w-5 h-5 text-red-100 opacity-0 group-hover/profile:opacity-100 transition-opacity" />
+                        </div>
                       </div>
                     </div>
+                    {/* Explicit indicator/button "X" underneath the peer photo */}
+                    <button
+                      onClick={() => setIsOpen(false)}
+                      className="w-5 h-5 rounded-full bg-red-600 hover:bg-red-500 text-white flex items-center justify-center shadow-md hover:shadow-red-500/40 cursor-pointer active:scale-75 transition-all text-xs font-black border border-red-500/40"
+                      title="إغلاق الفقاعة"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
                   </div>
 
                   {/* Info Section (Center) */}
