@@ -342,45 +342,36 @@ export default function PremiumTools() {
       const teacherName = isGuest ? "أستاذ زائر" : `${teacherFirstName} ${teacherLastName}`;
       const schoolName = isGuest ? "مؤسسة زائرة" : school;
 
-      let prompt = `أنت "المفتش التربوي الرقمي"، خبير أول في المنهاج الوطني الجزائري (الجيل الثاني G2).
-      مهمتك هي صياغة "مذكرة بيداغوجية" (Fiche Pédagogique) احترافية وعميقة، تتخطى كونها مجرد نص إلى كونها خطة عمل ميدانية دقيقة.
-
-      [المعطيات الإدارية]:
-      الأستاذ: ${teacherName} | المؤسسة: ${schoolName}
+      let prompt = `أنت "المفتش التربوي الرقمي"، خبير أول في التربية والتعليم للأساتذة.
       الطور: ${phase} | المستوى: ${level} | المادة: ${subject}
-      رقم المقطع: ${sequenceNum || sectionNum} | رقم الحصة/المذكرة: (يتم استنتاجه)
-      اللغة الأصلية للمذكرة: ${genLanguage}
+      الأستاذ: ${teacherName} | المؤسسة: ${schoolName}
+      المورد (موضوع): ${topic}
+      اللغة الأصلية للإخراج: ${genLanguage}
+      تنسيق/أسلوب التوليد (الستايل): ${style}
 
-      [البيانات البيداغوجية]:
-      الميدان/Domain: ${field}
-      المورد (عنوان الدرس): ${topic}
-      النشاط/الأهداف: ${learningObjective || competency}
-      السندات المقترحة: ${materials}
+      ${genScope === 'lesson_plan' ? `
+      المهمة: صياغة "مذكرة بيداغوجية" (Fiche Pédagogique) احترافية بخطة عمل ميدانية.
+      الميدان/الرقم: ${field} | المقطع: ${sequenceNum || sectionNum}
+      
+      المطلوب:
+      1. الترويسة بجدول HTML.
+      2. سيرورة التعلمات بجدول HTML يحتوي على المحطات (وضعية الانطلاق، البناء، الاستثمار)، المهام، والتقويم.
+      3. استخدم أسلوب: ${style} (اجعل المذكرة احترافية جداً، وضع لمسات حسب الستايل المختار، مثلا الإبداعي يضيف أنشطة تفاعلية أصلية).
+      ` : `
+      المهمة: صياغة ${genScope === 'exam' ? 'اختبار فصلي شامل' : 'فرض محروس مميز'}.
+      عدد التمارين المحددة: ${exerciseCount}.
+      هل يتضمن وضعية إدماجية؟ ${includeIntegralSituation ? 'نعم، أضف وضعية إدماجية رائعة بسياق وسندات وتعليمة' : 'لا، فقط التمارين المباشرة.'}.
+      
+      المطلوب:
+      1. توفير ترويسة HTML تحمل اسم المؤسسة والأستاذ والسنة الدارسية والمدة (اقتراح).
+      2. كتابة التمارين متدرجة الصعوبة (تذكر، فهم، تطبيق).
+      3. إذا كانت مادة علمية (فيزياء علوم رياضيات)، أعطِ قيم عددية قوية ومنسقة.
+      4. استخدم أسلوب التنسيق (الستايل): ${style} (مثلاً إذا كان كلاسيكي، استخدم أسئلة تقليدية مباشرة، إذا كان إبداعي أو خيالي ديناميكي ابتكر سياقات مبنية على الخيال والتحدي للطالب).
+      `}
 
-      [المطلوب تنفيذه بدقة]:
-      1. هيكلية الترويسة (En-tête):
-         استخدم جدول HTML منظماً يضم (المستوى، المادة، المقطع، الميدان، المورد المعرفي، الكفاءة الختامية، الهدف التعلمي، السندات، المدة).
+      توجيهات التصميم: استخدم وسوم HTML وقم بإنشاء جدول (border="1" cellpadding="8") للمذكرات. استعمل <b>، وغيرها لتزيين النص والتأكيد. 
 
-      2. البطاقة الفنية للدرس:
-         يجب أن تحتوي على:
-         - الكفاءة الختامية (Compétence Terminale).
-         - مركبات الكفاءة (Composantes de la compétence).
-         - القيم والمواقف (Valeurs et attitudes) - وطنية، سلوكية، إلخ.
-
-      3. سيرورة التعلمات (Le déroulement):
-         هذا هو الجزء الأهم. يجب أن يكون في جدول HTML عريض جداً (Full Width) بالأعمدة:
-         - المحطات/المراحل (Phases): [وضعية الانطلاق، وضعية مشكلة (بناء التعلمات)، وضعية التدريب/الاستثمار].
-         - الأفعال البيداغوجية (Objectifs intermédiaires): ماذا نريد أن نحقق في كل مرحلة.
-         - الأنشطة التعليمية (Activités d'apprentissage): سيناريو تفصيلي (الأستاذ يطرح، التلاميذ يبحثون، تدوين النتيجة).
-         - التقويم (Évaluation): مؤشرات النجاح.
-
-      [تعليمات التصميم البصري]:
-      - استخدم جداول HTML بحدود (border="1" cellspacing="0" cellpadding="10").
-      - اجعل الخلفية للعناوين (Header cells) ملونة بالرمادي الفاتح (#f3f4f6).
-      - النص يجب أن يكون ثرياً بالمصطلحات البيداغوجية (مثلاً: التحسيس، المجابهة، التجريد، الإرساء).
-      - إذا كانت المادة علمية، ركز على التجارب والنتائج. إذا كانت أدبية، ركز على النصوص والتحليل.
-
-      ملاحظة: ${isEasyMode ? 'بما أن الأستاذ في الوضع السهل، قم بصفتك خبيراً بملء كل الثغرات البيداغوجية (الميدان، المقطع، إلخ) بناءً على عنوان الدرس فقط.' : ''}
+      ${isEasyMode ? 'الأستاذ في الوضع السهل الذكي: املأ كل الثغرات البيداغوجية أو التمارين مباشرة بناء على الموضوع المعطى وبأفضل جودة.' : ''}
       توجيه خاص من الأستاذ: ${detailedRequest} ${aiPrompt}`;
 
       const ai = getAi();
@@ -681,43 +672,39 @@ export default function PremiumTools() {
       )}
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <motion.a 
+        <motion.button 
           whileHover={{ y: -4, scale: 1.01 }} 
           whileTap={{ scale: 0.98 }}
-          href="https://pro-mat-1243.vercel.app/"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="p-8 rounded-[38px] border-2 bg-slate-900 border-slate-800 hover:border-amber-500/50 hover:bg-slate-800/80 transition-all cursor-pointer group flex flex-col items-center text-center shadow-xl hover:shadow-amber-500/10"
+          onClick={() => setActiveTool(activeTool === 'generator' ? null : 'generator')}
+          className={`p-8 rounded-[38px] border-2 transition-all cursor-pointer group flex flex-col items-center text-center shadow-xl ${activeTool === 'generator' ? 'bg-amber-500/10 border-amber-500/50 shadow-amber-500/20' : 'bg-slate-900 border-slate-800 hover:border-amber-500/50 hover:bg-slate-800/80 hover:shadow-amber-500/10'}`}
         >
           <div className="w-16 h-16 rounded-[1.5rem] bg-amber-500 flex items-center justify-center mb-6 shadow-lg shadow-amber-500/20 group-hover:rotate-6 transition-transform">
             <Wand2 className="w-8 h-8 text-slate-950" />
           </div>
-          <h2 className="text-2xl font-black text-white mb-2">منصة المؤطر التربوي الشاملة</h2>
-          <p className="text-slate-400 font-medium text-sm mb-6">توليد مذكرات وفروض احترافية حسب المنهاج الجزائري.</p>
+          <h2 className="text-2xl font-black text-white mb-2">مولد المذكرات والاختبارات</h2>
+          <p className="text-slate-400 font-medium text-sm mb-6">توليد مذكرات وفروض احترافية بضغطة زر حسب المنهاج.</p>
           <div className="px-6 py-2 bg-amber-500/10 text-amber-500 border border-amber-500/20 rounded-xl text-xs font-black uppercase tracking-widest flex items-center gap-2">
-            فتح المولد الخارجي
-            <ExternalLink className="w-3 h-3" />
+            فتح المولد المدمج
+            <Wand2 className="w-3 h-3" />
           </div>
-        </motion.a>
+        </motion.button>
 
-        <motion.a 
+        <motion.button 
           whileHover={{ y: -4, scale: 1.01 }} 
           whileTap={{ scale: 0.98 }}
-          href="https://mosa7i7-ai.vercel.app/"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="p-8 rounded-[38px] border-2 bg-slate-900 border-slate-800 hover:border-blue-500/50 hover:bg-slate-800/80 transition-all cursor-pointer group flex flex-col items-center text-center shadow-xl hover:shadow-blue-500/10"
+          onClick={() => setActiveTool(activeTool === 'corrector' ? null : 'corrector')}
+          className={`p-8 rounded-[38px] border-2 transition-all cursor-pointer group flex flex-col items-center text-center shadow-xl ${activeTool === 'corrector' ? 'bg-blue-500/10 border-blue-500/50 shadow-blue-500/20' : 'bg-slate-900 border-slate-800 hover:border-blue-500/50 hover:bg-slate-800/80 hover:shadow-blue-500/10'}`}
         >
           <div className="w-16 h-16 rounded-[1.5rem] bg-blue-500 flex items-center justify-center mb-6 shadow-lg shadow-blue-500/20 group-hover:rotate-6 transition-transform">
-            <Zap className="w-8 h-8 text-white" />
+            <ClipboardCheck className="w-8 h-8 text-white" />
           </div>
           <h2 className="text-2xl font-black text-white mb-2">المصحح الذكي</h2>
           <p className="text-slate-400 font-medium text-sm mb-6">تصحيح الأوراق والوضعيات الإدماجية بدقة عالية.</p>
           <div className="px-6 py-2 bg-blue-500/10 text-blue-500 border border-blue-500/20 rounded-xl text-xs font-black uppercase tracking-widest flex items-center gap-2">
-            فتح المصحح الخارجي
-            <ExternalLink className="w-3 h-3" />
+            فتح المصحح المدمج
+            <ClipboardCheck className="w-3 h-3" />
           </div>
-        </motion.a>
+        </motion.button>
       </div>
 
       <AnimatePresence mode="wait">
@@ -803,7 +790,28 @@ export default function PremiumTools() {
                 )}
                 
             <div className="bg-slate-900 rounded-3xl border border-slate-800 p-6 space-y-6">
-              <TextAreaField label="توجيهات إضافية" value={aiPrompt} onChange={setAiPrompt} placeholder="مثلاً: استخدم لغة بسيطة..." />
+              <h3 className="text-sm font-black text-slate-500 uppercase tracking-widest border-b border-slate-800 pb-2">طبيعة التوليد</h3>
+              <div className="grid grid-cols-2 gap-4">
+                 <SelectField label="نوع الوثيقة" value={genScope} onChange={(v) => setGenScope(v as any)} options={['lesson_plan', 'exam', 'assignment']} displayOptions={['مذكرة تربوية', 'اختبار شامل', 'فرض محروس']} />
+                 <SelectField label="التنسيق / الستايل" value={style} onChange={setStyle} options={['احترافي', 'ابداعي مميز', 'كلاسيكي بسيط', 'نموذجي', 'خيالي دينامكي']} />
+              </div>
+
+              {(genScope === 'exam' || genScope === 'assignment') && (
+                <div className="grid grid-cols-2 gap-4 p-4 bg-slate-800/50 rounded-2xl border border-slate-800">
+                  <SelectField label="عدد التمارين" value={exerciseCount} onChange={setExerciseCount} options={['1', '2', '3', '4', '5']} />
+                  <div className="flex flex-col gap-2">
+                    <label className="text-[10px] font-black text-slate-400">وضعية إدماجية؟</label>
+                    <button 
+                      onClick={() => setIncludeIntegralSituation(!includeIntegralSituation)}
+                      className={`py-3 rounded-xl border text-xs font-black transition-all ${includeIntegralSituation ? 'bg-amber-500/20 border-amber-500/50 text-amber-500' : 'bg-slate-950 border-slate-800 text-slate-500'}`}
+                    >
+                      {includeIntegralSituation ? 'نعم، أضف وضعية إدماجية' : 'لا، بدون وضعية'}
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              <TextAreaField label="توجيهات إضافية" value={aiPrompt} onChange={setAiPrompt} placeholder="مثلاً: استخدم لغة بسيطة، ركز على التجارب..." />
               <button 
                 onClick={generateContent} 
                 disabled={isGenerating} 
@@ -830,7 +838,17 @@ export default function PremiumTools() {
                   </div>
                   <div className="overflow-x-auto p-4 flex justify-center bg-slate-950/20 rounded-3xl min-h-[600px]">
                     <div className="bg-white text-slate-900 shadow-2xl min-h-[1123px] w-[794px] shrink-0 transform origin-top scale-[0.6] -mb-[450px]">
-                      <ReactQuill theme="snow" value={genResult} onChange={setGenResult} className="h-full pedagogical-editor" />
+                      <ReactQuill theme="snow" value={genResult} onChange={setGenResult} modules={{
+                        toolbar: [
+                          [{ 'header': [1, 2, 3, 4, 5, 6, false] }],
+                          [{ 'size': ['small', false, 'large', 'huge'] }],
+                          ['bold', 'italic', 'underline', 'strike'],
+                          [{ 'color': [] }, { 'background': [] }],
+                          [{ 'align': [] }, { 'direction': 'rtl' }],
+                          [{ 'list': 'ordered'}, { 'list': 'bullet' }],
+                          ['clean']
+                        ]
+                      }} className="h-full pedagogical-editor" />
                     </div>
                   </div>
                 </div>
@@ -865,23 +883,23 @@ function InputField({ label, value, onChange, placeholder, type = 'text', onSave
     <div className="space-y-2">
       <div className="flex justify-between items-center px-1">
         <label className="text-xs font-black text-slate-500">{label}</label>
-        {onSave && <button onClick={onSave} className="text-[10px] text-purple-400 hover:underline">تذكرني</button>}
+        {onSave && <button onClick={onSave} className="text-[10px] text-purple-400 hover:text-purple-300 font-bold transition-colors">تذكرني وحفظ بياناتي</button>}
       </div>
-      <input type={type} value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder} className="w-full bg-slate-950 border border-slate-800 text-white px-4 py-2 rounded-xl text-sm" />
+      <input type={type} value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder} className="w-full bg-slate-950 border border-slate-800 text-white px-4 py-2 rounded-xl text-sm font-bold" />
     </div>
   );
 }
 
-function SelectField({ label, value, onChange, options, onSave }: any) {
+function SelectField({ label, value, onChange, options, displayOptions, onSave }: any) {
   return (
     <div className="space-y-2">
       <div className="flex justify-between items-center px-1">
         <label className="text-xs font-black text-slate-500">{label}</label>
-        {onSave && <button onClick={onSave} className="text-[10px] text-purple-400 hover:underline">تذكرني</button>}
+        {onSave && <button onClick={onSave} className="text-[10px] text-purple-400 hover:text-purple-300 font-bold transition-colors">تذكرني وحفظ بياناتي</button>}
       </div>
-      <select value={value} onChange={(e) => onChange(e.target.value)} className="w-full bg-slate-950 border border-slate-800 text-white px-4 py-2 rounded-xl text-sm">
+      <select value={value} onChange={(e) => onChange(e.target.value)} className="w-full bg-slate-950 border border-slate-800 text-white px-4 py-2 rounded-xl text-sm font-bold">
         <option value="">اختر {label}</option>
-        {options.map((opt: string) => <option key={opt} value={opt}>{opt}</option>)}
+        {options.map((opt: string, i: number) => <option key={opt} value={opt}>{displayOptions ? displayOptions[i] : opt}</option>)}
       </select>
     </div>
   );

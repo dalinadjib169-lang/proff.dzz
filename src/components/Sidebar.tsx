@@ -89,7 +89,7 @@ function Sidebar() {
   const navItems = [
     { icon: Home, label: t('home'), path: '/' },
     { icon: MessageSquare, label: t('discussions'), path: '/discussions' },
-    { icon: Wand2, label: 'مولد المذكرات - Pro-Mat', path: 'https://pro-mat-1243.vercel.app/', external: true },
+    { icon: Wand2, label: 'مولد المذكرات والاختبارات الذكي', path: '/premium-tools' },
     { icon: FileText, label: 'مولد السيرة الذاتية - CV AI', path: 'https://cv-arabic.vercel.app/', external: true },
     { icon: Dumbbell, label: 'النمط الرياضي - Sport Mode', path: '/fitness' },
     { icon: ShoppingBag, label: t('market'), path: '/market' },
@@ -100,7 +100,7 @@ function Sidebar() {
     { icon: Users, label: t('colleagues'), path: '/colleagues' },
     { icon: Users, label: 'المجموعات التربوية', path: '/groups' },
     { icon: BookOpen, label: t('curriculum'), path: '/curriculum' },
-    { icon: Sparkles, label: t('premium_tools'), path: '/premium-tools' },
+    { icon: Sparkles, label: 'أدوات المطورين', path: '/premium-tools' },
     { icon: Image, label: 'Image Uploader', path: '/image-uploader' },
     { icon: User, label: t('profile'), path: profile?.uid ? `/profile/${profile.uid}` : '/profile/loading' },
     { icon: Settings, label: t('settings'), path: '/settings' },
