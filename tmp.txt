@@ -1,0 +1,132 @@
+src/hooks/useUpload.tsx:62:              setActiveUploads(prev => prev.map(u => u.id === id ? { ...u, progress } : u));
+src/hooks/useUpload.tsx:66:              setActiveUploads(prev => prev.map(u => u.id === id ? { ...u, status: 'error' } : u));
+src/hooks/useUpload.tsx:76:                  setActiveUploads(prev => prev.map(u => u.id === id ? { ...u, status: 'completed', progress: 100 } : u));
+src/hooks/useUpload.tsx:95:                  setActiveUploads(prev => prev.map(u => u.id === id ? { ...u, status: 'completed', progress: 100 } : u));
+src/hooks/useUpload.tsx:100:                  setActiveUploads(prev => prev.map(u => u.id === id ? { ...u, status: 'completed', progress: 100 } : u));
+src/hooks/useUpload.tsx:106:                setActiveUploads(prev => prev.map(u => u.id === id ? { ...u, status: 'error' } : u));
+src/hooks/useUpload.tsx:113:          setActiveUploads(prev => prev.map(u => u.id === id ? { ...u, status: 'error' } : u));
+src/hooks/useUpload.tsx:136:            setActiveUploads(prev => prev.map(u => u.id === id ? { ...u, progress: uploadPercentage } : u));
+src/hooks/useUpload.tsx:146:          setActiveUploads(prev => prev.map(u => u.id === id ? { ...u, status: 'completed', progress: 100 } : u));
+src/hooks/useUpload.tsx:220:          setActiveUploads(prev => prev.map(u => u.id === id ? { ...u, status: 'completed', progress: 100 } : u));
+src/hooks/useUpload.tsx:227:      setActiveUploads(prev => prev.map(u => u.id === id ? { ...u, status: 'error' } : u));
+src/hooks/useUpload.tsx:240:          {activeUploads.map(upload => (
+src/App.tsx:402:                              {['#AlgerianTeachers', '#Bac2026', '#EducationDZ', '#TechInClass'].map(tag => (
+src/components/FriendSuggestions.tsx:28:      setInvitations(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+src/components/FriendSuggestions.tsx:36:      const allUsers = snapshot.docs.map(doc => ({ uid: doc.id, ...doc.data() })) as UserProfile[];
+src/components/FriendSuggestions.tsx:113:          {[1, 2, 3].map(i => (
+src/components/FriendSuggestions.tsx:143:          {suggestions.map((user) => (
+src/components/BottomNav.tsx:23:        {navItems.map((item) => (
+src/components/StoriesSection.tsx:37:      const storyData = snapshot.docs.map(doc => ({
+src/components/StoriesSection.tsx:72:  ).map(([, value]) => value);
+src/components/StoriesSection.tsx:99:        {sortedUserStories.map((us) => (
+src/components/PrayerWaterBar.tsx:314:            {(['adhan', 'adhan2', 'adhan3'] as const).map((v, i) => (
+src/components/PrayerWaterBar.tsx:345:            .map(([name, time]) => (
+src/components/PrayerWaterBar.tsx:412:          {[1, 2].map((group) => (
+src/components/PrayerWaterBar.tsx:414:              {getAzkar().map((item, i) => (
+src/components/CompleteProfile.tsx:146:          {[1, 2, 3].map((s) => (
+src/components/CompleteProfile.tsx:197:                    {WILAYAS.map(w => <option key={w} value={w}>{w}</option>)}
+src/components/CompleteProfile.tsx:219:                    {SUBJECTS.map(s => <option key={s} value={s}>{s}</option>)}
+src/components/CompleteProfile.tsx:227:                  {['ذكر (Male)', 'أنثى (Female)'].map((g) => (
+src/components/CompleteProfile.tsx:248:                  {ROLES.map(r => <option key={r} value={r}>{r}</option>)}
+src/components/CompleteProfile.tsx:260:                  {RANKS.map(r => <option key={r} value={r}>{r}</option>)}
+src/components/CompleteProfile.tsx:275:                    {LEVELS.map(l => <option key={l} value={l}>{l}</option>)}
+src/components/StoryViewer.tsx:120:          {stories.map((s, idx) => (
+src/components/InternalShareModal.tsx:50:          setColleagues(colleagueSnap.docs.map(d => ({ uid: d.id, ...d.data() } as UserProfile)));
+src/components/InternalShareModal.tsx:60:        setGroups(groupSnap.docs.map(d => ({ id: d.id, ...d.data() } as EducationalGroup)));
+src/components/InternalShareModal.tsx:218:                      filteredColleagues.map(colleague => (
+src/components/InternalShareModal.tsx:257:                      filteredGroups.map(group => (
+src/components/ChatBubble.tsx:230:      .map(m => m.senderId)
+src/components/ChatBubble.tsx:497:        .map(doc => ({ id: doc.id, ...doc.data() }))
+src/components/ChatBubble.tsx:1082:        .map(doc => {
+src/components/ChatBubble.tsx:1118:        .map(doc => ({ uid: doc.id, ...doc.data() })) as UserProfile[];
+src/components/ChatBubble.tsx:1205:      const invs = snap.docs.map(d => ({ id: d.id, ...d.data() })) as any[];
+src/components/ChatBubble.tsx:1682:      const notifPromises = selectedGroupUsers.map(uid => 
+src/components/ChatBubble.tsx:1786:        .map(doc => ({ uid: doc.id, ...doc.data() }))
+src/components/ChatBubble.tsx:2102:                         ) : friends.map(u => (
+src/components/ChatBubble.tsx:2174:                        friends.map((friend) => (
+src/components/ChatBubble.tsx:2423:                            users.filter(u => isOnline(u.lastSeen)).map(u => (
+src/components/ChatBubble.tsx:2454:                        {conversations.map(conv => {
+src/components/ChatBubble.tsx:2519:                    {conversations.length > 0 && conversations.map(conv => {
+src/components/ChatBubble.tsx:2581:                    {filteredUsers.map(u => (
+src/components/ChatBubble.tsx:2648:                    {messages.map((msg) => (
+src/components/ChatBubble.tsx:2704:                                {Object.entries(msg.reactions as Record<string, string>).slice(0, 3).map(([uid, emoji], i) => (
+src/components/ChatBubble.tsx:2762:                                      {['👍', '❤️', '😂', '🤔', '😡', '🔥', '👏', '🙏'].map(emoji => (
+src/components/ChatBubble.tsx:2833:                                  {['❤️', '😂', '😮', '😢', '👍', '🔥', '👏', '🙏'].map(emoji => (
+src/components/ChatBubble.tsx:2884:                      .map(upload => (
+src/components/ChatBubble.tsx:2955:                          {selectedFiles.map((file, idx) => {
+src/components/ChatBubble.tsx:3075:                              {['❤️', '😂', '😮', '😢', '👍', '🔥', '👏', '🎉', '🙏', '✨', '📚', '🎓', '🤔', '😡', '😱', '🥳', '💪', '💡', '✅', '❌', '💯', '🚀'].map(emoji => (
+src/components/StoryCreator.tsx:230:              ].map((t) => (
+src/components/StoryCreator.tsx:257:                  {STORY_BACKGROUNDS.map((bg) => (
+src/components/StoryCreator.tsx:303:                {PRESET_DUAS.map((dua) => (
+src/components/StoryCreator.tsx:324:                  {PRESET_AUDIOS.map((aud) => (
+src/components/Sidebar.tsx:53:      const allUsers = snapshot.docs.map(doc => ({ uid: doc.id, ...doc.data() })) as UserProfile[];
+src/components/Sidebar.tsx:165:        {navItems.map((item) => (
+src/components/Sidebar.tsx:331:          {colleagues.map((colleague) => (
+src/components/PostCard.tsx:55:            {React.Children.map(children, (child: any) => 
+src/components/PostCard.tsx:201:      const allComments = snapshot.docs.map(d => ({ 
+src/components/PostCard.tsx:526:                  {REACTIONS.map((re) => (
+src/components/PostCard.tsx:618:            {topLevelComments.map(c => (
+src/components/PostCard.tsx:639:                  {getReplies(c.id).map(reply => (
+src/components/SoulMedicine.tsx:396:                ].map((tab) => (
+src/components/SoulMedicine.tsx:415:              {CONTENT_DATA.filter(item => item.category === activeTab).map((item) => (
+src/pages/Home.tsx:35:      const postsData = snapshot.docs.map(doc => ({
+src/pages/Home.tsx:223:                  {POST_BACKGROUNDS.map(bg => (
+src/pages/Home.tsx:288:        {posts.map(post => <PostCard key={post.id} post={post} />)}
+src/pages/Profile.tsx:99:      const invs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as any[];
+src/pages/Profile.tsx:208:      const postsData = snapshot.docs.map(doc => ({ 
+src/pages/Profile.tsx:468:        setMutualColleagues(snap.docs.map(d => ({ uid: d.id, ...d.data() })) as UserProfile[]);
+src/pages/Profile.tsx:549:                {['Fajr', 'Dhuhr', 'Asr', 'Maghrib', 'Isha'].map(p => (
+src/pages/Profile.tsx:763:                      {ALGERIAN_WILAYAS.map(w => (
+src/pages/Profile.tsx:960:                      {BIO_BACKGROUNDS.map(bg => (
+src/pages/Profile.tsx:975:                      {BIO_TEXT_COLORS.map(color => (
+src/pages/Profile.tsx:1052:                      {mutualColleagues.map(col => (
+src/pages/Profile.tsx:1078:        {posts.map((post) => (
+src/pages/GroupDetails.tsx:63:      setPosts(snapshot.docs.map(d => ({ id: d.id, ...d.data() })) as GroupPost[]);
+src/pages/GroupDetails.tsx:81:        setMembers(memberSnap.docs.map(d => d.data() as UserProfile));
+src/pages/GroupDetails.tsx:87:          setPendingUsers(pendingSnap.docs.map(d => d.data() as UserProfile));
+src/pages/GroupDetails.tsx:373:                {posts.map(post => (
+src/pages/GroupDetails.tsx:395:                {members.map(member => (
+src/pages/GroupDetails.tsx:428:                    {pendingUsers.map(u => (
+src/pages/Saved.tsx:77:            {savedPosts.map(post => <PostCard key={post.id} post={post} />)}
+src/pages/Curriculum.tsx:51:              {['all', 'Official', 'Guide', 'Template'].map(tab => (
+src/pages/Curriculum.tsx:64:            {filteredResources.map((res, idx) => (
+src/pages/Settings.tsx:116:    setBlockedUsers(snap.docs.map(doc => doc.data() as UserProfile));
+src/pages/Settings.tsx:127:    setFriends(snap.docs.map(doc => doc.data() as UserProfile));
+src/pages/Settings.tsx:243:                ].map(lang => (
+src/pages/Settings.tsx:267:                ].map(item => (
+src/pages/Settings.tsx:309:                ].map(item => (
+src/pages/Settings.tsx:348:                ].map(font => (
+src/pages/Settings.tsx:368:                ].map(size => (
+src/pages/Settings.tsx:439:                ].map(option => (
+src/pages/Settings.tsx:595:                {friends.length > 0 ? friends.filter(f => !profile?.blockedUsers?.includes(f.uid)).map(friend => (
+src/pages/Settings.tsx:618:                  {blockedUsers.map(user => (
+src/pages/Discussions.tsx:31:      setTopics(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+src/pages/Discussions.tsx:50:      setMessages(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+src/pages/Discussions.tsx:145:              {categories.map((cat) => (
+src/pages/Discussions.tsx:163:                  {filteredTopics.map((topic, idx) => (
+src/pages/Discussions.tsx:241:              {messages.map((msg, idx) => (
+src/pages/Discussions.tsx:351:                      {categories.slice(1).map(cat => (
+src/pages/Market.tsx:69:      let data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as Product[];
+src/pages/Market.tsx:214:            {WILAYAS.map(w => <option key={w} value={w}>{w}</option>)}
+src/pages/Market.tsx:217:            {CATEGORIES.slice(0, 3).map(cat => (
+src/pages/Market.tsx:233:        {CATEGORIES.map(cat => (
+src/pages/Market.tsx:252:          {products.map((p) => (
+src/pages/Market.tsx:390:                      {CATEGORIES.filter(c => c.id !== 'all').map(cat => <option key={cat.id} value={cat.id}>{cat.label}</option>)}
+src/pages/Market.tsx:417:                      {WILAYAS.map(w => <option key={w} value={w}>{w}</option>)}
+src/pages/Market.tsx:436:                    {newProduct.images.map((img, idx) => (
+src/pages/Market.tsx:463:                              const uploadPromises = filesToUpload.map(file => 
+src/pages/Colleagues.tsx:23:      const allUsers = snapshot.docs.map(doc => ({ uid: doc.id, ...doc.data() })) as UserProfile[];
+src/pages/Colleagues.tsx:151:              {WILAYAS.map(w => <option key={w} value={w}>{w}</option>)}
+src/pages/Colleagues.tsx:163:              {filteredUsers.map((user, idx) => (
+src/pages/Notifications.tsx:28:      const notificationsData = snapshot.docs.map(doc => {
+src/pages/Notifications.tsx:185:          {notifications.map((n) => (
+src/pages/Groups.tsx:34:      const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as EducationalGroup[];
+src/pages/Groups.tsx:121:            {myGroups.map(group => (
+src/pages/Groups.tsx:136:            {[1, 2, 3].map(n => (
+src/pages/Groups.tsx:142:            {otherGroups.map(group => (
+src/pages/Groups.tsx:330:              {[1, 2, 3].map(i => (
+src/pages/PremiumTools.tsx:226:        setAdminCodes(snap.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+src/pages/PremiumTools.tsx:321:        children: text.split('\n').map(line => new Paragraph({
+src/pages/PremiumTools.tsx:597:                  {adminCodes.map((c) => (
+src/pages/PremiumTools.tsx:920:        {options.map((opt: string, i: number) => <option key={`${i}-${opt}`} value={opt}>{displayOptions ? displayOptions[i] : opt}</option>)}
+src/lib/firestore-errors.ts:38:      providerInfo: auth.currentUser?.providerData?.map(provider => ({

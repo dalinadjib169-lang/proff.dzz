@@ -4,7 +4,9 @@ import {
   initializeFirestore, 
   doc, 
   getDocFromServer, 
-  getDocFromCache
+  getDocFromCache,
+  persistentLocalCache,
+  persistentMultipleTabManager
 } from "firebase/firestore";
 import { getStorage } from "firebase/storage";
 
@@ -18,7 +20,8 @@ export const auth = getAuth(app);
 const databaseId = (firebaseConfig as any).firestoreDatabaseId || "(default)";
 export const db = initializeFirestore(app, {
   experimentalForceLongPolling: true,
-  ignoreUndefinedProperties: true
+  ignoreUndefinedProperties: true,
+  localCache: persistentLocalCache({ tabManager: persistentMultipleTabManager() })
 }, databaseId);
 
 export const checkFirestoreConnection = async () => {

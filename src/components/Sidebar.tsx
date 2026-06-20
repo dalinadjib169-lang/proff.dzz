@@ -165,7 +165,7 @@ function Sidebar() {
         {navItems.map((item) => (
           item.external ? (
             <a
-              key={item.path}
+              key={item.label}
               href={item.path}
               target="_blank"
               rel="noopener noreferrer"
@@ -188,7 +188,7 @@ function Sidebar() {
             </a>
           ) : (
             <NavLink
-              key={item.path}
+              key={item.label}
               to={item.path}
             className={({ isActive }) => cn(
               "flex items-center justify-between px-6 py-4 rounded-2xl font-bold transition-all group",

@@ -4,7 +4,6 @@ import { Wand2, CheckSquare, Lock, Key, Mail, Phone, Sparkles, Send, Loader2, Fi
 import { motion, AnimatePresence } from 'motion/react';
 import { db } from '../firebase';
 import { doc, updateDoc, Timestamp, collection, getDocs, query, where, deleteDoc, serverTimestamp, orderBy, onSnapshot, addDoc, limit } from 'firebase/firestore';
-import { GoogleGenAI } from "@google/genai";
 import ReactQuill from 'react-quill-new';
 import 'react-quill-new/dist/quill.snow.css';
 import html2pdf from 'html2pdf.js';
@@ -13,21 +12,23 @@ import { Document, Packer, Paragraph, TextRun, AlignmentType } from 'docx';
 
 import { UserProfile, SavedPreferences } from '../types';
 
-const getAi = () => {
-  // Use a safer way to check for global process variable in browser
-  const env = typeof process !== 'undefined' ? process.env : (import.meta as any).env;
-  const key = env?.GEMINI_API_KEY || (import.meta as any).env?.VITE_GEMINI_API_KEY;
-  
-  if (!key) {
-    console.warn("GEMINI_API_KEY is missing. AI features may not work.");
-    return null;
-  }
-  return new GoogleGenAI({ apiKey: key });
-};
+
 
 function cn(...classes: (string | boolean | undefined)[]) {
   return classes.filter(Boolean).join(' ');
 }
+
+const quillModules = {
+  toolbar: [
+    [{ 'header': [1, 2, 3, 4, 5, 6, false] }],
+    [{ 'size': ['small', false, 'large', 'huge'] }],
+    ['bold', 'italic', 'underline', 'strike'],
+    [{ 'color': [] }, { 'background': [] }],
+    [{ 'align': [] }, { 'direction': 'rtl' }],
+    [{ 'list': 'ordered'}, { 'list': 'bullet' }],
+    ['clean']
+  ]
+};
 
 export default function PremiumTools() {
   const { profile, user } = useAuth();
@@ -295,6 +296,10 @@ export default function PremiumTools() {
   const exportToPDF = () => {
     const element = document.querySelector('.ql-editor') as HTMLElement;
     if (!element) return;
+    
+    const originalWidth = element.style.width;
+    element.style.width = '794px'; // Force A4 width for PDF generation
+    
     const opt = {
       margin: 10,
       filename: `${genScope}_${topic || 'document'}.pdf`,
@@ -302,7 +307,10 @@ export default function PremiumTools() {
       html2canvas: { scale: 2 },
       jsPDF: { unit: 'mm' as const, format: 'a4' as const, orientation: 'portrait' as const }
     };
-    html2pdf().from(element).set(opt).save();
+    
+    html2pdf().from(element).set(opt).save().then(() => {
+      element.style.width = originalWidth;
+    });
   };
 
   const exportToWord = () => {
@@ -370,19 +378,32 @@ export default function PremiumTools() {
       `}
 
       توجيهات التصميم: استخدم وسوم HTML وقم بإنشاء جدول (border="1" cellpadding="8") للمذكرات. استعمل <b>، وغيرها لتزيين النص والتأكيد. 
+      ملاحظة هامة جدا: لا تستخدم رمز الدولار $ لكتابة المعادلات أو الرموز الرياضية أو العلمية لأنه يظهر بشكل غير مفهوم في المحرر، بل اكتبها كنص عادي صريح أو استخدم رموز HTML البسيطة. تجنب تماما استخدام بيئة MathJax أو LaTeX (\$...$).
 
       ${isEasyMode ? 'الأستاذ في الوضع السهل الذكي: املأ كل الثغرات البيداغوجية أو التمارين مباشرة بناء على الموضوع المعطى وبأفضل جودة.' : ''}
       توجيه خاص من الأستاذ: ${detailedRequest} ${aiPrompt}`;
 
-      const ai = getAi();
-      if (!ai) throw new Error('AI service initialization failed. Missing API key.');
-
-      const response = await ai.models.generateContent({
-        model: "gemini-3.1-pro-preview",
-        contents: prompt,
+      const res = await fetch('/api/gemini/generate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          model: "gemini-3.1-pro-preview",
+          prompt: prompt
+        })
       });
 
-      setGenResult(response.text || 'لم يتم توليد أي محتوى.');
+      if (!res.ok) {
+        let errStr = "فشل توليد المحتوى. يرجى المحاولة لاحقاً.";
+        try {
+          const errJSON = await res.json();
+          errStr = errJSON.error || errStr;
+        } catch(e) {}
+        throw new Error(errStr);
+      }
+
+      const data = await res.json();
+      const cleanResult = (data.text || 'لم يتم توليد أي محتوى.').replace(/\$/g, '');
+      setGenResult(cleanResult);
     } catch (err: any) {
       console.error(err);
       setGenError(err.message || 'فشل توليد المحتوى. يرجى المحاولة لاحقاً.');
@@ -407,18 +428,29 @@ export default function PremiumTools() {
       Task: Provide a detailed correction, grade (out of 20), and constructive feedback.
       Language: Arabic`;
 
-      const ai = getAi();
-      if (!ai) throw new Error('AI service initialization failed. Missing API key.');
-
-      const response = await ai.models.generateContent({
-        model: "gemini-3.1-pro-preview",
-        contents: prompt,
+      const res = await fetch('/api/gemini/generate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          model: "gemini-3.1-pro-preview",
+          prompt: prompt
+        })
       });
 
-      setCorrectResult(response.text || 'No correction result.');
-    } catch (err) {
+      if (!res.ok) {
+        let errStr = "فشلت عملية التصحيح.";
+        try {
+          const errJSON = await res.json();
+          errStr = errJSON.error || errStr;
+        } catch(e) {}
+        throw new Error(errStr);
+      }
+
+      const data = await res.json();
+      setCorrectResult(data.text || 'No correction result.');
+    } catch (err: any) {
       console.error(err);
-      alert('فشلت عملية التصحيح.');
+      alert(err.message || 'فشلت عملية التصحيح.');
     } finally {
       setIsCorrecting(false);
     }
@@ -820,6 +852,13 @@ export default function PremiumTools() {
                 {isGenerating ? <Loader2 className="w-5 h-5 animate-spin" /> : <Wand2 className="w-5 h-5" />}
                 {isGenerating ? 'جاري التوليد...' : 'توليد الوثيقة'}
               </button>
+
+              {genError && (
+                <div className="mt-4 p-4 bg-red-500/10 border border-red-500/50 rounded-xl flex items-start gap-3 text-red-500">
+                  <AlertCircle className="w-5 h-5 shrink-0 mt-0.5" />
+                  <p className="text-sm font-bold">{genError}</p>
+                </div>
+              )}
             </div>
               </div>
 
@@ -836,19 +875,9 @@ export default function PremiumTools() {
                     </div>
                     <span className="text-white font-black">المعاينة</span>
                   </div>
-                  <div className="overflow-x-auto p-4 flex justify-center bg-slate-950/20 rounded-3xl min-h-[600px]">
-                    <div className="bg-white text-slate-900 shadow-2xl min-h-[1123px] w-[794px] shrink-0 transform origin-top scale-[0.6] -mb-[450px]">
-                      <ReactQuill theme="snow" value={genResult} onChange={setGenResult} modules={{
-                        toolbar: [
-                          [{ 'header': [1, 2, 3, 4, 5, 6, false] }],
-                          [{ 'size': ['small', false, 'large', 'huge'] }],
-                          ['bold', 'italic', 'underline', 'strike'],
-                          [{ 'color': [] }, { 'background': [] }],
-                          [{ 'align': [] }, { 'direction': 'rtl' }],
-                          [{ 'list': 'ordered'}, { 'list': 'bullet' }],
-                          ['clean']
-                        ]
-                      }} className="h-full pedagogical-editor" />
+                  <div className="p-2 sm:p-4 mt-2 bg-slate-950/20 rounded-3xl pb-8 border border-slate-800 overflow-x-auto w-full" style={{ WebkitOverflowScrolling: 'touch' }}>
+                    <div className="bg-white text-slate-900 shadow-2xl min-h-[1123px] w-[794px] min-w-[794px] mx-auto rounded-xl overflow-x-auto">
+                      <ReactQuill theme="snow" value={genResult} onChange={setGenResult} modules={quillModules} className="h-full pedagogical-editor" />
                     </div>
                   </div>
                 </div>
@@ -883,9 +912,14 @@ function InputField({ label, value, onChange, placeholder, type = 'text', onSave
     <div className="space-y-2">
       <div className="flex justify-between items-center px-1">
         <label className="text-xs font-black text-slate-500">{label}</label>
-        {onSave && <button onClick={onSave} className="text-[10px] text-purple-400 hover:text-purple-300 font-bold transition-colors">تذكرني وحفظ بياناتي</button>}
+        {onSave && (
+          <button onClick={onSave} className="flex items-center gap-1.5 px-2 py-1 bg-purple-500/10 hover:bg-purple-500/20 text-purple-400 border border-purple-500/20 rounded-lg text-[10px] font-black transition-all group" title="تذكر هذا الحقل للمرات القادمة">
+            <Save className="w-3 h-3 group-active:scale-95" />
+            <span>تذكرني</span>
+          </button>
+        )}
       </div>
-      <input type={type} value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder} className="w-full bg-slate-950 border border-slate-800 text-white px-4 py-2 rounded-xl text-sm font-bold" />
+      <input type={type} value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder} className="w-full bg-slate-950 border border-slate-800 text-white px-4 py-2 rounded-xl text-sm font-bold focus:border-amber-500/50 outline-none transition-all" />
     </div>
   );
 }
@@ -895,21 +929,34 @@ function SelectField({ label, value, onChange, options, displayOptions, onSave }
     <div className="space-y-2">
       <div className="flex justify-between items-center px-1">
         <label className="text-xs font-black text-slate-500">{label}</label>
-        {onSave && <button onClick={onSave} className="text-[10px] text-purple-400 hover:text-purple-300 font-bold transition-colors">تذكرني وحفظ بياناتي</button>}
+        {onSave && (
+          <button onClick={onSave} className="flex items-center gap-1.5 px-2 py-1 bg-purple-500/10 hover:bg-purple-500/20 text-purple-400 border border-purple-500/20 rounded-lg text-[10px] font-black transition-all group" title="تذكر هذا الحقل للمرات القادمة">
+            <Save className="w-3 h-3 group-active:scale-95" />
+            <span>تذكرني</span>
+          </button>
+        )}
       </div>
-      <select value={value} onChange={(e) => onChange(e.target.value)} className="w-full bg-slate-950 border border-slate-800 text-white px-4 py-2 rounded-xl text-sm font-bold">
+      <select value={value} onChange={(e) => onChange(e.target.value)} className="w-full bg-slate-950 border border-slate-800 text-white px-4 py-2 rounded-xl text-sm font-bold focus:border-amber-500/50 outline-none transition-all">
         <option value="">اختر {label}</option>
-        {options.map((opt: string, i: number) => <option key={opt} value={opt}>{displayOptions ? displayOptions[i] : opt}</option>)}
+        {options.map((opt: string, i: number) => <option key={`${i}-${opt}`} value={opt}>{displayOptions ? displayOptions[i] : opt}</option>)}
       </select>
     </div>
   );
 }
 
-function TextAreaField({ label, value, onChange, placeholder }: any) {
+function TextAreaField({ label, value, onChange, placeholder, onSave }: any) {
   return (
     <div className="space-y-2">
-      <label className="text-xs font-black text-slate-500 px-1">{label}</label>
-      <textarea rows={3} value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder} className="w-full bg-slate-950 border border-slate-800 text-white px-4 py-3 rounded-xl text-sm resize-none" />
+      <div className="flex justify-between items-center px-1">
+        <label className="text-xs font-black text-slate-500">{label}</label>
+        {onSave && (
+          <button onClick={onSave} className="flex items-center gap-1.5 px-2 py-1 bg-purple-500/10 hover:bg-purple-500/20 text-purple-400 border border-purple-500/20 rounded-lg text-[10px] font-black transition-all group" title="تذكر هذا الحقل للمرات القادمة">
+            <Save className="w-3 h-3 group-active:scale-95" />
+            <span>تذكرني</span>
+          </button>
+        )}
+      </div>
+      <textarea rows={3} value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder} className="w-full bg-slate-950 border border-slate-800 text-white px-4 py-3 rounded-xl text-sm font-bold focus:border-amber-500/50 outline-none transition-all resize-none" />
     </div>
   );
 }

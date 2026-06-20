@@ -65,10 +65,13 @@ export default function App() {
             clearInterval(interval);
             return 98;
           }
-          const step = Math.floor(Math.random() * 8) + 3;
-          return Math.min(prev + step, 98);
+          // Smaller random steps, 1 to 4 %
+          const step = Math.floor(Math.random() * 4) + 1;
+          // As it gets closer to 90, slow down further
+          const actualStep = prev > 80 ? (Math.random() > 0.5 ? 1 : 0) : step;
+          return Math.min(prev + actualStep, 98);
         });
-      }, 70);
+      }, 150); // 150ms instead of 70ms
       return () => clearInterval(interval);
     } else {
       setLoadingProgress(100);

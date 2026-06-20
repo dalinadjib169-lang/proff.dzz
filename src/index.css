@@ -173,7 +173,7 @@
   width: 100% !important;
   border-collapse: collapse;
   margin: 30px 0;
-  table-layout: fixed;
+  table-layout: auto;
   border: 2px solid #334155;
 }
 
@@ -183,8 +183,6 @@
   padding: 15px;
   vertical-align: top;
   text-align: right;
-  word-break: break-word;
-  min-width: 150px;
 }
 
 .pedagogical-editor .ql-editor table th {
