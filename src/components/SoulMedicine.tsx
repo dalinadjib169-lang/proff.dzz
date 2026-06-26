@@ -353,12 +353,13 @@ export const SoulMedicine: React.FC<{ isOpen: boolean; onClose: () => void }> = 
               </div>
 
               {/* Controls */}
-              <div className="absolute top-6 right-6 flex flex-col gap-3">
+              <div className="absolute top-4 right-4 sm:top-6 sm:right-6 flex flex-col gap-3 z-50">
                 <button 
                   onClick={onClose}
-                  className="p-3 rounded-2xl bg-white/10 text-white hover:bg-white/20 transition-all border border-white/20 backdrop-blur-md shadow-lg"
+                  className="flex items-center gap-2 px-4 py-3 rounded-2xl bg-red-500/20 text-red-100 hover:bg-red-500 hover:text-white transition-all border border-red-500/30 backdrop-blur-md shadow-2xl"
                 >
-                  <X className="w-6 h-6" />
+                  <span className="font-bold text-sm">إغلاق</span>
+                  <X className="w-5 h-5" />
                 </button>
                 
                 <button 

@@ -116,12 +116,12 @@ function Navbar() {
               {/* Log Out button in the header */}
               <button
                 onClick={handleLogout}
-                className="p-2.5 text-red-400 hover:text-red-500 hover:bg-red-500/10 bg-slate-900 rounded-xl transition-all border border-slate-800 flex items-center justify-center gap-1.5 cursor-pointer"
+                className="px-3 py-2 text-white hover:text-white bg-red-600 hover:bg-red-700 rounded-xl transition-all border border-red-500 flex items-center justify-center gap-1.5 cursor-pointer shadow-lg shadow-red-600/20"
                 title="تسجيل الخروج"
                 id="navbar-logout-btn"
               >
-                <LogOut className="w-5 h-5" />
-                <span className="hidden xs:inline text-xs font-black">خروج</span>
+                <LogOut className="w-4 h-4" />
+                <span className="text-[11px] font-black">خروج</span>
               </button>
             </div>
           </div>

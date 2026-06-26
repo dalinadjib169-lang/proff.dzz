@@ -221,7 +221,7 @@ export default function App() {
       <UploadProvider>
         <Router>
           <Toaster position="top-center" gutter={8} toastOptions={{ duration: 4000, style: { background: '#0f172a', color: '#f1f5f9', border: '1px solid #1e293b' } }} />
-          <div className="min-h-screen bg-slate-950 text-slate-100 selection:bg-primary/30 relative">
+          <div className="min-h-screen bg-slate-950 text-slate-100 selection:bg-primary/30 relative overflow-x-hidden w-full">
             {profile?.appBackground && (
               <img 
                 src={profile.appBackground}
