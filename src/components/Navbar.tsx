@@ -123,24 +123,6 @@ function Navbar() {
                 <LogOut className="w-5 h-5" />
                 <span className="hidden xs:inline text-xs font-black">خروج</span>
               </button>
-
-              <button
-                onClick={() => {
-                  if (window.history.length > 1) {
-                    window.history.back();
-                  } else {
-                    window.location.href = '/';
-                  }
-                }}
-                className={cn(
-                  "p-2.5 text-slate-400 hover:text-primary hover:bg-primary/10 bg-slate-900 rounded-xl transition-all border border-slate-800",
-                  window.location.pathname === '/' && "hidden"
-                )}
-                title="Back / رجوع"
-              >
-                <ArrowRight className="w-5 h-5 hidden rtl:block" />
-                <ArrowLeft className="w-5 h-5 hidden ltr:block" />
-              </button>
             </div>
           </div>
         </div>
