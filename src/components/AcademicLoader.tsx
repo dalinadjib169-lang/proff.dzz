@@ -85,10 +85,10 @@ export default function AcademicLoader({ progress }: AcademicLoaderProps) {
           </div>
         </div>
 
-        {/* High-Fidelity TeachDZ Glowing SVG Logo representation */}
+        {/* High-Fidelity TeachDZ Glowing Image Logo representation */}
         <div className="relative mt-2">
           {/* Neon circular aura behind the logo */}
-          <div className="absolute inset-0 bg-purple-500/20 blur-xl rounded-full scale-110"></div>
+          <div className="absolute inset-0 bg-purple-500/20 blur-xl rounded-[2rem] scale-110"></div>
           
           <motion.div
             animate={{ 
@@ -99,76 +99,13 @@ export default function AcademicLoader({ progress }: AcademicLoaderProps) {
               duration: 3, 
               ease: "easeInOut" 
             }}
-            className="w-24 h-24 bg-gradient-to-b from-[#141522] to-[#0a0b12] rounded-3xl border border-white/10 flex flex-col items-center justify-center shadow-[0_15px_30px_rgba(0,0,0,0.5)] relative z-10 p-2 overflow-hidden group border-purple-500/30"
+            className="w-32 h-32 bg-gradient-to-b from-[#141522] to-[#0a0b12] rounded-[2rem] border border-white/10 flex flex-col items-center justify-center shadow-[0_15px_30px_rgba(0,0,0,0.5)] relative z-10 p-1 overflow-hidden group border-purple-500/30"
           >
-            {/* SVG Logo drawing the academic mortarboard cap and the glowing TeachDZ branding */}
-            <svg viewBox="0 0 100 100" className="w-full h-full">
-              <defs>
-                <linearGradient id="capGlow" x1="0%" y1="0%" x2="100%" y2="100%">
-                  <stop offset="0%" stopColor="#bf5af2" />
-                  <stop offset="50%" stopColor="#8e5cf7" />
-                  <stop offset="100%" stopColor="#ff5e62" />
-                </linearGradient>
-                <linearGradient id="goldGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-                  <stop offset="0%" stopColor="#ffe259" />
-                  <stop offset="100%" stopColor="#ffa751" />
-                </linearGradient>
-                <filter id="shadow">
-                  <feDropShadow dx="0" dy="1.5" stdDeviation="1.5" floodColor="#000000" floodOpacity="0.6"/>
-                </filter>
-              </defs>
-
-              {/* Glowing decorative curves representing open book pages or wings */}
-              <path 
-                d="M15 72 C 30 60, 48 60, 50 67 C 52 60, 70 60, 85 72" 
-                fill="none" 
-                stroke="url(#capGlow)" 
-                strokeWidth="2.5" 
-                strokeLinecap="round" 
-                opacity="0.8"
-              />
-              <path 
-                d="M20 76 C 32 66, 47 66, 50 72 C 53 66, 68 66, 80 76" 
-                fill="none" 
-                stroke="url(#capGlow)" 
-                strokeWidth="1.5" 
-                strokeLinecap="round" 
-                opacity="0.5"
-              />
-
-              {/* Doctoral Mortarboard Cap Body */}
-              <g filter="url(#shadow)" transform="translate(0, -2)">
-                {/* Lower base column supporting the diamond top */}
-                <path d="M36 45 L36 51 C36 57, 64 57, 64 51 L64 45 Z" fill="#2d2f44" opacity="0.9" />
-                <path d="M38 46 L38 50 C38 55, 62 55, 62 50 L62 46 Z" fill="url(#capGlow)" />
-
-                {/* Sparkling diamond top of the graduate cap */}
-                <polygon points="50,26 80,38 50,50 20,38" fill="#1b1c2b" stroke="url(#capGlow)" strokeWidth="2" />
-                <polygon points="50,28 76,38 50,48 24,38" fill="url(#capGlow)" opacity="0.15" />
-
-                {/* Golden Cap button in center */}
-                <ellipse cx="50" cy="38" rx="2.5" ry="1.8" fill="url(#goldGrad)" />
-
-                {/* Tassel hanging down gracefully */}
-                <path d="M50 38 Q 66 38, 72 48" fill="none" stroke="url(#goldGrad)" strokeWidth="1.5" strokeLinecap="round" />
-                <polygon points="72,48 70,55 75,55 73,48" fill="url(#goldGrad)" />
-              </g>
-
-              {/* "TeachDZ" Text inside the Shield */}
-              <text 
-                x="50" 
-                y="91" 
-                textAnchor="middle" 
-                fill="#ffffff" 
-                fontSize="11.5" 
-                fontWeight="900" 
-                fontFamily="sans-serif"
-                letterSpacing="0.2"
-                style={{ filter: "drop-shadow(0px 2px 3px rgba(168,85,247,0.5))" }}
-              >
-                TeachDZ
-              </text>
-            </svg>
+            <img 
+              src="/prof_dali_logo.png" 
+              alt="TeachDZ Logo" 
+              className="w-full h-full object-cover rounded-[1.8rem]"
+            />
           </motion.div>
         </div>
 

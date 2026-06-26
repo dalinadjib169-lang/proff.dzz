@@ -23,6 +23,19 @@ export default function Login() {
 
   const navigate = useNavigate();
 
+  // Load saved credentials on mount
+  useEffect(() => {
+    const savedEmail = localStorage.getItem('app_saved_email');
+    const savedPhone = localStorage.getItem('app_saved_phone');
+    const savedPassword = localStorage.getItem('app_saved_password');
+    const savedMethod = localStorage.getItem('app_saved_method') as 'email' | 'phone';
+    
+    if (savedEmail) setEmail(savedEmail);
+    if (savedPhone) setPhone(savedPhone);
+    if (savedPassword) setPassword(atob(savedPassword)); // Decode base64
+    if (savedMethod) setAuthMethod(savedMethod);
+  }, []);
+
   const handleForgotPassword = async () => {
     if (!email) {
       setError('يرجى إدخال البريد الإلكتروني أولاً لإرسال رابط استعادة كلمة السر');
@@ -286,6 +299,18 @@ export default function Login() {
         await signInWithEmailAndPassword(auth, finalEmail, password);
         localStorage.setItem('pwa_show_immediately', 'true');
       }
+
+      if (rememberMe) {
+        localStorage.setItem('app_saved_email', email);
+        localStorage.setItem('app_saved_phone', phone);
+        localStorage.setItem('app_saved_password', btoa(password));
+        localStorage.setItem('app_saved_method', authMethod);
+      } else {
+        localStorage.removeItem('app_saved_email');
+        localStorage.removeItem('app_saved_phone');
+        localStorage.removeItem('app_saved_password');
+        localStorage.removeItem('app_saved_method');
+      }
     } catch (err: any) {
       console.error("Email Auth Error:", err);
       setError(err.message || 'Authentication failed');
@@ -301,13 +326,16 @@ export default function Login() {
   const handleSwitchAccount = async () => {
     try {
       localStorage.removeItem('rememberMe');
-      localStorage.removeItem('userEmail');
-      localStorage.removeItem('userPassword');
+      localStorage.removeItem('app_saved_email');
+      localStorage.removeItem('app_saved_phone');
+      localStorage.removeItem('app_saved_password');
+      localStorage.removeItem('app_saved_method');
       await signOut(auth);
       setEmail('');
       setPassword('');
+      setPhone('');
       setRememberMe(true);
-      setError('Signed out. You can now log in with a different account.');
+      setError('تم تسجيل الخروج بنجاح. يمكنك الآن الدخول بحساب آخر.');
     } catch (err) {
       console.error("Sign out error:", err);
     }
