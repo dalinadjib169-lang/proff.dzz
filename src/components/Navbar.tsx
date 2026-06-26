@@ -55,13 +55,13 @@ function Navbar() {
               </div>
             </div>
 
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2 sm:gap-4">
               <button
                 onClick={() => window.dispatchEvent(new CustomEvent('show-chat'))}
-                className="p-2.5 text-slate-400 hover:text-primary hover:bg-primary/10 bg-slate-900 rounded-xl transition-all relative border border-slate-800 md:hidden"
+                className="p-2 sm:p-2.5 text-slate-400 hover:text-primary hover:bg-primary/10 bg-slate-900 rounded-xl transition-all relative border border-slate-800 md:hidden"
                 title="Show Chat"
               >
-                <MessageSquare className="w-5 h-5" />
+                <MessageSquare className="w-4 h-4 sm:w-5 sm:h-5" />
                 {unreadMessagesCount > 0 && (
                   <span className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 rounded-full border-2 border-slate-950 flex items-center justify-center text-[8px] font-black text-white animate-bounce">
                     {unreadMessagesCount}
@@ -82,18 +82,18 @@ function Navbar() {
                 )}
               </button>
 
-              <Link to="/notifications" className="p-2.5 text-slate-400 hover:text-primary hover:bg-primary/10 bg-slate-900 rounded-xl transition-all relative border border-slate-800">
-                <Bell className="w-5 h-5" />
-                <span className="absolute top-2 right-2 w-2 h-2 bg-primary rounded-full border-2 border-slate-950"></span>
+              <Link to="/notifications" className="p-2 sm:p-2.5 text-slate-400 hover:text-primary hover:bg-primary/10 bg-slate-900 rounded-xl transition-all relative border border-slate-800">
+                <Bell className="w-4 h-4 sm:w-5 sm:h-5" />
+                <span className="absolute top-2 right-2 w-1.5 h-1.5 sm:w-2 sm:h-2 bg-primary rounded-full border-2 border-slate-950"></span>
               </Link>
               
-              <div className="h-8 w-px bg-slate-800 mx-1"></div>
+              <div className="h-6 sm:h-8 w-px bg-slate-800 mx-0.5 sm:mx-1"></div>
 
               <Link 
                 to={profile?.uid ? `/profile/${profile.uid}` : '/profile/loading'} 
-                className="flex items-center gap-3 p-1.5 pr-4 hover:bg-slate-900 rounded-2xl transition-all group border border-transparent hover:border-slate-800"
+                className="flex items-center gap-2 sm:gap-3 p-1 hover:bg-slate-900 rounded-2xl transition-all group border border-transparent hover:border-slate-800"
               >
-                <div className="w-9 h-9 rounded-xl bg-slate-800 overflow-hidden ring-2 ring-primary/10 group-hover:ring-primary/30 transition-all animate-fade-in">
+                <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-slate-800 overflow-hidden ring-2 ring-primary/10 group-hover:ring-primary/30 transition-all animate-fade-in shrink-0">
                   {profile?.photoURL ? (
                     <img
                       src={profile.photoURL}
@@ -103,7 +103,7 @@ function Navbar() {
                     />
                   ) : (
                     <div className="w-full h-full flex items-center justify-center text-slate-700">
-                      <UserIcon className="w-5 h-5" />
+                      <UserIcon className="w-4 h-4 sm:w-5 sm:h-5" />
                     </div>
                   )}
                 </div>
@@ -116,12 +116,12 @@ function Navbar() {
               {/* Log Out button in the header */}
               <button
                 onClick={handleLogout}
-                className="px-3 py-2 text-white hover:text-white bg-red-600 hover:bg-red-700 rounded-xl transition-all border border-red-500 flex items-center justify-center gap-1.5 cursor-pointer shadow-lg shadow-red-600/20"
+                className="px-2.5 py-1.5 sm:px-3 sm:py-2 text-white hover:text-white bg-red-600 hover:bg-red-700 rounded-xl transition-all border border-red-500 flex items-center justify-center gap-1.5 cursor-pointer shadow-lg shadow-red-600/20 shrink-0"
                 title="تسجيل الخروج"
                 id="navbar-logout-btn"
               >
-                <LogOut className="w-4 h-4" />
-                <span className="text-[11px] font-black">خروج</span>
+                <LogOut className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                <span className="hidden xs:inline text-[10px] sm:text-[11px] font-black">خروج</span>
               </button>
             </div>
           </div>
