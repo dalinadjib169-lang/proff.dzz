@@ -100,6 +100,7 @@
     color: var(--text-color-current);
     font-size: var(--font-size-current);
     font-family: var(--font-family-current);
+    overflow-x: hidden;
   }
 
   .bg-slate-900 {
