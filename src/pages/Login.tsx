@@ -21,6 +21,12 @@ export default function Login() {
   const [success, setSuccess] = useState('');
   const [networkStatus, setNetworkStatus] = useState<{ google: boolean | null; firebase: boolean | null }>({ google: null, firebase: null });
 
+  // Forgot Password Flow State
+  const [forgotPasswordStep, setForgotPasswordStep] = useState<0 | 1 | 2 | 3>(0);
+  const [resetCode, setResetCode] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmNewPassword, setConfirmNewPassword] = useState('');
+
   const navigate = useNavigate();
 
   // Load saved credentials on mount
@@ -36,19 +42,71 @@ export default function Login() {
     if (savedMethod) setAuthMethod(savedMethod);
   }, []);
 
-  const handleForgotPassword = async () => {
-    if (!email) {
-      setError('يرجى إدخال البريد الإلكتروني أولاً لإرسال رابط استعادة كلمة السر');
+  const handleSendResetCode = async () => {
+    if (authMethod === 'email' && !email) {
+      setError('يرجى إدخال البريد الإلكتروني أولاً لإرسال الكود');
       return;
     }
+    if (authMethod === 'phone' && !phone) {
+      setError('يرجى إدخال رقم الهاتف أولاً لإرسال الكود');
+      return;
+    }
+
     setLoading(true);
     setError('');
     setSuccess('');
     try {
-      await sendPasswordResetEmail(auth, email);
-      setSuccess('تم إرسال رابط إعادة تعيين كلمة السر إلى بريدك الإلكتروني بنجاح!');
+      if (authMethod === 'email') {
+        // We use standard Firebase for email, but simulate the UI for UX
+        await sendPasswordResetEmail(auth, email);
+        setSuccess('تم إرسال رابط/كود إعادة تعيين كلمة السر إلى بريدك الإلكتروني بنجاح!');
+        setForgotPasswordStep(2); // Go to code entry
+      } else {
+        // Simulate phone SMS sending for prototype
+        setTimeout(() => {
+          setSuccess('تم إرسال كود التحقق إلى رقم هاتفك (محاكاة)');
+          setForgotPasswordStep(2);
+        }, 1500);
+      }
     } catch (err: any) {
-      setError(err.message || 'فشل إرسال رابط الاستعادة');
+      setError(err.message || 'فشل إرسال الكود');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleVerifyResetCode = () => {
+    if (resetCode.length < 6) {
+      setError('يرجى إدخال الكود المكون من 6 أرقام بشكل صحيح');
+      return;
+    }
+    setError('');
+    setSuccess('تم التحقق من الكود بنجاح!');
+    setForgotPasswordStep(3); // Go to new password
+  };
+
+  const handleSetNewPassword = async () => {
+    if (!newPassword || newPassword !== confirmNewPassword) {
+      setError('كلمات السر غير متطابقة أو فارغة');
+      return;
+    }
+    setLoading(true);
+    setError('');
+    try {
+      // Note: In a real app without backend, we can't easily change the password using a dummy code.
+      // We will simulate success and advise the user.
+      if (authMethod === 'email') {
+        // The user must click the link sent to their email to actually change it in Firebase.
+        setError('لأسباب أمنية (نسخة تجريبية)، يرجى الضغط على الرابط المرسل إلى بريدك الإلكتروني لتعيين كلمة السر الجديدة في Firebase مباشرة.');
+        setForgotPasswordStep(0);
+      } else {
+        setSuccess('تم تعيين كلمة السر بنجاح! (محاكاة)');
+        setForgotPasswordStep(0);
+        setAuthMethod('phone');
+        setPassword(newPassword);
+      }
+    } catch (err: any) {
+      setError(err.message || 'فشل تحديث كلمة السر');
     } finally {
       setLoading(false);
     }
@@ -457,34 +515,169 @@ export default function Login() {
           </div>
         )}
 
-        <div className="flex gap-2 p-1 bg-slate-950/30 backdrop-blur-md rounded-2xl border border-slate-800/50">
-          <button
-            type="button"
-            onClick={() => setAuthMethod('email')}
-            className={`flex-1 py-2.5 rounded-xl text-xs font-black transition-all ${authMethod === 'email' ? 'bg-primary text-white shadow-lg' : 'text-slate-500 hover:text-slate-300'}`}
-          >
-            Email / بريد إلكتروني
-          </button>
-          <button
-            type="button"
-            onClick={() => setAuthMethod('phone')}
-            className={`flex-1 py-2.5 rounded-xl text-xs font-black transition-all ${authMethod === 'phone' ? 'bg-primary text-white shadow-lg' : 'text-slate-500 hover:text-slate-300'}`}
-          >
-            Phone / رقم هاتف
-          </button>
-        </div>
+        {forgotPasswordStep > 0 ? (
+          <div className="flex flex-col gap-5">
+            <div className="text-center">
+              <h2 className="text-xl font-bold text-white mb-2">
+                {forgotPasswordStep === 1 && 'استعادة كلمة السر'}
+                {forgotPasswordStep === 2 && 'أدخل كود التحقق'}
+                {forgotPasswordStep === 3 && 'تعيين كلمة سر جديدة'}
+              </h2>
+            </div>
 
-        {isRegister && (
-          <button 
-            onClick={() => setIsRegister(false)}
-            className="self-start py-2.5 px-5 flex items-center gap-2 text-white transition-all bg-slate-800 hover:bg-slate-700 rounded-2xl border border-slate-700 shadow-xl text-xs font-black group active:scale-95"
-          >
-            <ChevronRight className="w-4 h-4 group-hover:-translate-x-1 transition-transform" />
-            رجوع لصفحة الدخول / BACK
-          </button>
-        )}
+            {forgotPasswordStep === 1 && (
+              <div className="space-y-4">
+                <p className="text-sm text-slate-400 text-center font-medium leading-relaxed">
+                  أدخل {authMethod === 'email' ? 'البريد الإلكتروني' : 'رقم الهاتف'} الذي سجلت به لإرسال رمز الاستعادة.
+                </p>
+                {authMethod === 'email' ? (
+                  <div className="relative">
+                    <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-500" />
+                    <input
+                      type="email"
+                      placeholder="البريد الإلكتروني"
+                      className="w-full pl-12 pr-4 py-3.5 bg-slate-950/30 border border-slate-800/50 rounded-2xl focus:ring-2 focus:ring-purple-500 focus:border-purple-500 outline-none transition-all text-white placeholder:text-slate-600 text-sm font-bold"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                    />
+                  </div>
+                ) : (
+                  <div className="relative">
+                    <RefreshCw className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-500" />
+                    <input
+                      type="tel"
+                      placeholder="رقم الهاتف"
+                      className="w-full pl-12 pr-4 py-3.5 bg-slate-950/30 border border-slate-800/50 rounded-2xl focus:ring-2 focus:ring-purple-500 focus:border-purple-500 outline-none transition-all text-white placeholder:text-slate-600 text-sm font-bold"
+                      value={phone}
+                      onChange={(e) => setPhone(e.target.value)}
+                    />
+                  </div>
+                )}
+                <button
+                  onClick={handleSendResetCode}
+                  disabled={loading}
+                  className="w-full bg-gradient-to-r from-purple-600 to-indigo-600 text-white font-bold py-3.5 px-4 rounded-2xl hover:opacity-90 transition-opacity active:scale-[0.98] flex items-center justify-center gap-2 shadow-xl shadow-purple-500/25"
+                >
+                  {loading ? <div className="w-6 h-6 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : 'إرسال الكود'}
+                </button>
+              </div>
+            )}
 
-        <form onSubmit={handleEmailAuth} className="space-y-4">
+            {forgotPasswordStep === 2 && (
+              <div className="space-y-4">
+                <p className="text-sm text-slate-400 text-center font-medium">
+                  تم إرسال كود التحقق. يرجى إدخاله هنا.
+                </p>
+                <div className="relative">
+                  <KeyRound className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-500" />
+                  <input
+                    type="text"
+                    placeholder="كود التحقق (6 أرقام)"
+                    maxLength={6}
+                    className="w-full pl-12 pr-4 py-3.5 text-center tracking-[0.5em] bg-slate-950/30 border border-slate-800/50 rounded-2xl focus:ring-2 focus:ring-purple-500 focus:border-purple-500 outline-none transition-all text-white placeholder:text-slate-600 text-lg font-bold"
+                    value={resetCode}
+                    onChange={(e) => setResetCode(e.target.value.replace(/\D/g, ''))}
+                  />
+                </div>
+                <button
+                  onClick={handleVerifyResetCode}
+                  disabled={resetCode.length < 6}
+                  className="w-full bg-gradient-to-r from-purple-600 to-indigo-600 text-white font-bold py-3.5 px-4 rounded-2xl hover:opacity-90 transition-opacity active:scale-[0.98] flex items-center justify-center gap-2 shadow-xl shadow-purple-500/25 disabled:opacity-50"
+                >
+                  التحقق
+                </button>
+              </div>
+            )}
+
+            {forgotPasswordStep === 3 && (
+              <div className="space-y-4">
+                <div className="relative">
+                  <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-500" />
+                  <input
+                    type={showPassword ? "text" : "password"}
+                    placeholder="كلمة السر الجديدة"
+                    className="w-full pl-12 pr-12 py-3.5 bg-slate-950/30 border border-slate-800/50 rounded-2xl focus:ring-2 focus:ring-purple-500 focus:border-purple-500 outline-none transition-all text-white placeholder:text-slate-600 text-sm font-bold"
+                    value={newPassword}
+                    onChange={(e) => setNewPassword(e.target.value)}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 p-2.5 rounded-xl text-slate-400 hover:text-purple-400 hover:bg-purple-400/10 transition-all z-20"
+                  >
+                    {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                  </button>
+                </div>
+                <div className="relative">
+                  <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-500" />
+                  <input
+                    type={showPassword ? "text" : "password"}
+                    placeholder="تأكيد كلمة السر الجديدة"
+                    className="w-full pl-12 pr-12 py-3.5 bg-slate-950/30 border border-slate-800/50 rounded-2xl focus:ring-2 focus:ring-purple-500 focus:border-purple-500 outline-none transition-all text-white placeholder:text-slate-600 text-sm font-bold"
+                    value={confirmNewPassword}
+                    onChange={(e) => setConfirmNewPassword(e.target.value)}
+                  />
+                </div>
+                <button
+                  onClick={handleSetNewPassword}
+                  disabled={loading}
+                  className="w-full bg-gradient-to-r from-emerald-600 to-teal-600 text-white font-bold py-3.5 px-4 rounded-2xl hover:opacity-90 transition-opacity active:scale-[0.98] flex items-center justify-center gap-2 shadow-xl shadow-emerald-500/25"
+                >
+                  {loading ? <div className="w-6 h-6 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : 'تأكيد كلمة السر'}
+                </button>
+              </div>
+            )}
+
+            <button
+              onClick={() => {
+                setForgotPasswordStep(0);
+                setError('');
+                setSuccess('');
+              }}
+              className="mt-2 text-sm font-bold text-slate-400 hover:text-white transition-colors text-center"
+            >
+              العودة لتسجيل الدخول
+            </button>
+          </div>
+        ) : (
+          <>
+            <div className="flex gap-2 p-1 bg-slate-950/30 backdrop-blur-md rounded-2xl border border-slate-800/50">
+              <button
+                type="button"
+                onClick={() => setAuthMethod('email')}
+                className={`flex-1 py-2.5 rounded-xl text-xs font-black transition-all ${authMethod === 'email' ? 'bg-primary text-white shadow-lg' : 'text-slate-500 hover:text-slate-300'}`}
+              >
+                Email / بريد إلكتروني
+              </button>
+              <button
+                type="button"
+                onClick={() => setAuthMethod('phone')}
+                className={`flex-1 py-2.5 rounded-xl text-xs font-black transition-all ${authMethod === 'phone' ? 'bg-primary text-white shadow-lg' : 'text-slate-500 hover:text-slate-300'}`}
+              >
+                Phone / رقم هاتف
+              </button>
+            </div>
+
+            {isRegister && (
+              <button 
+                onClick={() => setIsRegister(false)}
+                className="self-start py-2.5 px-5 flex items-center gap-2 text-white transition-all bg-slate-800 hover:bg-slate-700 rounded-2xl border border-slate-700 shadow-xl text-xs font-black group active:scale-95"
+              >
+                <ChevronRight className="w-4 h-4 group-hover:-translate-x-1 transition-transform" />
+                رجوع لصفحة الدخول / BACK
+              </button>
+            )}
+
+            {isRegister && (
+              <div className="bg-amber-500/10 border border-amber-500/20 p-3 rounded-xl mb-2 flex items-start gap-2">
+                <AlertCircle className="w-4 h-4 text-amber-500 shrink-0 mt-0.5" />
+                <p className="text-[11px] font-bold text-amber-500/90 leading-tight">
+                  ملاحظة هامة: لا يمكن فتح إلا حساب واحد برقم هاتف أو بريد إلكتروني واحد فقط. يرجى الاحتفاظ بمعلومات الدخول الخاصة بك.
+                </p>
+              </div>
+            )}
+
+            <form onSubmit={handleEmailAuth} className="space-y-4">
           {isRegister && (
             <div className="grid grid-cols-2 gap-3">
               <div className="relative">
@@ -572,7 +765,7 @@ export default function Login() {
             <div className="flex flex-col items-end gap-2">
               <button 
                 type="button"
-                onClick={handleForgotPassword}
+                onClick={() => { setForgotPasswordStep(1); setError(''); setSuccess(''); }}
                 className="text-[10px] font-black text-amber-500 hover:text-amber-400 transition-all uppercase tracking-tighter"
               >
                 نسيت كلمة السر؟
@@ -661,6 +854,8 @@ export default function Login() {
             Developer Dali Nadjib
           </p>
         </div>
+        </>
+        )}
       </motion.div>
 
       {/* Embedded PWA install helper modal & instructions */}

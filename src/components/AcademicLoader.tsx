@@ -88,7 +88,7 @@ export default function AcademicLoader({ progress }: AcademicLoaderProps) {
         {/* High-Fidelity TeachDZ Glowing Image Logo representation */}
         <div className="relative mt-2">
           {/* Neon circular aura behind the logo */}
-          <div className="absolute inset-0 bg-purple-500/20 blur-xl rounded-[2rem] scale-110"></div>
+          <div className="absolute inset-0 bg-purple-500/30 blur-2xl rounded-3xl scale-110"></div>
           
           <motion.div
             animate={{ 
@@ -99,10 +99,14 @@ export default function AcademicLoader({ progress }: AcademicLoaderProps) {
               duration: 3, 
               ease: "easeInOut" 
             }}
-            className="w-32 h-32 bg-gradient-to-b from-[#141522] to-[#0a0b12] rounded-[2rem] border border-white/10 flex flex-col items-center justify-center shadow-[0_15px_30px_rgba(0,0,0,0.5)] relative z-10 p-1 overflow-hidden group border-purple-500/30"
+            className="w-48 h-48 bg-gradient-to-b from-[#141522] to-[#0a0b12] rounded-[2rem] border border-white/10 flex flex-col items-center justify-center shadow-[0_15px_30px_rgba(0,0,0,0.5)] relative z-10 p-1 overflow-hidden group border-purple-500/40"
           >
             <img 
-              src="/prof_dali_logo.png" 
+              src="/user_uploads/input_file_0.png" 
+              onError={(e) => {
+                // Fallback to the old logo if the uploaded image path fails
+                e.currentTarget.src = "/prof_dali_logo.png";
+              }}
               alt="TeachDZ Logo" 
               className="w-full h-full object-cover rounded-[1.8rem]"
             />
@@ -120,30 +124,30 @@ export default function AcademicLoader({ progress }: AcademicLoaderProps) {
         </div>
 
         {/* Subtitle / Loading State bar & text */}
-        <div className="w-full space-y-3">
+        <div className="w-full space-y-4 mt-6">
           <motion.div
             key={loadingText}
             initial={{ opacity: 0, y: 5 }}
             animate={{ opacity: 1, y: 0 }}
             className="h-5 flex items-center justify-center"
           >
-            <p className="text-[12px] font-bold text-slate-300">
+            <p className="text-[13px] font-bold text-white tracking-wide">
               {loadingText}
             </p>
           </motion.div>
 
           {/* Loading percentage in Golden/Indigo styling */}
-          <div className="space-y-1.5">
-            <div className="flex justify-between text-[11px] font-mono text-slate-400 px-1 font-bold">
-              <span>تحضير الدروس والامتحانات</span>
-              <span className="text-amber-400 font-extrabold">{progress}%</span>
+          <div className="space-y-2">
+            <div className="flex justify-between text-xs font-mono text-slate-300 px-1 font-bold">
+              <span>التقدم</span>
+              <span className="text-amber-400 font-extrabold text-sm">{progress}%</span>
             </div>
-            <div className="h-2.5 bg-slate-950 rounded-full overflow-hidden border border-white/5 p-[2px] relative">
+            <div className="h-4 bg-slate-950 rounded-full overflow-hidden border border-purple-500/30 p-[3px] relative shadow-inner">
               <motion.div 
-                className="h-full bg-gradient-to-r from-purple-600 via-fuchsia-500 to-amber-400 rounded-full transition-all duration-100 ease-out"
+                className="h-full bg-gradient-to-r from-purple-600 via-fuchsia-500 to-amber-400 rounded-full transition-all duration-100 ease-out shadow-[0_0_10px_rgba(168,85,247,0.5)]"
                 style={{ width: `${progress}%` }}
               />
-              <div className="absolute inset-0 bg-[linear-gradient(45deg,rgba(255,255,255,0.15)_25%,transparent_25%,transparent_50%,rgba(255,255,255,0.15)_50%,rgba(255,255,255,0.15)_75%,transparent_75%,transparent)] bg-[size:10px_10px] animate-pulse pointer-events-none rounded-full" />
+              <div className="absolute inset-0 bg-[linear-gradient(45deg,rgba(255,255,255,0.15)_25%,transparent_25%,transparent_50%,rgba(255,255,255,0.15)_50%,rgba(255,255,255,0.15)_75%,transparent_75%,transparent)] bg-[size:15px_15px] animate-[pulse_2s_infinite] pointer-events-none rounded-full" />
             </div>
           </div>
         </div>
