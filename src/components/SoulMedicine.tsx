@@ -356,9 +356,9 @@ export const SoulMedicine: React.FC<{ isOpen: boolean; onClose: () => void }> = 
               <div className="absolute top-4 right-4 sm:top-6 sm:right-6 flex flex-col gap-3 z-50">
                 <button 
                   onClick={onClose}
-                  className="flex items-center gap-2 px-4 py-3 rounded-2xl bg-red-500/20 text-red-100 hover:bg-red-500 hover:text-white transition-all border border-red-500/30 backdrop-blur-md shadow-2xl"
+                  className="flex items-center gap-2 px-4 py-3 rounded-2xl bg-red-600 hover:bg-red-700 text-white transition-all border border-red-500 shadow-2xl font-bold cursor-pointer hover:scale-[1.03] active:scale-95"
                 >
-                  <span className="font-bold text-sm">إغلاق</span>
+                  <span className="text-sm">إغلاق دواء الروح</span>
                   <X className="w-5 h-5" />
                 </button>
                 

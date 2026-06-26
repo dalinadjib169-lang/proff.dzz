@@ -223,6 +223,27 @@ export default function ChatBubble() {
   const [unreadMessages, setUnreadMessages] = useState<any[]>([]);
   const [cachedUsers, setCachedUsers] = useState<{[uid: string]: any}>({});
 
+  const [activeChatHeads, setActiveChatHeads] = useState<UserProfile[]>(() => {
+    const saved = localStorage.getItem('active_chat_heads');
+    try {
+      return saved ? JSON.parse(saved) : [];
+    } catch (e) {
+      return [];
+    }
+  });
+
+  const removeChatHead = (uid: string, e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
+    setActiveChatHeads(prev => {
+      const newList = prev.filter(u => u.uid !== uid);
+      localStorage.setItem('active_chat_heads', JSON.stringify(newList));
+      return newList;
+    });
+    if (activeChat?.uid === uid) {
+      setActiveChat(null);
+    }
+  };
+
   // Resolve missing user profiles for unread messages senders
   useEffect(() => {
     if (!unreadMessages || unreadMessages.length === 0) return;
@@ -515,6 +536,14 @@ export default function ChatBubble() {
         if (latestChange) {
           const data = latestChange.doc.data();
           const senderUser = users.find(u => u.uid === data.senderId);
+          if (senderUser) {
+            setActiveChatHeads(prev => {
+              const filtered = prev.filter(u => u.uid !== senderUser.uid);
+              const newList = [senderUser, ...filtered].slice(0, 3);
+              localStorage.setItem('active_chat_heads', JSON.stringify(newList));
+              return newList;
+            });
+          }
           const senderPhoto = senderUser?.photoURL || '/prof_dali_logo.png';
 
           // Show elegant in-app Custom Toast so user can immediately see who sent the message
@@ -644,6 +673,15 @@ export default function ChatBubble() {
   useEffect(() => {
     if (activeChat) {
       localStorage.setItem('active_chat_user', JSON.stringify(activeChat));
+      if (activeChat.uid && activeChat.uid !== 'global') {
+        setActiveChatHeads(prev => {
+          if (prev[0]?.uid === activeChat.uid) return prev;
+          const filtered = prev.filter(u => u.uid !== activeChat.uid);
+          const newList = [activeChat, ...filtered].slice(0, 3);
+          localStorage.setItem('active_chat_heads', JSON.stringify(newList));
+          return newList;
+        });
+      }
     } else {
       localStorage.removeItem('active_chat_user');
     }
@@ -2608,6 +2646,54 @@ export default function ChatBubble() {
                 </>
               ) : (
                 <>
+                  {/* Active Chats Quick Switcher Bar */}
+                  {activeChatHeads.length > 0 && (
+                    <div className="flex items-center gap-2 p-2 bg-slate-900/90 border-b border-white/5 overflow-x-auto shrink-0 scrollbar-none shadow-lg z-10" dir="rtl">
+                      <span className="text-[10px] font-black text-slate-400 whitespace-nowrap ml-1 font-sans">محادثات سريعة:</span>
+                      <div className="flex items-center gap-1.5 py-0.5">
+                        {activeChatHeads.map((head) => {
+                          const isCurrent = head.uid === activeChat.uid;
+                          const hasUnread = unreadMessages.some(m => m.senderId === head.uid);
+                          
+                          return (
+                            <div key={`quick-head-${head.uid}`} className="relative flex items-center shrink-0 group">
+                              <button
+                                onClick={() => {
+                                  setActiveChat(head);
+                                  playSound('message');
+                                }}
+                                className={`relative w-9 h-9 rounded-2xl overflow-hidden transition-all duration-300 ${
+                                  isCurrent 
+                                    ? 'ring-2 ring-purple-500 scale-105 shadow-[0_0_12px_rgba(168,85,247,0.6)]' 
+                                    : 'ring-1 ring-white/10 opacity-60 hover:opacity-100 hover:scale-105'
+                                }`}
+                                title={head.displayName}
+                              >
+                                <img 
+                                  src={head.photoURL || `https://ui-avatars.com/api/?name=${encodeURIComponent(head.displayName || 'U')}&background=random`} 
+                                  className="w-full h-full object-cover" 
+                                  referrerPolicy="no-referrer"
+                                />
+                                {hasUnread && (
+                                  <span className="absolute top-0 right-0 w-3 h-3 bg-red-500 border border-slate-950 rounded-full animate-pulse" />
+                                )}
+                              </button>
+                              
+                              {/* Quick Close Button */}
+                              <button
+                                onClick={(e) => removeChatHead(head.uid, e)}
+                                className="absolute -top-1 -left-1 w-4 h-4 bg-red-500/90 hover:bg-red-600 text-white rounded-full flex items-center justify-center border border-slate-950 shadow-md opacity-0 group-hover:opacity-100 transition-opacity duration-200"
+                                title="إغلاق المحادثة السريعة"
+                              >
+                                <X className="w-2.5 h-2.5" />
+                              </button>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+
                   <div ref={scrollRef} className="flex-1 overflow-y-auto p-4 space-y-4 custom-scrollbar overscroll-contain">
                     {/* Message Request UI */}
                     {!isFriend && !localIsFriendOverride && activeChat.uid !== 'global' && (
@@ -3146,6 +3232,68 @@ export default function ChatBubble() {
         dragMomentum={false}
         className="relative"
       >
+        {/* Floating Active Chat Heads (Messenger-like bubbles) */}
+        {!isOpen && activeChatHeads.length > 0 && (
+          <div className="absolute bottom-24 right-2 flex flex-col gap-3 items-center mb-2 z-[160]" dir="rtl">
+            <AnimatePresence initial={false}>
+              {activeChatHeads.map((head, index) => {
+                const hasUnread = unreadMessages.some(m => m.senderId === head.uid);
+                return (
+                  <motion.div
+                    key={`floating-head-${head.uid}`}
+                    initial={{ opacity: 0, scale: 0, y: 20 }}
+                    animate={{ opacity: 1, scale: 1, y: 0 }}
+                    exit={{ opacity: 0, scale: 0, y: 20 }}
+                    transition={{ type: "spring", stiffness: 300, damping: 25, delay: index * 0.05 }}
+                    className="relative group cursor-pointer"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setActiveChat(head);
+                      setIsOpen(true);
+                      playSound('message');
+                    }}
+                  >
+                    {/* Glowing Accent */}
+                    <div className="absolute -inset-1 rounded-2xl bg-purple-500/20 blur-sm group-hover:bg-purple-500/40 transition-all duration-300" />
+                    
+                    {/* Avatar Container */}
+                    <div className="relative w-12 h-12 rounded-2xl border-2 border-slate-900 overflow-hidden shadow-2xl bg-slate-900 ring-2 ring-purple-500/40 group-hover:ring-purple-500 transition-all duration-300 group-hover:scale-105">
+                      <img 
+                        src={head.photoURL || `https://ui-avatars.com/api/?name=${encodeURIComponent(head.displayName || 'U')}&background=random`} 
+                        className="w-full h-full object-cover" 
+                        alt={head.displayName}
+                        referrerPolicy="no-referrer"
+                      />
+                      
+                      {/* Active Status Dot */}
+                      <div className="absolute bottom-0 right-0 w-3.5 h-3.5 bg-green-500 rounded-full border-2 border-slate-900 shadow-md" />
+                      
+                      {/* Unread dot */}
+                      {hasUnread && (
+                        <div className="absolute top-0 right-0 w-3 h-3 bg-red-500 rounded-full border border-slate-950 animate-ping" />
+                      )}
+                    </div>
+
+                    {/* Quick Close Button */}
+                    <button
+                      onClick={(e) => removeChatHead(head.uid, e)}
+                      className="absolute -top-1 -left-1 w-5 h-5 bg-red-500 hover:bg-red-600 text-white rounded-full flex items-center justify-center border border-slate-950 shadow-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 z-30"
+                      title="إغلاق المحادثة"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+
+                    {/* Tooltip Name Label */}
+                    <div className="absolute right-14 top-1/2 -translate-y-1/2 bg-slate-950/95 border border-slate-800 text-white text-[11px] font-black px-3 py-1.5 rounded-xl whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none shadow-2xl z-20 font-sans" dir="rtl">
+                      {head.displayName}
+                    </div>
+                  </motion.div>
+                );
+              })}
+            </AnimatePresence>
+          </div>
+        )}
+
         <motion.div
           whileHover={{ scale: 1.05 }}
           whileTap={{ scale: 0.9 }}
