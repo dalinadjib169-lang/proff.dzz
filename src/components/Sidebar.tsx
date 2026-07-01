@@ -95,7 +95,6 @@ function Sidebar() {
     { icon: ShoppingBag, label: t('market'), path: '/market' },
     { icon: Bell, label: t('notifications'), path: '/notifications', badge: unreadCount },
     { icon: Bookmark, label: t('saved'), path: '/saved' },
-    { icon: CheckSquare, label: 'المصحح الذكي - Mosa7i7', path: 'https://mosa7i7-ai.vercel.app/', external: true },
     { icon: Car, label: 'سوق السيارات بالجزائر', path: 'https://market-dz-two.vercel.app/', external: true },
     { icon: Users, label: t('colleagues'), path: '/colleagues' },
     { icon: Users, label: 'المجموعات التربوية', path: '/groups' },

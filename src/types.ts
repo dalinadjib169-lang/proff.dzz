@@ -35,6 +35,7 @@ export interface UserProfile {
   lastGenerationDate?: Timestamp | any;
   lastUsageResetDate?: Timestamp | any;
   dailyGenCount?: number;
+  totalGenerationsUsed?: number;
   dailyCorrectCount?: number;
   usage?: {
     generate: number;

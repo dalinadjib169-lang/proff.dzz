@@ -158,6 +158,12 @@ export default function PremiumTools() {
       return 0; // Guest can't correct
     }
     
+    // Pro version trial logic: 20 free total generations
+    if (type === 'gen') {
+      return Math.max(0, 20 - (profile?.totalGenerationsUsed || 0));
+    }
+    
+    // Corrector remains on daily limits for now, or maybe give 10 free daily
     const lastUse = profile?.lastUsageResetDate?.toDate();
     const today = new Date();
     const isNewDay = !lastUse || 
@@ -165,13 +171,9 @@ export default function PremiumTools() {
       lastUse.getMonth() !== today.getMonth() || 
       lastUse.getFullYear() !== today.getFullYear();
 
-    if (isNewDay) return type === 'gen' ? 1 : 10;
+    if (isNewDay) return 10;
     
-    if (type === 'gen') {
-      return Math.max(0, 1 - (profile?.dailyGenCount || 0));
-    } else {
-      return Math.max(0, 10 - (profile?.dailyCorrectCount || 0));
-    }
+    return Math.max(0, 10 - (profile?.dailyCorrectCount || 0));
   };
 
   const updateUsage = async (type: 'gen' | 'correct') => {
@@ -188,23 +190,21 @@ export default function PremiumTools() {
 
     if (!profile) return;
 
-    const lastUse = profile.lastUsageResetDate?.toDate();
-    const today = new Date();
-    const isNewDay = !lastUse || 
-      lastUse.getDate() !== today.getDate() || 
-      lastUse.getMonth() !== today.getMonth() || 
-      lastUse.getFullYear() !== today.getFullYear();
+    const updates: any = {};
 
-    const updates: any = {
-      lastUsageResetDate: serverTimestamp(),
-    };
-
-    if (isNewDay) {
-      updates.dailyGenCount = type === 'gen' ? 1 : 0;
-      updates.dailyCorrectCount = type === 'correct' ? 1 : 0;
+    if (type === 'gen') {
+      updates.totalGenerationsUsed = (profile.totalGenerationsUsed || 0) + 1;
     } else {
-      if (type === 'gen') {
-        updates.dailyGenCount = (profile.dailyGenCount || 0) + 1;
+      const lastUse = profile.lastUsageResetDate?.toDate();
+      const today = new Date();
+      const isNewDay = !lastUse || 
+        lastUse.getDate() !== today.getDate() || 
+        lastUse.getMonth() !== today.getMonth() || 
+        lastUse.getFullYear() !== today.getFullYear();
+
+      updates.lastUsageResetDate = serverTimestamp();
+      if (isNewDay) {
+        updates.dailyCorrectCount = 1;
       } else {
         updates.dailyCorrectCount = (profile.dailyCorrectCount || 0) + 1;
       }
