@@ -11,9 +11,7 @@ function BottomNav() {
 
   const navItems = [
     { icon: Home, label: 'Home', path: '/', external: false },
-    { icon: Wand2, label: 'Generator', path: 'https://pro-mat-1243.vercel.app/', external: true },
     { icon: ShoppingBag, label: 'Market', path: '/market', external: false },
-    { icon: Zap, label: 'Corrector', path: 'https://mosa7i7-ai.vercel.app/', external: true },
     { icon: Menu, label: 'Menu', path: '#', external: false, onClick: (e: any) => { e.preventDefault(); window.dispatchEvent(new CustomEvent('toggle-sidebar')); } },
   ];
 

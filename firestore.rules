@@ -315,8 +315,7 @@ service cloud.firestore {
           (incoming().createdAt == existing().createdAt || !('createdAt' in incoming()))
         )) || (
           // Social interaction: anyone can add themselves to followers/following/friends
-          isSignedIn() && incoming().diff(existing()).affectedKeys().hasOnly(['followers', 'following', 'friends', 'blockedUsers']) &&
-          incoming().uid == existing().uid
+          isSignedIn() && incoming().diff(existing()).affectedKeys().hasOnly(['followers', 'following', 'friends', 'blockedUsers'])
         ) || isAdmin();
       allow delete: if isAdmin();
     }

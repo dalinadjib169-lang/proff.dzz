@@ -53,6 +53,8 @@ import {
   Heart,
   ChevronRight,
   ShieldAlert,
+  Eye,
+  EyeOff,
 } from 'lucide-react';
 import { db, storage, onConnectionChange } from '../firebase';
 import { collection, query, orderBy, onSnapshot, addDoc, serverTimestamp, where, limit, Timestamp, updateDoc, doc, arrayUnion, arrayRemove, setDoc, writeBatch, getDoc, deleteDoc, getDocs } from 'firebase/firestore';
@@ -98,7 +100,8 @@ const ChatTrigger = ({
   unreadMessages = [],
   users = [],
   cachedUsers = {},
-  onClearActiveChat
+  onClearActiveChat,
+  onClick
 }: { 
   isOpen: boolean, 
   setIsOpen: (v: boolean) => void, 
@@ -109,7 +112,8 @@ const ChatTrigger = ({
   unreadMessages?: any[],
   users?: any[],
   cachedUsers?: {[uid: string]: any},
-  onClearActiveChat?: () => void
+  onClearActiveChat?: () => void,
+  onClick?: () => void
 }) => {
   // Find sender of the latest unread message if chat is closed
   let unreadSender: any = null;
@@ -118,16 +122,17 @@ const ChatTrigger = ({
     unreadSender = users.find(u => u.uid === latestMsg.senderId) || cachedUsers[latestMsg.senderId];
   }
 
-  // Use activeChat profile picture if selected, or unread sender picture, otherwise fallback to logged-in user
+  // Use activeChat profile picture if selected, or unread sender picture, otherwise fallback to the teachers image
+  const defaultTeachersImage = "https://images.unsplash.com/photo-1524178232363-1fb2b075b655?w=200&h=200&fit=crop";
   const triggerImage = activeChat 
     ? (activeChat.photoURL || null) 
-    : (unreadSender ? (unreadSender.photoURL || null) : (profile?.photoURL || null));
+    : (unreadSender ? (unreadSender.photoURL || null) : defaultTeachersImage);
 
   return (
     <motion.div
-      whileHover={{ scale: 1.1 }}
+      onClick={onClick}
       whileTap={{ scale: 0.9 }}
-      className="relative cursor-pointer group"
+      className="relative cursor-pointer"
     >
       {/* Neon Glow Rings */}
       <motion.div 
@@ -166,18 +171,12 @@ const ChatTrigger = ({
         />
 
         <div className="w-full h-full rounded-full border-2 border-slate-900 overflow-hidden shadow-2xl relative bg-slate-900">
-          {triggerImage ? (
-            <img 
-              src={triggerImage} 
-              className="w-full h-full object-cover" 
-              alt="Avatar"
-              referrerPolicy="no-referrer"
-            />
-          ) : (
-            <div className={`w-full h-full flex items-center justify-center bg-gradient-to-br from-purple-500 to-indigo-600`}>
-              <MessageSquare className="w-8 h-8 text-white" />
-            </div>
-          )}
+          <img 
+            src={triggerImage} 
+            className="w-full h-full object-cover" 
+            alt="Teachers in Hall"
+            referrerPolicy="no-referrer"
+          />
           
           {/* Status Indicator */}
           {activeChat && (
@@ -208,7 +207,11 @@ export default function ChatBubble() {
     return saved === 'true';
   });
 
-  const [isHidden, setIsHidden] = useState(false);
+  const [showChatHeads, setShowChatHeads] = useState(() => {
+    const saved = localStorage.getItem('show_chat_heads');
+    return saved !== 'false'; // default true
+  });
+
   const [activeChat, setActiveChat] = useState<UserProfile | null>(() => {
     const saved = localStorage.getItem('active_chat_user');
     try {
@@ -502,6 +505,8 @@ export default function ChatBubble() {
     return () => window.removeEventListener('show-chat', handleShowChat);
   }, []);
 
+  const notifiedMessagesRef = useRef<Set<string>>(new Set());
+
   useEffect(() => {
     if (!profile?.uid) return;
 
@@ -513,7 +518,7 @@ export default function ChatBubble() {
     );
 
     let isFirstLoad = true;
-    const unsubscribe = onSnapshot(q, { includeMetadataChanges: true }, (snapshot) => {
+    const unsubscribe = onSnapshot(q, (snapshot) => {
       const msgs = snapshot.docs
         .map(doc => ({ id: doc.id, ...doc.data() }))
         .filter((m: any) => m.senderId !== profile.uid);
@@ -522,18 +527,25 @@ export default function ChatBubble() {
       // Ignore initial snapshot of already existing unread messages on mount/load
       if (isFirstLoad) {
         isFirstLoad = false;
+        snapshot.docs.forEach(d => notifiedMessagesRef.current.add(d.id));
         return;
       }
 
-      const hasNewMessage = snapshot.docChanges().some(
-        change => change.type === 'added' && change.doc.data().senderId !== profile.uid
+      const newChanges = snapshot.docChanges().filter(
+        change => change.type === 'added' && change.doc.data().senderId !== profile.uid && !notifiedMessagesRef.current.has(change.doc.id)
       );
-      if (hasNewMessage) {
+
+      if (newChanges.length > 0) {
+        // Only play sound if document is hidden or if it's from a different chat than the active one
+        // To avoid double-playing, we just use a small pop or nothing if it's the active chat
+        // We will remove the sound from here if it's active chat, but we don't have access to activeChat easily here.
+        // Actually, we can just play 'message'
         playSound('message');
         
         // Find the newest message added
-        const latestChange = snapshot.docChanges().find(c => c.type === 'added' && c.doc.data().senderId !== profile.uid);
+        const latestChange = newChanges[newChanges.length - 1];
         if (latestChange) {
+          notifiedMessagesRef.current.add(latestChange.doc.id);
           const data = latestChange.doc.data();
           const senderUser = users.find(u => u.uid === data.senderId);
           if (senderUser) {
@@ -1115,7 +1127,8 @@ export default function ChatBubble() {
         limit(100)
       );
 
-    const unsubscribe = onSnapshot(q, { includeMetadataChanges: true }, (snapshot) => {
+    let isFirstLoad = true;
+    const unsubscribe = onSnapshot(q, (snapshot) => {
       const msgs = snapshot.docs
         .map(doc => {
           const data = doc.data();
@@ -1136,9 +1149,15 @@ export default function ChatBubble() {
       
       setMessages(msgs);
       
-      if (snapshot.docChanges().some(change => change.type === 'added' && change.doc.data().senderId !== profile.uid)) {
-        playSound('message');
+      if (isFirstLoad) {
+        isFirstLoad = false;
+        return;
       }
+      
+      const hasNewMessage = snapshot.docChanges().some(
+        change => change.type === 'added' && change.doc.data().senderId !== profile.uid
+      );
+      // Removed playSound('message') here to avoid double-triggering sound when global unread listener already played it.
     }, (err) => {
       handleFirestoreError(err, OperationType.GET, 'messages');
     });
@@ -2679,10 +2698,10 @@ export default function ChatBubble() {
                                 )}
                               </button>
                               
-                              {/* Quick Close Button */}
+                              {/* Quick Close Button - Always visible for touch ease */}
                               <button
                                 onClick={(e) => removeChatHead(head.uid, e)}
-                                className="absolute -top-1 -left-1 w-4 h-4 bg-red-500/90 hover:bg-red-600 text-white rounded-full flex items-center justify-center border border-slate-950 shadow-md opacity-0 group-hover:opacity-100 transition-opacity duration-200"
+                                className="absolute -top-1 -left-1 w-4 h-4 bg-red-500/90 hover:bg-red-600 text-white rounded-full flex items-center justify-center border border-slate-950 shadow-md transition-all duration-200"
                                 title="إغلاق المحادثة السريعة"
                               >
                                 <X className="w-2.5 h-2.5" />
@@ -3235,8 +3254,26 @@ export default function ChatBubble() {
         {/* Floating Active Chat Heads (Messenger-like bubbles) */}
         {!isOpen && activeChatHeads.length > 0 && (
           <div className="absolute bottom-24 right-2 flex flex-col gap-3 items-center mb-2 z-[160]" dir="rtl">
+            {/* Toggle Visibility Button */}
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                const newVal = !showChatHeads;
+                setShowChatHeads(newVal);
+                localStorage.setItem('show_chat_heads', String(newVal));
+              }}
+              className="w-8 h-8 bg-slate-900 border border-slate-700 text-slate-400 hover:text-white rounded-full flex items-center justify-center shadow-lg transition-all z-[170]"
+              title={showChatHeads ? "إخفاء الفقاعات" : "إظهار الفقاعات"}
+            >
+              {showChatHeads ? (
+                <EyeOff className="w-4 h-4" />
+              ) : (
+                <Eye className="w-4 h-4" />
+              )}
+            </button>
+
             <AnimatePresence initial={false}>
-              {activeChatHeads.map((head, index) => {
+              {showChatHeads && activeChatHeads.map((head, index) => {
                 const hasUnread = unreadMessages.some(m => m.senderId === head.uid);
                 return (
                   <motion.div
@@ -3246,6 +3283,14 @@ export default function ChatBubble() {
                     exit={{ opacity: 0, scale: 0, y: 20 }}
                     transition={{ type: "spring", stiffness: 300, damping: 25, delay: index * 0.05 }}
                     className="relative group cursor-pointer"
+                    drag="y"
+                    dragConstraints={{ top: 0, bottom: 0 }}
+                    dragElastic={0.8}
+                    onDragEnd={(e, info) => {
+                      if (info.offset.y > 60 || info.offset.y < -60) {
+                        removeChatHead(head.uid);
+                      }
+                    }}
                     onClick={(e) => {
                       e.stopPropagation();
                       setActiveChat(head);
@@ -3254,10 +3299,10 @@ export default function ChatBubble() {
                     }}
                   >
                     {/* Glowing Accent */}
-                    <div className="absolute -inset-1 rounded-2xl bg-purple-500/20 blur-sm group-hover:bg-purple-500/40 transition-all duration-300" />
+                    <div className="absolute -inset-1 rounded-2xl bg-purple-500/20 blur-sm group-hover:bg-purple-500/40 transition-all duration-300 pointer-events-none" />
                     
                     {/* Avatar Container */}
-                    <div className="relative w-12 h-12 rounded-2xl border-2 border-slate-900 overflow-hidden shadow-2xl bg-slate-900 ring-2 ring-purple-500/40 group-hover:ring-purple-500 transition-all duration-300 group-hover:scale-105">
+                    <div className="relative w-12 h-12 rounded-2xl border-2 border-slate-900 overflow-hidden shadow-2xl bg-slate-900 ring-2 ring-purple-500/40 group-hover:ring-purple-500 transition-all duration-300 group-hover:scale-105 pointer-events-none">
                       <img 
                         src={head.photoURL || `https://ui-avatars.com/api/?name=${encodeURIComponent(head.displayName || 'U')}&background=random`} 
                         className="w-full h-full object-cover" 
@@ -3274,17 +3319,17 @@ export default function ChatBubble() {
                       )}
                     </div>
 
-                    {/* Quick Close Button */}
+                    {/* Quick Close Button - Always visible for touch ease */}
                     <button
                       onClick={(e) => removeChatHead(head.uid, e)}
-                      className="absolute -top-1 -left-1 w-5 h-5 bg-red-500 hover:bg-red-600 text-white rounded-full flex items-center justify-center border border-slate-950 shadow-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 z-30"
+                      className="absolute -top-1 -left-1 w-5 h-5 bg-red-500 hover:bg-red-600 text-white rounded-full flex items-center justify-center border border-slate-950 shadow-lg transition-all duration-200 z-30"
                       title="إغلاق المحادثة"
                     >
                       <X className="w-3.5 h-3.5" />
                     </button>
 
                     {/* Tooltip Name Label */}
-                    <div className="absolute right-14 top-1/2 -translate-y-1/2 bg-slate-950/95 border border-slate-800 text-white text-[11px] font-black px-3 py-1.5 rounded-xl whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none shadow-2xl z-20 font-sans" dir="rtl">
+                    <div className="absolute right-14 top-1/2 -translate-y-1/2 bg-slate-950/95 border border-slate-800 text-white text-[11px] font-black px-3 py-1.5 rounded-xl whitespace-nowrap opacity-100 pointer-events-none shadow-2xl z-20 font-sans hidden sm:block" dir="rtl">
                       {head.displayName}
                     </div>
                   </motion.div>
@@ -3295,17 +3340,7 @@ export default function ChatBubble() {
         )}
 
         <motion.div
-          whileHover={{ scale: 1.05 }}
-          whileTap={{ scale: 0.9 }}
-          onClick={() => {
-            if (activeChat) {
-              setActiveChat(null);
-            } else {
-              setIsOpen(!isOpen);
-            }
-            playSound('message');
-          }}
-          className={`relative group cursor-pointer transition-transform ${isOpen && isMobile ? 'scale-0' : 'scale-100'}`}
+          className={`relative group transition-transform ${isOpen && isMobile ? 'scale-0' : 'scale-100'}`}
         >
           <ChatTrigger 
             isOpen={isOpen} 
@@ -3318,6 +3353,13 @@ export default function ChatBubble() {
             users={users}
             cachedUsers={cachedUsers}
             onClearActiveChat={() => setActiveChat(null)}
+            onClick={() => {
+              if (activeChat) {
+                setActiveChat(null);
+              } else {
+                setIsOpen(!isOpen);
+              }
+            }}
           />
           {!isOpen && unreadCount > 0 && (
             <div className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 rounded-full border-2 border-slate-950 flex items-center justify-center text-[10px] font-black text-white animate-bounce">

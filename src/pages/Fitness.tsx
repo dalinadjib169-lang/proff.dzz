@@ -30,15 +30,7 @@ import { playSound } from '../lib/sounds';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, AreaChart, Area } from 'recharts';
 import toast from 'react-hot-toast';
 
-const WEIGHT_DATA = [
-  { day: '01', weight: 74 },
-  { day: '02', weight: 73.5 },
-  { day: '03', weight: 73.8 },
-  { day: '04', weight: 73.2 },
-  { day: '05', weight: 72.8 },
-  { day: '06', weight: 72.5 },
-  { day: '07', weight: 71 },
-];
+const WEIGHT_DATA: any[] = [];
 
 export default function Fitness() {
   const { profile } = useAuth();

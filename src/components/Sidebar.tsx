@@ -89,17 +89,13 @@ function Sidebar() {
   const navItems = [
     { icon: Home, label: t('home'), path: '/' },
     { icon: MessageSquare, label: t('discussions'), path: '/discussions' },
-    { icon: Wand2, label: 'مولد المذكرات والاختبارات الذكي', path: '/premium-tools' },
-    { icon: FileText, label: 'مولد السيرة الذاتية - CV AI', path: 'https://cv-arabic.vercel.app/', external: true },
     { icon: Dumbbell, label: 'النمط الرياضي - Sport Mode', path: '/fitness' },
     { icon: ShoppingBag, label: t('market'), path: '/market' },
     { icon: Bell, label: t('notifications'), path: '/notifications', badge: unreadCount },
     { icon: Bookmark, label: t('saved'), path: '/saved' },
-    { icon: Car, label: 'سوق السيارات بالجزائر', path: 'https://market-dz-two.vercel.app/', external: true },
     { icon: Users, label: t('colleagues'), path: '/colleagues' },
     { icon: Users, label: 'المجموعات التربوية', path: '/groups' },
     { icon: BookOpen, label: t('curriculum'), path: '/curriculum' },
-    { icon: Sparkles, label: 'أدوات المطورين', path: '/premium-tools' },
     { icon: Image, label: 'Image Uploader', path: '/image-uploader' },
     { icon: User, label: t('profile'), path: profile?.uid ? `/profile/${profile.uid}` : '/profile/loading' },
     { icon: Settings, label: t('settings'), path: '/settings' },
@@ -132,8 +128,8 @@ function Sidebar() {
           
           <div className="grid grid-cols-2 w-full gap-4 pt-4 border-t border-slate-800">
             <div className="text-center">
-              <p className="text-lg font-black text-white">12</p>
-              <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Posts</p>
+              <p className="text-lg font-black text-white">{profile?.friends?.length || 0}</p>
+              <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Friends</p>
             </div>
             <div className="text-center">
               <p className="text-lg font-black text-white">{profile?.followers?.length || 0}</p>
@@ -162,30 +158,6 @@ function Sidebar() {
 
       <nav className="space-y-1">
         {navItems.map((item) => (
-          item.external ? (
-            <a
-              key={item.label}
-              href={item.path}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex items-center justify-between px-6 py-4 rounded-2xl font-bold transition-all group text-slate-500 hover:bg-slate-900 hover:text-primary"
-            >
-              <div className="flex items-center gap-4">
-                <item.icon className={cn(
-                  "w-5 h-5 transition-all group-hover:scale-125", 
-                  (item.label.includes('Mosa7i7') || item.label.includes('Pro-Mat')) && "text-amber-400 drop-shadow-[0_0_8px_rgba(251,191,36,0.5)] animate-pulse",
-                  item.label.includes('CV AI') && "text-indigo-400 drop-shadow-[0_0_8px_rgba(129,140,248,0.5)]"
-                )} />
-                <span className={cn(
-                  (item.label.includes('Mosa7i7') || item.label.includes('Pro-Mat')) && "text-amber-400 font-black bg-amber-500/10 px-3 py-1 rounded-full border border-amber-500/20 shadow-[0_0_15px_rgba(251,191,36,0.2)]",
-                  item.label.includes('CV AI') && "text-indigo-400 font-black bg-indigo-500/10 px-3 py-1 rounded-full border border-indigo-500/20 shadow-[0_0_15px_rgba(129,140,248,0.2)]"
-                )}>
-                  {item.label}
-                </span>
-              </div>
-              <ExternalLink className="w-3.5 h-3.5 opacity-0 group-hover:opacity-100 transition-all" />
-            </a>
-          ) : (
             <NavLink
               key={item.label}
               to={item.path}
@@ -206,44 +178,9 @@ function Sidebar() {
               </span>
             )}
           </NavLink>
-        )))}
+        ))}
 
-        {/* Premium Shortcuts - Consolidated to internal tools to enforce limits */}
-        {isPremium && (
-          <div className="py-2 space-y-1 mt-4 border-t border-slate-800/50">
-            <p className="px-6 py-2 text-[10px] font-black text-slate-500 uppercase tracking-widest">Premium Assistant</p>
-            <NavLink 
-              to="/premium-tools" 
-              className={({ isActive }) => cn(
-                "flex items-center gap-4 px-6 py-3 rounded-2xl font-bold transition-all group",
-                isActive ? "bg-purple-600/20 text-purple-400" : "text-slate-400 hover:bg-purple-600/10 hover:text-purple-400"
-              )}
-            >
-              <Wand2 className="w-4 h-4 group-hover:scale-110 transition-transform" />
-              <span className="text-sm">مولد المذكرات</span>
-            </NavLink>
-            <NavLink 
-              to="/premium-tools" 
-              className={({ isActive }) => cn(
-                "flex items-center gap-4 px-6 py-3 rounded-2xl font-bold transition-all group",
-                isActive ? "bg-purple-600/20 text-purple-400" : "text-slate-400 hover:bg-purple-600/10 hover:text-purple-400"
-              )}
-            >
-              <FileText className="w-4 h-4 group-hover:scale-110 transition-transform" />
-              <span className="text-sm">مولد فروض واختبارات</span>
-            </NavLink>
-            <NavLink 
-              to="/premium-tools" 
-              className={({ isActive }) => cn(
-                "flex items-center gap-4 px-6 py-3 rounded-2xl font-bold transition-all group",
-                isActive ? "bg-purple-600/20 text-purple-400" : "text-slate-400 hover:bg-purple-600/10 hover:text-purple-400"
-              )}
-            >
-              <CheckSquare className="w-4 h-4 group-hover:scale-110 transition-transform" />
-              <span className="text-sm">المصحح الذكي</span>
-            </NavLink>
-          </div>
-        )}
+        {/* Premium Shortcuts removed */}
         
         <button
           onClick={() => {
@@ -377,17 +314,6 @@ function Sidebar() {
         </button>
       </div>
 
-      <div className="bg-primary/20 backdrop-blur-2xl rounded-3xl p-6 text-white overflow-hidden relative group border border-primary/20 shadow-2xl">
-        <div className="absolute -right-4 -bottom-4 w-24 h-24 bg-primary rounded-full opacity-30 group-hover:scale-150 transition-transform duration-700"></div>
-        <h4 className="font-black text-lg mb-2 relative z-10">Premium Teac</h4>
-        <p className="text-white/80 text-xs font-medium mb-4 relative z-10">Get access to exclusive teaching materials and AI tools.</p>
-        <Link 
-          to="/premium-tools"
-          className="w-full py-2.5 bg-white text-primary font-black rounded-xl text-sm hover:bg-slate-50 transition-colors relative z-10 block text-center"
-        >
-          {profile?.premiumUntil && profile.premiumUntil.toDate() > new Date() ? 'Go to Tools' : 'Upgrade Now'}
-        </Link>
-      </div>
     </div>
   );
 }

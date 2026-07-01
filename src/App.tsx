@@ -11,7 +11,6 @@ import Home from './pages/Home';
 import Profile from './pages/Profile';
 import Notifications from './pages/Notifications';
 import Settings from './pages/Settings';
-import PremiumTools from './pages/PremiumTools';
 import Market from './pages/Market';
 import Fitness from './pages/Fitness';
 import Discussions from './pages/Discussions';
@@ -382,7 +381,6 @@ export default function App() {
                         <Route path="/groups" element={user ? <Groups /> : <Navigate to="/login" />} />
                         <Route path="/groups/:groupId" element={user ? <GroupDetails /> : <Navigate to="/login" />} />
                         <Route path="/curriculum" element={user ? <Curriculum /> : <Navigate to="/login" />} />
-                        <Route path="/premium-tools" element={(user || window.location.search.includes('mode=guest')) ? <PremiumTools /> : <Navigate to="/login" />} />
                         <Route path="/market" element={user ? <Market /> : <Navigate to="/login" />} />
                         <Route path="/fitness" element={user ? <Fitness /> : <Navigate to="/login" />} />
                         <Route path="/image-uploader" element={user ? <CloudinaryUploader /> : <Navigate to="/login" />} />
