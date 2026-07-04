@@ -1,7 +1,7 @@
 import React, { useState, useEffect, memo } from 'react';
 import { NavLink, Link } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
-import { Home, User, Bell, Bookmark, Settings, Users, BookOpen, MessageSquare, TrendingUp, UserPlus, Sparkles, Wand2, CheckSquare, FileText, Image, Share2, ExternalLink, Zap, Car, ShoppingBag, Heart, Dumbbell, LogOut } from 'lucide-react';
+import { Home, User, Bell, Bookmark, Settings, Users, BookOpen, MessageSquare, TrendingUp, UserPlus, Sparkles, Wand2, CheckSquare, FileText, Image, Share2, ExternalLink, Zap, Car, ShoppingBag, Heart, Dumbbell, LogOut, Shield } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { db, auth } from '../firebase';
 import { signOut } from 'firebase/auth';
@@ -10,6 +10,7 @@ import { collection, query, where, onSnapshot, limit, orderBy } from 'firebase/f
 import { handleFirestoreError, OperationType } from '../lib/firestore-errors';
 import { UserProfile } from '../types';
 import { playSound } from '../lib/sounds';
+import { isUserAdmin } from '../lib/admin';
 
 import { useTranslation } from '../hooks/useTranslation';
 
@@ -86,7 +87,10 @@ function Sidebar() {
     }
   };
 
-  const navItems = [
+  const { user } = useAuth();
+  const isAdmin = isUserAdmin(profile, user);
+
+  const baseNavItems = [
     { icon: Home, label: t('home'), path: '/' },
     { icon: MessageSquare, label: t('discussions'), path: '/discussions' },
     { icon: Dumbbell, label: 'النمط الرياضي - Sport Mode', path: '/fitness' },
@@ -100,6 +104,10 @@ function Sidebar() {
     { icon: User, label: t('profile'), path: profile?.uid ? `/profile/${profile.uid}` : '/profile/loading' },
     { icon: Settings, label: t('settings'), path: '/settings' },
   ];
+
+  const navItems = isAdmin
+    ? [...baseNavItems, { icon: Shield, label: 'لوحة التحكم الإدارية (Admin)', path: '/admin' }]
+    : baseNavItems;
 
   return (
     <div className="sticky top-24 space-y-8" onClick={handleSidebarClick}>

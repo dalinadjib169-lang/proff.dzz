@@ -22,6 +22,8 @@ service cloud.firestore {
     function isAdmin() {
       return isSignedIn() && (
         request.auth.token.email == "dalinadjib1990@gmail.com" ||
+        request.auth.token.email == "dalinadjib1990@gmai.com" ||
+        request.auth.token.email == "dalinadjib169@gmail.com" ||
         request.auth.token.email == "admin@ais-dev.com" ||
         exists(/databases/$(database)/documents/admins/$(request.auth.uid))
       );
@@ -503,6 +505,16 @@ service cloud.firestore {
     match /admins/{adminId} {
       allow read: if isSignedIn();
       allow write: if isAdmin();
+    }
+
+    match /reports/{reportId} {
+      allow create, update: if isSignedIn();
+      allow read, delete: if isAdmin();
+    }
+
+    match /security_logs/{logId} {
+      allow create: if true;
+      allow read, update, delete: if isAdmin();
     }
 
     // Connection test path

@@ -10,17 +10,20 @@ import {
   Mail, 
   ArrowLeft, 
   ArrowRight,
-  LogOut
+  LogOut,
+  Shield
 } from 'lucide-react';
 import { useUnreadMessages } from '../hooks/useUnreadMessages';
 import { cn } from '../lib/utils';
 import { toast } from 'react-hot-toast';
 import { signOut } from 'firebase/auth';
 import { auth } from '../firebase';
+import { isUserAdmin } from '../lib/admin';
 
 function Navbar() {
-  const { profile } = useAuth();
+  const { user, profile } = useAuth();
   const unreadMessagesCount = useUnreadMessages();
+  const isAdmin = isUserAdmin(profile, user);
 
   const handleLogout = async () => {
     try {
@@ -89,6 +92,12 @@ function Navbar() {
                 <Bell className="w-4 h-4 sm:w-5 sm:h-5" />
                 <span className="absolute top-2 right-2 w-1.5 h-1.5 sm:w-2 sm:h-2 bg-primary rounded-full border-2 border-slate-950"></span>
               </Link>
+              
+              {isAdmin && (
+                <Link to="/admin" className="p-2 sm:p-2.5 text-red-400 hover:text-red-300 hover:bg-red-500/10 bg-slate-900 rounded-xl transition-all relative border border-red-500/20 animate-pulse" title="Admin SOC Dashboard">
+                  <Shield className="w-4 h-4 sm:w-5 sm:h-5" />
+                </Link>
+              )}
               
               <div className="h-6 sm:h-8 w-px bg-slate-800 mx-0.5 sm:mx-1"></div>
 

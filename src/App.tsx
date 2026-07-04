@@ -21,6 +21,7 @@ import Curriculum from './pages/Curriculum';
 import Groups from './pages/Groups';
 import GroupDetails from './pages/GroupDetails';
 import ProfileRedirect from './pages/ProfileRedirect';
+import AdminDashboard from './pages/AdminDashboard';
 import CloudinaryUploader from './components/CloudinaryUploader';
 import Navbar from './components/Navbar';
 import Sidebar from './components/Sidebar';
@@ -386,6 +387,8 @@ export default function App() {
                         <Route path="/fitness" element={user ? <Fitness /> : <Navigate to="/login" />} />
                         <Route path="/image-uploader" element={user ? <CloudinaryUploader /> : <Navigate to="/login" />} />
                         <Route path="/settings" element={user ? <Settings /> : <Navigate to="/login" />} />
+                        <Route path="/admin" element={user ? <AdminDashboard /> : <Navigate to="/login" />} />
+                        <Route path="/admin-dashboard" element={user ? <AdminDashboard /> : <Navigate to="/login" />} />
                         <Route path="/privacy" element={<Privacy />} />
                         <Route path="*" element={<Navigate to="/" />} />
                       </Routes>

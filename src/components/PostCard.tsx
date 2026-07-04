@@ -113,10 +113,11 @@ export default function PostCard({ post, isGroupPost, groupId, onDelete }: { pos
 
   const handleReport = async () => {
     if (!user || !profile) return;
-    const reason = window.prompt('يرجى كتابة سبب التبليغ:');
+    const reason = window.prompt('يرجى كتابة سبب التبليغ (الشكوى):');
     if (!reason) return;
 
     try {
+      // 1. Add report locally to post document
       const postRef = doc(db, collectionName, post.id);
       await updateDoc(postRef, {
         reports: arrayUnion({
@@ -125,9 +126,56 @@ export default function PostCard({ post, isGroupPost, groupId, onDelete }: { pos
           createdAt: serverTimestamp()
         })
       });
-      alert('تم إرسال التبليغ للإدارة. شكراً لتعاونكم.');
+
+      // 2. Create global report document for Admin Dashboard
+      const reportsCol = collection(db, 'reports');
+      const reportDocRef = await addDoc(reportsCol, {
+        targetId: post.id,
+        targetType: isGroupPost ? 'group_post' : 'post',
+        targetAuthorId: post.authorId,
+        targetAuthorName: post.authorName,
+        targetAuthorPhoto: post.authorPhoto,
+        content: post.content,
+        imageUrl: post.imageUrl || '',
+        reporterId: user.uid,
+        reporterName: profile.displayName || 'مستخدم مسجل',
+        reason,
+        status: 'pending', // 'pending' | 'safe_by_ai' | 'flagged_by_ai' | 'reviewed' | 'dismissed'
+        actionTaken: 'none',
+        createdAt: serverTimestamp()
+      });
+
+      alert('تم إرسال التبليغ للإدارة وسيتم مراجعته فوراً بالذكاء الاصطناعي. شكراً لتعاونكم.');
+
+      // 3. Request AI evaluation from the server
+      try {
+        const response = await fetch('/api/admin/moderate-report', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            content: post.content,
+            authorName: post.authorName,
+            reason,
+            reporterName: profile.displayName
+          })
+        });
+        
+        if (response.ok) {
+          const data = await response.json();
+          if (data.analysis) {
+            // Update the report document with AI analysis results
+            await updateDoc(doc(db, 'reports', reportDocRef.id), {
+              aiAnalysis: data.analysis,
+              status: data.analysis.isViolating ? 'flagged_by_ai' : 'safe_by_ai'
+            });
+          }
+        }
+      } catch (aiErr) {
+        console.warn("AI moderation call failed (background):", aiErr);
+      }
     } catch (error) {
       console.error("Error reporting post:", error);
+      alert('حدث خطأ أثناء إرسال التبليغ.');
     }
   };
 
