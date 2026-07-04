@@ -34,15 +34,18 @@ function Navbar() {
 
   return (
     <>
-      <nav className="sticky top-0 z-50 bg-slate-950/10 backdrop-blur-3xl border-b border-white/5 shadow-2xl">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <nav className="sticky top-0 z-50 bg-slate-950/10 backdrop-blur-3xl border-b border-white/5 shadow-2xl overflow-hidden">
+        {/* Moving shadow / light sweep */}
+        <div className="absolute top-0 bottom-0 w-48 bg-gradient-to-r from-transparent via-purple-400/20 to-transparent blur-lg animate-nav-sweep z-0 pointer-events-none -skew-x-12"></div>
+
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
           <div className="flex justify-between items-center h-16">
-            <div className="flex items-center gap-4 sm:gap-6">
-              <Link to="/" className="flex items-center gap-2.5 group shrink-0">
-                <div className="w-9 h-9 rounded-xl overflow-hidden ring-2 ring-primary/20 group-hover:ring-primary/40 group-hover:scale-105 transition-all shadow-lg bg-slate-900 border border-slate-850/50 shrink-0 flex items-center justify-center">
+            <div className="flex items-center gap-4 sm:gap-6 relative z-20">
+              <Link to="/" className="flex items-center gap-2.5 group shrink-0 animate-logo-shine">
+                <div className="w-9 h-9 rounded-xl overflow-hidden ring-2 ring-primary/20 group-hover:ring-primary/40 transition-all shadow-lg bg-slate-900 border border-slate-850/50 shrink-0 flex items-center justify-center">
                   <img src="/prof_dali_logo.png" className="w-full h-full object-cover" alt="TeachDZ" />
                 </div>
-                <span className="text-lg sm:text-xl font-black bg-gradient-to-r from-white via-purple-300 to-indigo-300 bg-clip-text text-transparent tracking-tight drop-shadow-[0_0_12px_rgba(168,85,247,0.8)] filter">TeachDZ</span>
+                <span className="text-lg sm:text-xl font-black bg-gradient-to-r from-white via-purple-300 to-indigo-300 bg-clip-text text-transparent tracking-tight">TeachDZ</span>
               </Link>
 
               <div className="hidden lg:flex items-center bg-slate-900 rounded-2xl px-4 py-2 w-64 group focus-within:ring-2 focus-within:ring-primary/50 transition-all border border-slate-800">

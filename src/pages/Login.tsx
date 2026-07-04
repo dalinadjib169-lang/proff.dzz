@@ -3,7 +3,7 @@ import { signInWithPopup, GoogleAuthProvider, signInWithEmailAndPassword, create
 import { auth } from '../firebase';
 import { motion } from 'motion/react';
 import { BookOpen, GraduationCap, Mail, Lock, User, LogIn, RefreshCw, AlertCircle, Sparkles, UserCircle, KeyRound, CheckCircle2, Eye, EyeOff, ChevronRight, Download, Smartphone, X, Share, HelpCircle, Star } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { toast } from 'react-hot-toast';
 
 export default function Login() {
@@ -697,6 +697,14 @@ export default function Login() {
               <li>Ensure your internet is stable / تأكد من استقرار الإنترنت</li>
               <li>Try a different browser / جرب متصفحاً آخر</li>
             </ul>
+          </div>
+          <div className="flex flex-col items-center gap-2 mb-4 border-t border-slate-800/40 pt-4">
+            <Link 
+              to="/privacy" 
+              className="text-xs font-bold text-purple-400 hover:text-purple-300 underline transition-all flex items-center gap-1"
+            >
+              سياسة الخصوصية / Privacy Policy
+            </Link>
           </div>
           <p className="text-[10px] font-black text-slate-700 text-center uppercase tracking-[0.2em]">
             Developer Dali Nadjib

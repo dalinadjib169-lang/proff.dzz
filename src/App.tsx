@@ -11,6 +11,7 @@ import Home from './pages/Home';
 import Profile from './pages/Profile';
 import Notifications from './pages/Notifications';
 import Settings from './pages/Settings';
+import Privacy from './pages/Privacy';
 import Market from './pages/Market';
 import Fitness from './pages/Fitness';
 import Discussions from './pages/Discussions';
@@ -385,6 +386,7 @@ export default function App() {
                         <Route path="/fitness" element={user ? <Fitness /> : <Navigate to="/login" />} />
                         <Route path="/image-uploader" element={user ? <CloudinaryUploader /> : <Navigate to="/login" />} />
                         <Route path="/settings" element={user ? <Settings /> : <Navigate to="/login" />} />
+                        <Route path="/privacy" element={<Privacy />} />
                         <Route path="*" element={<Navigate to="/" />} />
                       </Routes>
                     </main>
