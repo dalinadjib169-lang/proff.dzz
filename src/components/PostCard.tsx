@@ -11,6 +11,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { playSound } from '../lib/sounds';
 import { useUpload } from '../hooks/useUpload';
 import { cn } from '../lib/utils';
+import { checkAndBlockThreat } from '../lib/security';
 
 // Helper for dropdown
 function Dropdown({ children, trigger, align = 'right', onOpenChange }: { 
@@ -280,6 +281,13 @@ export default function PostCard({ post, isGroupPost, groupId, onDelete }: { pos
     const isEditing = !!editingComment;
 
     try {
+      // Real-time Automated Cyber Threat Check for Comments
+      const isThreat = await checkAndBlockThreat(text, profile);
+      if (isThreat) {
+        setLoading(false);
+        return;
+      }
+
       let imageUrl = '';
       if (commentImage) {
         imageUrl = await startUpload(commentImage, 'comment', { skipFirestore: true }) || '';

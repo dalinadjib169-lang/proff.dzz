@@ -212,6 +212,39 @@ export default function Settings() {
     }
   };
 
+  const handleLockAccount = async () => {
+    if (!profile || !auth.currentUser) return;
+    const confirm = window.confirm('هل أنت متأكد من قفل حسابك مؤقتاً؟ لن يتمكن أحد من رؤية ملفك الشخصي أو إرسال رسائل لك حتى تقوم بإلغاء القفل بالدخول مجدداً.');
+    if (!confirm) return;
+
+    setLoading(true);
+    try {
+      const userRef = doc(db, 'users', profile.uid);
+      const privateRef = doc(db, 'users_private', profile.uid);
+
+      await updateDoc(userRef, {
+        isLocked: true,
+        status: 'locked_by_user',
+        lockedAt: new Date()
+      });
+
+      await updateDoc(privateRef, {
+        isLocked: true,
+        status: 'locked_by_user',
+        lockedAt: new Date()
+      });
+
+      alert('تم قفل حسابك بنجاح. سيتم تسجيل خروجك الآن.');
+      await signOut(auth);
+      window.location.href = '/login';
+    } catch (error: any) {
+      console.error("Error locking account:", error);
+      alert('فشل قفل الحساب: ' + error.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <div className="max-w-4xl mx-auto space-y-8 pb-20">
       <div className="flex items-center gap-4 mb-8">
@@ -654,6 +687,20 @@ export default function Settings() {
                   className="px-6 py-2.5 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 rounded-xl font-bold text-xs hover:bg-slate-200 dark:hover:bg-slate-700 transition-all"
                 >
                   تغيير كلمة السر
+                </button>
+              </div>
+
+              <div className="p-4 bg-orange-600/5 rounded-2xl border border-orange-600/20 flex flex-col md:flex-row md:items-center justify-between gap-4">
+                <div>
+                  <h3 className="text-sm font-black text-orange-600">قفل الحساب مؤقتاً</h3>
+                  <p className="text-xs text-slate-500 font-bold">يمكنك قفل حسابك مؤقتاً لحمايته من أي استخدام، وتفعيله مجدداً في أي وقت.</p>
+                </div>
+                <button 
+                  onClick={handleLockAccount}
+                  className="px-6 py-2.5 bg-orange-600 text-white rounded-xl font-black text-xs shadow-lg shadow-orange-600/20 hover:bg-orange-700 transition-all flex items-center gap-2"
+                >
+                  <Lock className="w-4 h-4" />
+                  قفل حسابي مؤقتاً
                 </button>
               </div>
 

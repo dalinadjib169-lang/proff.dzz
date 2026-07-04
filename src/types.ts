@@ -32,6 +32,8 @@ export interface UserProfile {
   createdAt: Timestamp | any;
   premiumUntil?: Timestamp | any;
   isActivated?: boolean;
+  isLocked?: boolean;
+  lockReason?: string;
   lastGenerationDate?: Timestamp | any;
   lastUsageResetDate?: Timestamp | any;
   dailyGenCount?: number;

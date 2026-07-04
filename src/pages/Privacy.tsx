@@ -176,6 +176,22 @@ export default function Privacy() {
                 </p>
               </section>
 
+              {/* Security and Recovery - Arabic */}
+              <section className="space-y-3 bg-slate-950/50 p-6 rounded-2xl border border-orange-500/20">
+                <h2 className="text-xl font-black text-white flex items-center gap-2 border-r-4 border-orange-500 pr-3">
+                  <Shield className="w-5 h-5 text-orange-400" />
+                  حماية المنصة من الاختراقات وقفل واسترجاع الحسابات
+                </h2>
+                <p className="text-slate-300 leading-relaxed text-sm">
+                  لحماية حسابك ومنع أي تدخلات خارجية، هجمات الاختراق (XSS, SQL Injection)، أو برمجيات خبيثة:
+                </p>
+                <ul className="list-disc list-inside text-sm text-slate-300 space-y-2 pr-2">
+                  <li><strong>فحص التهديدات بالذكاء الاصطناعي:</strong> نقوم بفحص المنشورات والتعليقات والطلبات المرفوعة بشكل فوري وتلقائي باستخدام نماذج الذكاء الاصطناعي المتقدمة (AI Security Shields) لرصد ومنع أي محاولات اختراق أو حقن برمجيات خبيثة.</li>
+                  <li><strong>قفل الحساب التلقائي واليدوي:</strong> في حال رصد أي هجوم أو نشاط مشبوه، يقوم النظام بقفل الحساب فوراً لحماية بيانات المستخدم. كما يمكن للمستخدم قفل حسابه يدوياً في أي وقت من الإعدادات كإجراء وقائي.</li>
+                  <li><strong>استرجاع الحساب الآمن:</strong> يمكن للمستخدم استرجاع حسابه المقفل أو المحمي من خلال تأكيد ملكيته عبر البريد الإلكتروني الخاص به أو رقم الهاتف المسجل بكل أمان وسهولة.</li>
+                </ul>
+              </section>
+
               {/* Rights & Data Deletion - Arabic (CRITICAL PLAY STORE REQUIREMENT) */}
               <section className="space-y-3 bg-slate-950/50 p-6 rounded-2xl border border-primary/20">
                 <h2 className="text-xl font-black text-white flex items-center gap-2 border-r-4 border-primary pr-3">
@@ -300,6 +316,22 @@ export default function Privacy() {
                 <p className="text-slate-300 leading-relaxed text-sm">
                   Your data is securely stored using <strong>Google Firebase</strong> cloud infrastructure (including Firebase Authentication and Firestore databases) and <strong>Cloudinary</strong> for robust storage and delivery of images and files using state-of-the-art global industry security standards.
                 </p>
+              </section>
+
+              {/* Security and Recovery - English */}
+              <section className="space-y-3 bg-slate-950/50 p-6 rounded-2xl border border-orange-500/20">
+                <h2 className="text-xl font-black text-white flex items-center gap-2 border-l-4 border-orange-500 pl-3">
+                  <Shield className="w-5 h-5 text-orange-400" />
+                  Platform Cyber Security, Account Locking & Recovery
+                </h2>
+                <p className="text-slate-300 leading-relaxed text-sm">
+                  To secure your account and prevent any external cyber threats, hacking attacks (XSS, SQL Injection), or malicious malware:
+                </p>
+                <ul className="list-disc list-inside text-sm text-slate-300 space-y-2 pl-2">
+                  <li><strong>AI-Powered Security Scanning:</strong> We scan posts, comments, and requests in real time using advanced artificial intelligence models (AI Security Shields) to identify and block hacking payloads or unauthorized exploits instantly.</li>
+                  <li><strong>Automated & Manual Account Locking:</strong> If any malicious exploit attempt is intercepted, the system automatically freezes and locks the source account to preserve user data. Users can also lock their accounts manually from the settings menu at any time.</li>
+                  <li><strong>Secure Account Recovery:</strong> Users can securely unlock and recover locked accounts by confirming ownership via their registered email address or phone number, ensuring safe, hassle-free restoration.</li>
+                </ul>
               </section>
 
               {/* Rights & Data Deletion - English (CRITICAL PLAY STORE REQUIREMENT) */}

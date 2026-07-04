@@ -10,6 +10,7 @@ import { playSound } from '../lib/sounds';
 import { useUpload } from '../hooks/useUpload';
 import { PrayerWaterBar } from '../components/PrayerWaterBar';
 import { StoriesSection } from '../components/StoriesSection';
+import { checkAndBlockThreat } from '../lib/security';
 
 export default function Home() {
   const { profile } = useAuth();
@@ -65,6 +66,13 @@ export default function Home() {
 
     setLoading(true);
     try {
+      // Real-time Automated Cyber Threat Check
+      const isThreat = await checkAndBlockThreat(content, profile);
+      if (isThreat) {
+        setLoading(false);
+        return;
+      }
+
       if (selectedImage) {
         await startUpload(selectedImage, 'post', {
           authorId: profile.uid,

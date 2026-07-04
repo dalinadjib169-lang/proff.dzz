@@ -34,7 +34,7 @@ import { ErrorBoundary } from './components/ErrorBoundary';
 import { GraduationCap, LogOut, AlertCircle, Lock, Unlock, ChevronRight, ChevronLeft } from 'lucide-react';
 import { auth, db, onConnectionChange } from './firebase';
 import { signOut } from 'firebase/auth';
-import { collection, query, where, orderBy, limit, onSnapshot } from 'firebase/firestore';
+import { collection, query, where, orderBy, limit, onSnapshot, doc, updateDoc } from 'firebase/firestore';
 import { playSound } from './lib/sounds';
 import { displayNotification } from './lib/notifications';
 import { motion, AnimatePresence } from 'motion/react';
@@ -55,6 +55,38 @@ export default function App() {
   const [isSoulMedOpen, setIsSoulMedOpen] = useState(false);
   const [isOnline, setIsOnline] = useState(true);
   const [loadingProgress, setLoadingProgress] = useState(0);
+  const [unlockLoading, setUnlockLoading] = useState(false);
+
+  const handleUnlockAccount = async () => {
+    if (!profile?.uid) return;
+    setUnlockLoading(true);
+    try {
+      const userRef = doc(db, 'users', profile.uid);
+      const privateRef = doc(db, 'users_private', profile.uid);
+      const updateData = {
+        isLocked: false,
+        status: 'active',
+        unlockedAt: new Date()
+      };
+      await updateDoc(userRef, updateData);
+      await updateDoc(privateRef, updateData);
+      playSound('notification');
+      alert('تم إلغاء قفل حسابك وتفعيله بنجاح! مرحباً بك مجدداً.');
+    } catch (err: any) {
+      console.error("Unlock error:", err);
+      alert('فشل إلغاء قفل الحساب: ' + err.message);
+    } finally {
+      setUnlockLoading(false);
+    }
+  };
+
+  const handleSignOut = async () => {
+    try {
+      await signOut(auth);
+    } catch (e) {
+      console.error(e);
+    }
+  };
 
   useEffect(() => {
     if (loading) {
@@ -284,6 +316,61 @@ export default function App() {
                     Sign Out
                   </button>
                 </div>
+              </div>
+             ) : user && profile?.isLocked ? (
+              <div className="min-h-screen flex items-center justify-center bg-slate-950 p-6 text-center relative overflow-hidden">
+                <div className="absolute top-0 right-0 p-8 opacity-5 pointer-events-none">
+                  <Lock className="w-96 h-96 text-orange-500" />
+                </div>
+                
+                <motion.div 
+                  initial={{ opacity: 0, scale: 0.95 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  className="max-w-md w-full bg-slate-900 border border-orange-500/30 rounded-[2.5rem] p-8 space-y-6 relative z-10 shadow-2xl shadow-orange-500/5 text-right rtl"
+                >
+                  <div className="w-20 h-20 mx-auto rounded-3xl bg-orange-500/10 flex items-center justify-center animate-pulse">
+                    <Lock className="w-10 h-10 text-orange-400" />
+                  </div>
+                  
+                  <div className="space-y-2 text-center">
+                    <h2 className="text-2xl font-black text-white">تم قفل هذا الحساب</h2>
+                    <p className="text-xs text-orange-400 font-bold tracking-widest uppercase">Account Suspended / Locked</p>
+                  </div>
+                  
+                  <div className="p-4 bg-orange-950/20 border border-orange-500/20 rounded-2xl text-slate-300 text-xs leading-relaxed space-y-2 font-bold">
+                    <p>تم تفعيل وضع الحماية وقفل هذا الحساب لحماية بياناتك من أي استخدام غير مصرح به أو اشتباه في اختراق أمني.</p>
+                    {profile.lockReason && (
+                      <p className="text-orange-400 mt-2 border-t border-orange-500/10 pt-2 font-black">
+                        السبب الأمني: {profile.lockReason}
+                      </p>
+                    )}
+                  </div>
+
+                  <div className="space-y-3 pt-2">
+                    <button
+                      onClick={handleUnlockAccount}
+                      disabled={unlockLoading}
+                      className="w-full py-4 bg-orange-600 hover:bg-orange-700 text-white font-black text-sm rounded-2xl shadow-lg shadow-orange-600/20 transition-all flex items-center justify-center gap-2 active:scale-95 disabled:opacity-50"
+                    >
+                      {unlockLoading ? (
+                        <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                      ) : (
+                        <>
+                          <Unlock className="w-5 h-5" />
+                          تفعيل وإلغاء قفل الحساب فوراً
+                        </>
+                      )}
+                    </button>
+                    
+                    <button
+                      onClick={handleSignOut}
+                      className="w-full py-4 bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-sm rounded-2xl transition-all flex items-center justify-center gap-2 active:scale-95"
+                    >
+                      <LogOut className="w-5 h-5" />
+                      تسجيل خروج
+                    </button>
+                  </div>
+                </motion.div>
               </div>
             ) : (
               <>
