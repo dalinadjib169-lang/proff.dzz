@@ -114,15 +114,6 @@ export function useBackgroundFeatures() {
     
     const name = pNames[prayerName] || prayerName;
     
-    // TTS voice notification
-    try {
-      const msg = new SpeechSynthesisUtterance(`حان موعد صلاة ${name} يا أستاذ`);
-      msg.lang = 'ar-SA';
-      window.speechSynthesis.speak(msg);
-    } catch (e) {
-      console.warn("TTS failed", e);
-    }
-
     displayNotification(`حان الآن موعد أذان ${name}`, {
       body: 'اذكر الله وصل على النبي محمد صلى الله عليه وسلم',
       icon: '/logo.png'

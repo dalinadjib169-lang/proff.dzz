@@ -28,7 +28,7 @@ import { useAuth } from '../hooks/useAuth';
 import { db } from '../firebase';
 import { doc, updateDoc, getDocs, collection, query, where, arrayRemove, arrayUnion, deleteDoc } from 'firebase/firestore';
 import { UserProfile, UserSettings } from '../types';
-import { sendPasswordResetEmail, deleteUser, signOut, EmailAuthProvider, reauthenticateWithCredential } from 'firebase/auth';
+import { sendPasswordResetEmail, deleteUser, signOut } from 'firebase/auth';
 import { auth } from '../firebase';
 import { useTranslation } from '../hooks/useTranslation';
 import CloudinaryUploader from '../components/CloudinaryUploader';
@@ -189,14 +189,8 @@ export default function Settings() {
     const confirm = window.confirm('تحذير: سيتم حذف حسابك وجميع بياناتك نهائياً. هل أنت متأكد؟');
     if (!confirm) return;
 
-    const password = window.prompt('لأسباب أمنية، يرجى إدخال كلمة السر الخاصة بك لتأكيد عملية الحذف:');
-    if (!password) return;
-
     setLoading(true);
     try {
-      const credential = EmailAuthProvider.credential(auth.currentUser.email!, password);
-      await reauthenticateWithCredential(auth.currentUser, credential);
-
       // 1. Delete Firestore Data
       await deleteDoc(doc(db, 'users', profile.uid));
       await deleteDoc(doc(db, 'users_private', profile.uid));
@@ -208,9 +202,7 @@ export default function Settings() {
       window.location.href = '/login';
     } catch (error: any) {
       console.error("Error deleting account:", error);
-      if (error.code === 'auth/wrong-password' || error.code === 'auth/invalid-credential') {
-        alert('كلمة السر غير صحيحة. يرجى المحاولة مرة أخرى.');
-      } else if (error.code === 'auth/requires-recent-login') {
+      if (error.code === 'auth/requires-recent-login') {
         alert('لحذف الحساب، يجب تسجيل الدخول مجدداً قريباً. يرجى تسجيل الخروج ثم الدخول والمحاولة مرة أخرى.');
       } else {
         alert('فشل حذف الحساب: ' + error.message);
@@ -225,14 +217,8 @@ export default function Settings() {
     const confirm = window.confirm('هل أنت متأكد من قفل حسابك مؤقتاً؟ لن يتمكن أحد من رؤية ملفك الشخصي أو إرسال رسائل لك حتى تقوم بإلغاء القفل بالدخول مجدداً.');
     if (!confirm) return;
 
-    const password = window.prompt('لأسباب أمنية، يرجى إدخال كلمة السر الخاصة بك لتأكيد عملية القفل:');
-    if (!password) return;
-
     setLoading(true);
     try {
-      const credential = EmailAuthProvider.credential(auth.currentUser.email!, password);
-      await reauthenticateWithCredential(auth.currentUser, credential);
-
       const userRef = doc(db, 'users', profile.uid);
       const privateRef = doc(db, 'users_private', profile.uid);
 
@@ -253,11 +239,7 @@ export default function Settings() {
       window.location.href = '/login';
     } catch (error: any) {
       console.error("Error locking account:", error);
-      if (error.code === 'auth/wrong-password' || error.code === 'auth/invalid-credential') {
-        alert('كلمة السر غير صحيحة. يرجى المحاولة مرة أخرى.');
-      } else {
-        alert('فشل قفل الحساب: ' + error.message);
-      }
+      alert('فشل قفل الحساب: ' + error.message);
     } finally {
       setLoading(false);
     }

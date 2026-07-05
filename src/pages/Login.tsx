@@ -57,9 +57,10 @@ export default function Login() {
     setSuccess('');
     try {
       if (authMethod === 'email') {
+        // We use standard Firebase for email, but simulate the UI for UX
         await sendPasswordResetEmail(auth, email);
-        alert('تم إرسال رابط إعادة تعيين كلمة السر إلى بريدك الإلكتروني بنجاح! يرجى النقر على الرابط في رسالتك لإعادة تعيين كلمة السر.');
-        setForgotPasswordStep(0); 
+        setSuccess('تم إرسال رابط/كود إعادة تعيين كلمة السر إلى بريدك الإلكتروني بنجاح!');
+        setForgotPasswordStep(2); // Go to code entry
       } else {
         // Simulate phone SMS sending for prototype
         setTimeout(() => {
