@@ -78,16 +78,18 @@ export default function Notifications() {
     try {
       const q = query(
         collection(db, 'invitations'),
-        where('participants', 'array-contains', profile.uid),
-        where('senderId', '==', notification.senderId),
-        where('status', '==', 'pending'),
-        limit(1)
+        where('recipientId', '==', profile.uid)
       );
       
       const snapshot = await getDocs(q);
       
-      if (!snapshot.empty) {
-        const invDoc = snapshot.docs[0];
+      const pendingInvites = snapshot.docs.filter(doc => 
+        doc.data().senderId === notification.senderId && 
+        doc.data().status === 'pending'
+      );
+      
+      if (pendingInvites.length > 0) {
+        const invDoc = pendingInvites[0];
         const batch = writeBatch(db);
         
         // Update invitation status
@@ -133,16 +135,18 @@ export default function Notifications() {
     try {
       const q = query(
         collection(db, 'invitations'),
-        where('participants', 'array-contains', profile.uid),
-        where('senderId', '==', notification.senderId),
-        where('status', '==', 'pending'),
-        limit(1)
+        where('recipientId', '==', profile.uid)
       );
       const snapshot = await getDocs(q);
       
+      const pendingInvites = snapshot.docs.filter(doc => 
+        doc.data().senderId === notification.senderId && 
+        doc.data().status === 'pending'
+      );
+      
       const batch = writeBatch(db);
-      if (!snapshot.empty) {
-        batch.delete(doc(db, 'invitations', snapshot.docs[0].id));
+      if (pendingInvites.length > 0) {
+        batch.delete(doc(db, 'invitations', pendingInvites[0].id));
       }
       batch.update(doc(db, 'notifications', notification.id), { read: true });
       await batch.commit();

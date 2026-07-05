@@ -29,6 +29,7 @@ export const PrayerWaterBar: React.FC = () => {
   const { profile } = useAuth();
   const [prayerTimes, setPrayerTimes] = useState<PrayerTimes | null>(null);
   const [nextPrayer, setNextPrayer] = useState<{ name: string; time: string } | null>(null);
+  const [currentPrayer, setCurrentPrayer] = useState<{ name: string; time: string } | null>(null);
   const [isAdhanEnabled, setIsAdhanEnabled] = useState(profile?.reminders?.prayer ?? false);
   const [isWaterEnabled, setIsWaterEnabled] = useState(profile?.reminders?.water ?? false);
   const [waterCount, setWaterCount] = useState(profile?.reminders?.waterGlassCount ?? 0);
@@ -38,6 +39,7 @@ export const PrayerWaterBar: React.FC = () => {
   
   const adhanAudio = useRef<HTMLAudioElement | null>(null);
   const waterAudio = useRef<HTMLAudioElement | null>(null);
+  const lastAdhanPlayed = useRef<string | null>(null); // Track last played prayer
 
   const stopAdhan = () => {
     if (adhanAudio.current) {
@@ -75,11 +77,12 @@ export const PrayerWaterBar: React.FC = () => {
     if (prayerTimes) {
       calculateNextPrayer();
     }
+    // Check every 10 seconds for more accurate time matching
     const interval = setInterval(() => {
       if (prayerTimes) calculateNextPrayer();
-    }, 60000);
+    }, 10000);
     return () => clearInterval(interval);
-  }, [prayerTimes]);
+  }, [prayerTimes, isAdhanEnabled, adhanVoice]);
 
   const fetchPrayerTimesData = async (wilaya: string) => {
     try {
@@ -110,12 +113,40 @@ export const PrayerWaterBar: React.FC = () => {
     
     setNextPrayer(next);
 
-    // Adhan check - check against all prayer times
+    // Find if any prayer is EXACTLY right now (same minute)
+    const active = prayers.find(p => p.time === currentTime);
+    setCurrentPrayer(active || null);
+
+    // Adhan check
     if (isAdhanEnabled) {
-      const currentPrayer = prayers.find(p => p.time === currentTime);
-      if (currentPrayer && (!adhanAudio.current || adhanAudio.current.paused)) {
-        console.log(`Playing Adhan for ${currentPrayer.name} at ${currentTime}`);
-        adhanAudio.current = playSound(adhanVoice);
+      if (active) {
+        // Prevent playing it multiple times in the same minute
+        const prayerKey = `${active.name}-${currentTime}`;
+        if (lastAdhanPlayed.current !== prayerKey) {
+          if (!adhanAudio.current || adhanAudio.current.paused) {
+            console.log(`Playing Adhan for ${active.name} at ${currentTime}`);
+            
+            // TTS voice notification
+            try {
+              const msg = new SpeechSynthesisUtterance("حان موعد الصلاة يا أستاذ");
+              msg.lang = 'ar-SA';
+              window.speechSynthesis.speak(msg);
+            } catch (e) {
+              console.warn("TTS failed", e);
+            }
+            
+            // Show Notification
+            if ('Notification' in window && Notification.permission === 'granted') {
+              new Notification("الصلاة", {
+                body: `حان الآن وقت صلاة ${PRAYER_NAMES[active.name]}`,
+                icon: '/prof_dali_logo.png'
+              });
+            }
+
+            adhanAudio.current = playSound(adhanVoice);
+            lastAdhanPlayed.current = prayerKey;
+          }
+        }
       }
     }
   };
@@ -131,6 +162,10 @@ export const PrayerWaterBar: React.FC = () => {
     setIsAdhanEnabled(newState);
     if (!newState) {
       stopAdhan();
+    } else {
+      if ('Notification' in window && Notification.permission !== 'granted') {
+        Notification.requestPermission();
+      }
     }
     if (profile) {
       const userRef = doc(db, 'users', profile.uid);
@@ -325,8 +360,16 @@ export const PrayerWaterBar: React.FC = () => {
 
         <div className="h-4 w-px bg-slate-700 hidden sm:block" />
 
-        {/* Next Prayer - Prominent */}
-        {nextPrayer && (
+        {/* Next/Current Prayer - Prominent */}
+        {currentPrayer ? (
+          <div className="flex items-center gap-2 bg-green-500/20 px-3 py-0.5 rounded-full border border-green-500/50 animate-pulse shadow-[0_0_15px_rgba(34,197,94,0.4)]">
+            <div className="flex flex-col -space-y-1">
+              <span className="text-[7px] font-black text-green-400 uppercase">حان الآن وقت</span>
+              <span className="text-[11px] font-black text-white">{PRAYER_NAMES[currentPrayer.name]}</span>
+            </div>
+            <div className="text-[12px] font-black text-green-400">{currentPrayer.time}</div>
+          </div>
+        ) : nextPrayer ? (
           <div className="flex items-center gap-2 bg-amber-500/5 px-3 py-0.5 rounded-full border border-amber-500/10">
             <div className="flex flex-col -space-y-1">
               <span className="text-[7px] font-black text-amber-500 uppercase">الصلاة القادمة</span>
@@ -334,7 +377,7 @@ export const PrayerWaterBar: React.FC = () => {
             </div>
             <div className="text-[12px] font-black text-amber-400">{nextPrayer.time}</div>
           </div>
-        )}
+        ) : null}
 
         <div className="h-4 w-px bg-slate-700 hidden md:block" />
 
@@ -342,16 +385,18 @@ export const PrayerWaterBar: React.FC = () => {
         <div className="flex-1 flex items-center justify-between overflow-x-auto no-scrollbar gap-4 py-0.5">
           {prayerTimes && Object.entries(prayerTimes)
             .filter(([name]) => ['Fajr', 'Dhuhr', 'Asr', 'Maghrib', 'Isha'].includes(name))
-            .map(([name, time]) => (
-              <div key={name} className={`flex items-center gap-1.5 transition-all flex-shrink-0 ${nextPrayer?.name === name ? 'text-amber-400' : 'text-slate-500 opacity-70'}`}>
+            .map(([name, time]) => {
+              const isCurrent = currentPrayer?.name === name;
+              const isNext = !currentPrayer && nextPrayer?.name === name;
+              return (
+              <div key={name} className={`flex items-center gap-1.5 transition-all flex-shrink-0 ${isCurrent ? 'text-green-400 animate-pulse scale-110 drop-shadow-[0_0_5px_rgba(34,197,94,0.8)]' : isNext ? 'text-amber-400' : 'text-slate-500 opacity-70'}`}>
                 {getPrayerIcon(name)}
                 <div className="flex flex-col -space-y-1">
                   <span className="text-[8px] font-bold">{PRAYER_NAMES[name]}</span>
                   <span className="text-[10px] font-black">{time}</span>
                 </div>
               </div>
-            ))
-          }
+            )})}
         </div>
       </motion.div>
 
@@ -379,7 +424,21 @@ export const PrayerWaterBar: React.FC = () => {
         <div className="flex-1 flex items-center gap-3">
           <div className="flex items-center gap-2">
             <button onClick={decrementWater} className="p-1 text-slate-600 hover:text-white transition-colors"><Minus className="w-3 h-3" /></button>
-            <span className="text-[11px] font-black text-blue-300 min-w-[30px] text-center">{waterCount}/{waterGoal}</span>
+            <span 
+              className="text-[11px] font-black text-blue-300 min-w-[30px] text-center cursor-pointer hover:text-blue-100"
+              onClick={() => {
+                const newGoal = parseInt(window.prompt("كم كوب ماء تريد أن تشرب اليوم؟", waterGoal.toString()) || "");
+                if (newGoal > 0) {
+                  setWaterGoal(newGoal);
+                  if (profile) {
+                    updateDoc(doc(db, 'users', profile.uid), { 'reminders.waterGoal': newGoal });
+                  }
+                }
+              }}
+              title="تعديل الهدف اليومي"
+            >
+              {waterCount}/{waterGoal}
+            </span>
             <button onClick={incrementWater} className="p-1 text-blue-500 hover:text-blue-300 transition-colors"><Plus className="w-3 h-3" /></button>
           </div>
           

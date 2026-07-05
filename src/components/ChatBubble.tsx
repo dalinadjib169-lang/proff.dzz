@@ -558,6 +558,18 @@ export default function ChatBubble() {
           }
           const senderPhoto = senderUser?.photoURL || '/prof_dali_logo.png';
 
+          // Play notification sound
+          playSound('message');
+
+          // TTS voice notification for message
+          try {
+            const msg = new SpeechSynthesisUtterance(`لديك رسالة جديدة من ${data.senderName}`);
+            msg.lang = 'ar-SA';
+            window.speechSynthesis.speak(msg);
+          } catch (e) {
+            console.warn("TTS failed", e);
+          }
+
           // Show elegant in-app Custom Toast so user can immediately see who sent the message
           toast.custom(
             (t) => (

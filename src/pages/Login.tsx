@@ -57,10 +57,9 @@ export default function Login() {
     setSuccess('');
     try {
       if (authMethod === 'email') {
-        // We use standard Firebase for email, but simulate the UI for UX
         await sendPasswordResetEmail(auth, email);
-        setSuccess('تم إرسال رابط/كود إعادة تعيين كلمة السر إلى بريدك الإلكتروني بنجاح!');
-        setForgotPasswordStep(2); // Go to code entry
+        alert('تم إرسال رابط إعادة تعيين كلمة السر إلى بريدك الإلكتروني بنجاح! يرجى النقر على الرابط في رسالتك لإعادة تعيين كلمة السر.');
+        setForgotPasswordStep(0); 
       } else {
         // Simulate phone SMS sending for prototype
         setTimeout(() => {
@@ -334,7 +333,6 @@ export default function Login() {
             </div>
             
             <div className="flex flex-col items-center gap-1">
-              <p className="text-amber-400 font-black text-base md:text-lg" style={{ fontFamily: "var(--font-amiri)" }}>جرب توليد مذكرات واختبارات في ثواني</p>
               <p className="text-slate-500 text-[9px] md:text-[10px] font-black uppercase tracking-[0.2em]">The Algerian Teachers Network</p>
             </div>
           </div>

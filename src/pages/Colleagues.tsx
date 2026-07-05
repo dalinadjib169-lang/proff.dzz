@@ -100,11 +100,14 @@ export default function Colleagues() {
   };
 
   const filteredUsers = users.filter(u => {
-    const matchesSearch = 
-      u.displayName?.toLowerCase().includes(search.toLowerCase()) || 
-      u.subject?.toLowerCase().includes(search.toLowerCase()) ||
-      u.email?.toLowerCase().includes(search.toLowerCase()) ||
-      u.phoneNumber?.includes(search);
+    const searchLower = search.toLowerCase();
+    const matchesSearch = !search || (
+      (u.displayName?.toLowerCase().includes(searchLower) ?? false) || 
+      (u.subject?.toLowerCase().includes(searchLower) ?? false) ||
+      (u.email?.toLowerCase().includes(searchLower) ?? false) ||
+      (u.phoneNumber?.includes(search) ?? false)
+    );
+    
     const matchesWilaya = !wilayaFilter || (u.wilaya && (
       u.wilaya === wilayaFilter || 
       wilayaFilter.includes(u.wilaya) || 

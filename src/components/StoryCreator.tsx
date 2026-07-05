@@ -53,13 +53,11 @@ export const StoryCreator: React.FC<StoryCreatorProps> = ({ isOpen, onClose }) =
   const [content, setContent] = useState('');
   const [selectedBg, setSelectedBg] = useState(STORY_BACKGROUNDS[0].value);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [selectedAudio, setSelectedAudio] = useState<File | null>(null);
   const [selectedPresetAudio, setSelectedPresetAudio] = useState<string | null>(null);
   const [filePreview, setFilePreview] = useState<string | null>(null);
   const [attachedDua, setAttachedDua] = useState('');
   const [loading, setLoading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const audioInputRef = useRef<HTMLInputElement>(null);
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -71,14 +69,6 @@ export const StoryCreator: React.FC<StoryCreatorProps> = ({ isOpen, onClose }) =
     const reader = new FileReader();
     reader.onloadend = () => setFilePreview(reader.result as string);
     reader.readAsDataURL(file);
-  };
-
-  const handleAudioSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      setSelectedAudio(file);
-      setSelectedPresetAudio(null);
-    }
   };
 
   const handleCreate = async () => {
@@ -96,10 +86,6 @@ export const StoryCreator: React.FC<StoryCreatorProps> = ({ isOpen, onClose }) =
       }
 
       let audioUrl = selectedPresetAudio || '';
-      if (selectedAudio) {
-        const url = await startUpload(selectedAudio, 'post', { skipFirestore: true });
-        if (url) audioUrl = url;
-      }
 
       const expiresAt = new Date();
       expiresAt.setHours(expiresAt.getHours() + 24);
@@ -127,7 +113,6 @@ export const StoryCreator: React.FC<StoryCreatorProps> = ({ isOpen, onClose }) =
       // Reset state
       setContent('');
       setSelectedFile(null);
-      setSelectedAudio(null);
       setSelectedPresetAudio(null);
       setFilePreview(null);
       setType('text');
@@ -326,7 +311,6 @@ export const StoryCreator: React.FC<StoryCreatorProps> = ({ isOpen, onClose }) =
                       key={aud.id}
                       onClick={() => {
                         setSelectedPresetAudio(aud.url);
-                        setSelectedAudio(null);
                       }}
                       className={`px-3 py-1.5 rounded-lg text-[9px] font-black transition-all border flex items-center gap-2 ${
                         selectedPresetAudio === aud.url 
@@ -338,32 +322,15 @@ export const StoryCreator: React.FC<StoryCreatorProps> = ({ isOpen, onClose }) =
                       {aud.name}
                     </button>
                   ))}
-                </div>
-
-                <button
-                  onClick={() => audioInputRef.current?.click()}
-                  className={`w-full p-4 rounded-xl border-2 border-dashed flex items-center justify-center gap-3 transition-all ${
-                    selectedAudio 
-                      ? 'bg-emerald-500/10 border-emerald-500 text-emerald-500' 
-                      : 'bg-white/5 border-white/10 text-slate-400 hover:border-white/20'
-                  }`}
-                >
-                  {selectedAudio ? <Volume2 className="w-5 h-5" /> : <Mic className="w-5 h-5" />}
-                  <span className="text-xs font-black">
-                    {selectedAudio ? selectedAudio.name : 'أو تحميل مقطع صوتي خاص بك'}
-                  </span>
-                  {(selectedAudio || selectedPresetAudio) && (
-                    <X 
-                      className="w-4 h-4 ml-auto hover:text-red-500" 
-                      onClick={(e) => { 
-                        e.stopPropagation(); 
-                        setSelectedAudio(null); 
-                        setSelectedPresetAudio(null); 
-                      }}
-                    />
+                  {selectedPresetAudio && (
+                    <button
+                      onClick={() => setSelectedPresetAudio(null)}
+                      className="px-3 py-1.5 rounded-lg text-[9px] font-black transition-all border flex items-center gap-2 bg-red-500/10 border-red-500/30 text-red-400 hover:bg-red-500/20"
+                    >
+                      <X className="w-3 h-3" /> إزالة الصوت
+                    </button>
                   )}
-                </button>
-                <input type="file" ref={audioInputRef} onChange={handleAudioSelect} accept="audio/*" className="hidden" />
+                </div>
             </div>
           </div>
         </div>
