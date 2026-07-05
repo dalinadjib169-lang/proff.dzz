@@ -99,8 +99,6 @@ function Sidebar() {
     { icon: Bookmark, label: t('saved'), path: '/saved' },
     { icon: Users, label: t('colleagues'), path: '/colleagues' },
     { icon: Users, label: 'المجموعات التربوية', path: '/groups' },
-    { icon: BookOpen, label: t('curriculum'), path: '/curriculum' },
-    { icon: Image, label: 'Image Uploader', path: '/image-uploader' },
     { icon: User, label: t('profile'), path: profile?.uid ? `/profile/${profile.uid}` : '/profile/loading' },
     { icon: Settings, label: t('settings'), path: '/settings' },
   ];
@@ -202,14 +200,6 @@ function Sidebar() {
         >
           <MessageSquare className="w-5 h-5 transition-transform group-hover:scale-110" />
           <span>تواصل مع المطور (Support)</span>
-        </button>
-
-        <button
-          onClick={() => window.dispatchEvent(new CustomEvent('show-chat'))}
-          className="w-full flex items-center gap-4 px-6 py-4 rounded-2xl font-bold text-slate-500 hover:bg-slate-900 hover:text-purple-400 transition-all group"
-        >
-          <MessageSquare className="w-5 h-5 transition-transform group-hover:scale-110" />
-          <span>Show Chat Bubble</span>
         </button>
 
         <button

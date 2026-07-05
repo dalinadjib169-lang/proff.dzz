@@ -103,18 +103,24 @@ export default function Colleagues() {
     const matchesSearch = 
       u.displayName?.toLowerCase().includes(search.toLowerCase()) || 
       u.subject?.toLowerCase().includes(search.toLowerCase()) ||
-      u.email?.toLowerCase().includes(search.toLowerCase());
-    const matchesWilaya = !wilayaFilter || u.wilaya === wilayaFilter;
+      u.email?.toLowerCase().includes(search.toLowerCase()) ||
+      u.phoneNumber?.includes(search);
+    const matchesWilaya = !wilayaFilter || (u.wilaya && (
+      u.wilaya === wilayaFilter || 
+      wilayaFilter.includes(u.wilaya) || 
+      u.wilaya.includes(wilayaFilter.split('(')[0].trim()) || 
+      u.wilaya.includes(wilayaFilter.split('(')[1]?.replace(')', '') || '')
+    ));
     return matchesSearch && matchesWilaya;
   });
 
   const WILAYAS = [
-    'Adrar', 'Chlef', 'Laghouat', 'Oum El Bouaghi', 'Batna', 'Béjaïa', 'Biskra', 'Béchar',
-    'Blida', 'Bouira', 'Tamanrasset', 'Tébessa', 'Tlemcen', 'Tiaret', 'Tizi Ouzou', 'Algiers',
-    'Djelfa', 'Jijel', 'Sétif', 'Saïda', 'Skikda', 'Sidi Bel Abbès', 'Annabba', 'Guelma',
-    'Constantine', 'Médéa', 'Mostaganem', 'M\'Sila', 'Mascara', 'Ouargla', 'Oran', 'El Bayadh',
-    'Illizi', 'Bordj Bou Arréridj', 'Boumerdès', 'El Tarf', 'Tindouf', 'Tissemsilt', 'El Oued',
-    'Khenchela', 'Souk Ahras', 'Tipaza', 'Mila', 'Aïn Defla', 'Naâma', 'Aïn Témouchent', 'Ghardaïa', 'Relizane'
+  "01 - أدرار (Adrar)", "02 - الشلف (Chlef)", "03 - الأغواط (Laghouat)", "04 - أم البواقي (Oum El Bouaghi)", "05 - باتنة (Batna)", "06 - بجاية (Béjaïa)", "07 - بسكرة (Biskra)", "08 - بشار (Béchar)", "09 - البليدة (Blida)", "10 - البويرة (Bouira)",
+  "11 - تمنراست (Tamanrasset)", "12 - تبسة (Tébessa)", "13 - تلمسان (Tlemcen)", "14 - تيارت (Tiaret)", "15 - تيزي وزو (Tizi Ouzou)", "16 - الجزائر (Alger)", "17 - الجلفة (Djelfa)", "18 - جيجل (Jijel)", "19 - سطيف (Sétif)", "20 - سعيدة (Saïda)",
+  "21 - سكيكدة (Skikda)", "22 - سيدي بلعباس (Sidi Bel Abbès)", "23 - عنابة (Annaba)", "24 - قالمة (Guelma)", "25 - قسنطينة (Constantine)", "26 - المدية (Médéa)", "27 - مستغانم (Mostaganem)", "28 - المسيلة (M'Sila)", "29 - معسكر (Mascara)",
+  "30 - ورقلة (Ouargla)", "31 - وهران (Oran)", "32 - البيض (El Bayadh)", "33 - إليزي (Illizi)", "34 - برج بوعريريج (Bordj Bou Arréridj)", "35 - بومرداس (Boumerdès)", "36 - الطارف (El Tarf)", "37 - تندوف (Tindouf)", "38 - تيسمسيلت (Tissemsilt)",
+  "39 - الوادي (El Oued)", "40 - خنشلة (Khenchela)", "41 - سوق أهراس (Souk Ahras)", "42 - تيبازة (Tipaza)", "43 - ميلة (Mila)", "44 - عين الدفلى (Aïn Defla)", "45 - النعامة (Naâma)", "46 - عين تموشنت (Aïn Témouchent)", "47 - غرداية (Ghardaïa)", "48 - غليزان (Relizane)",
+  "49 - المغير (El M'Ghair)", "50 - المنيعة (El Meniaa)", "51 - أولاد جلال (Ouled Djellal)", "52 - برج باجي مختار (Bordj Baji Mokhtar)", "53 - بني عباس (Béni Abbès)", "54 - تيميمون (Timimoun)", "55 - تقرت (Touggourt)", "56 - جانت (Djanet)", "57 - إن صالح (In Salah)", "58 - إن قزام (In Guezzam)"
   ];
 
   return (

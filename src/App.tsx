@@ -17,12 +17,10 @@ import Fitness from './pages/Fitness';
 import Discussions from './pages/Discussions';
 import Saved from './pages/Saved';
 import Colleagues from './pages/Colleagues';
-import Curriculum from './pages/Curriculum';
 import Groups from './pages/Groups';
 import GroupDetails from './pages/GroupDetails';
 import ProfileRedirect from './pages/ProfileRedirect';
 import AdminDashboard from './pages/AdminDashboard';
-import CloudinaryUploader from './components/CloudinaryUploader';
 import Navbar from './components/Navbar';
 import Sidebar from './components/Sidebar';
 import BottomNav from './components/BottomNav';
@@ -469,10 +467,8 @@ export default function App() {
                         <Route path="/colleagues" element={user ? <Colleagues /> : <Navigate to="/login" />} />
                         <Route path="/groups" element={user ? <Groups /> : <Navigate to="/login" />} />
                         <Route path="/groups/:groupId" element={user ? <GroupDetails /> : <Navigate to="/login" />} />
-                        <Route path="/curriculum" element={user ? <Curriculum /> : <Navigate to="/login" />} />
                         <Route path="/market" element={user ? <Market /> : <Navigate to="/login" />} />
                         <Route path="/fitness" element={user ? <Fitness /> : <Navigate to="/login" />} />
-                        <Route path="/image-uploader" element={user ? <CloudinaryUploader /> : <Navigate to="/login" />} />
                         <Route path="/settings" element={user ? <Settings /> : <Navigate to="/login" />} />
                         <Route path="/admin" element={user ? <AdminDashboard /> : <Navigate to="/login" />} />
                         <Route path="/admin-dashboard" element={user ? <AdminDashboard /> : <Navigate to="/login" />} />

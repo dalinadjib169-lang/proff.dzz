@@ -78,7 +78,7 @@ export default function Notifications() {
     try {
       const q = query(
         collection(db, 'invitations'),
-        where('recipientId', '==', profile.uid),
+        where('participants', 'array-contains', profile.uid),
         where('senderId', '==', notification.senderId),
         where('status', '==', 'pending'),
         limit(1)
@@ -133,7 +133,7 @@ export default function Notifications() {
     try {
       const q = query(
         collection(db, 'invitations'),
-        where('recipientId', '==', profile.uid),
+        where('participants', 'array-contains', profile.uid),
         where('senderId', '==', notification.senderId),
         where('status', '==', 'pending'),
         limit(1)
