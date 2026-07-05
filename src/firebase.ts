@@ -6,7 +6,8 @@ import {
   getDocFromServer, 
   getDocFromCache,
   persistentLocalCache,
-  persistentMultipleTabManager
+  persistentMultipleTabManager,
+  memoryLocalCache
 } from "firebase/firestore";
 import { getStorage } from "firebase/storage";
 
@@ -18,10 +19,25 @@ export const auth = getAuth(app);
 
 // Use initializeFirestore with settings optimized for the AI Studio environment
 const databaseId = (firebaseConfig as any).firestoreDatabaseId || "(default)";
+
+// Robust check to avoid IndexedDB / persistent storage failure inside sandboxed iframes
+let localCacheSetting;
+try {
+  // Try accessing window storage and indexedDB. If blocked, this will throw an error.
+  if (typeof window !== "undefined" && window.indexedDB && window.localStorage) {
+    localCacheSetting = persistentLocalCache({ tabManager: persistentMultipleTabManager() });
+  } else {
+    localCacheSetting = memoryLocalCache();
+  }
+} catch (e) {
+  console.warn("Firebase: Persistent storage is restricted in this browser context (iframe/sandbox). Falling back to memoryLocalCache.", e);
+  localCacheSetting = memoryLocalCache();
+}
+
 export const db = initializeFirestore(app, {
   experimentalForceLongPolling: true,
   ignoreUndefinedProperties: true,
-  localCache: persistentLocalCache({ tabManager: persistentMultipleTabManager() })
+  localCache: localCacheSetting
 }, databaseId);
 
 export const checkFirestoreConnection = async () => {
