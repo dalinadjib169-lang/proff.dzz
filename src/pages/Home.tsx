@@ -36,6 +36,7 @@ export default function Home() {
     const q = query(
       collection(db, 'posts'),
       where('privacy', '==', 'public'),
+      orderBy('createdAt', 'desc'),
       limit(50)
     );
     return onSnapshot(q, (snapshot) => {

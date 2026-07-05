@@ -424,7 +424,6 @@ export default function PostCard({ post, isGroupPost, groupId, onDelete }: { pos
         privacy: 'public',
         createdAt: serverTimestamp()
       });
-      alert('تم إعادة نشر المنشور على صفحتك الشخصية بنجاح!');
     } catch (error) {
       console.error("Error republishing:", error);
     } finally {

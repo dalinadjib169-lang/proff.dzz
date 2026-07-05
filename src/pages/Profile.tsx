@@ -195,12 +195,14 @@ export default function Profile() {
       ? query(
           collection(db, 'posts'),
           where('authorId', '==', uid),
+          orderBy('createdAt', 'desc'),
           limit(50)
         )
       : query(
           collection(db, 'posts'),
           where('authorId', '==', uid),
           where('privacy', '==', 'public'),
+          orderBy('createdAt', 'desc'),
           limit(50)
         );
 
