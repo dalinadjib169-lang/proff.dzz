@@ -125,24 +125,6 @@ export const PrayerWaterBar: React.FC = () => {
         if (lastAdhanPlayed.current !== prayerKey) {
           if (!adhanAudio.current || adhanAudio.current.paused) {
             console.log(`Playing Adhan for ${active.name} at ${currentTime}`);
-            
-            // TTS voice notification
-            try {
-              const msg = new SpeechSynthesisUtterance("حان موعد الصلاة يا أستاذ");
-              msg.lang = 'ar-SA';
-              window.speechSynthesis.speak(msg);
-            } catch (e) {
-              console.warn("TTS failed", e);
-            }
-            
-            // Show Notification
-            if ('Notification' in window && Notification.permission === 'granted') {
-              new Notification("الصلاة", {
-                body: `حان الآن وقت صلاة ${PRAYER_NAMES[active.name]}`,
-                icon: '/prof_dali_logo.png'
-              });
-            }
-
             adhanAudio.current = playSound(adhanVoice);
             lastAdhanPlayed.current = prayerKey;
           }
@@ -162,10 +144,6 @@ export const PrayerWaterBar: React.FC = () => {
     setIsAdhanEnabled(newState);
     if (!newState) {
       stopAdhan();
-    } else {
-      if ('Notification' in window && Notification.permission !== 'granted') {
-        Notification.requestPermission();
-      }
     }
     if (profile) {
       const userRef = doc(db, 'users', profile.uid);
@@ -424,21 +402,7 @@ export const PrayerWaterBar: React.FC = () => {
         <div className="flex-1 flex items-center gap-3">
           <div className="flex items-center gap-2">
             <button onClick={decrementWater} className="p-1 text-slate-600 hover:text-white transition-colors"><Minus className="w-3 h-3" /></button>
-            <span 
-              className="text-[11px] font-black text-blue-300 min-w-[30px] text-center cursor-pointer hover:text-blue-100"
-              onClick={() => {
-                const newGoal = parseInt(window.prompt("كم كوب ماء تريد أن تشرب اليوم؟", waterGoal.toString()) || "");
-                if (newGoal > 0) {
-                  setWaterGoal(newGoal);
-                  if (profile) {
-                    updateDoc(doc(db, 'users', profile.uid), { 'reminders.waterGoal': newGoal });
-                  }
-                }
-              }}
-              title="تعديل الهدف اليومي"
-            >
-              {waterCount}/{waterGoal}
-            </span>
+            <span className="text-[11px] font-black text-blue-300 min-w-[30px] text-center">{waterCount}/{waterGoal}</span>
             <button onClick={incrementWater} className="p-1 text-blue-500 hover:text-blue-300 transition-colors"><Plus className="w-3 h-3" /></button>
           </div>
           

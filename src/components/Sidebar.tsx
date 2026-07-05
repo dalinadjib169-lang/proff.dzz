@@ -167,6 +167,12 @@ function Sidebar() {
             <NavLink
               key={item.label}
               to={item.path}
+              onClick={() => {
+                if (item.path === '/') {
+                  window.scrollTo({ top: 0, behavior: 'smooth' });
+                  window.dispatchEvent(new CustomEvent('refresh-home'));
+                }
+              }}
             className={({ isActive }) => cn(
               "flex items-center justify-between px-6 py-4 rounded-2xl font-bold transition-all group",
               isActive 

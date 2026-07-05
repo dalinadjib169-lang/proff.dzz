@@ -189,7 +189,7 @@ export const StoryViewer: React.FC<StoryViewerProps> = ({ stories, initialIndex 
                 </div>
               ) : (
                 <div 
-                  className="w-full h-full flex items-center justify-center p-12 text-center relative overflow-hidden perspective-[1000px]"
+                  className="w-full h-full flex items-center justify-center p-12 text-center relative"
                   style={{ 
                     backgroundImage: story.background, 
                     backgroundSize: 'cover', 
@@ -197,41 +197,8 @@ export const StoryViewer: React.FC<StoryViewerProps> = ({ stories, initialIndex 
                     backgroundRepeat: 'no-repeat'
                   }}
                 >
-                  <div className="absolute inset-0 bg-black/40 z-0" />
-                  
-                  {/* 3D Network Background Effect */}
-                  <div className="absolute inset-0 z-0 opacity-40 pointer-events-none flex items-center justify-center">
-                    <motion.div 
-                      initial={{ rotateX: 60, scale: 2 }}
-                      animate={{ 
-                        translateY: [0, 20, 0],
-                        rotateZ: [0, 5, 0]
-                      }}
-                      transition={{ duration: 10, repeat: Infinity, ease: "easeInOut" }}
-                      className="w-[200%] h-[200%]"
-                      style={{
-                        backgroundImage: `linear-gradient(rgba(255, 255, 255, 0.15) 2px, transparent 2px), linear-gradient(90deg, rgba(255, 255, 255, 0.15) 2px, transparent 2px)`,
-                        backgroundSize: '50px 50px',
-                        transformStyle: 'preserve-3d',
-                      }}
-                    />
-                    <motion.div
-                      animate={{
-                         backgroundPosition: ['0px 0px', '0px 50px']
-                      }}
-                      transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
-                      className="absolute inset-0 w-[200%] h-[200%] opacity-50"
-                      style={{
-                        backgroundImage: `linear-gradient(rgba(16, 185, 129, 0.2) 1px, transparent 1px), linear-gradient(90deg, rgba(16, 185, 129, 0.2) 1px, transparent 1px)`,
-                        backgroundSize: '50px 50px',
-                        rotateX: '60deg',
-                        scale: 2,
-                      }}
-                    />
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-black/80" />
-                  </div>
-
-                  <p className="text-3xl font-black text-white font-amiri leading-relaxed relative z-10 drop-shadow-[0_4px_20px_rgba(0,0,0,0.8)]">
+                  <div className="absolute inset-0 bg-black/40" />
+                  <p className="text-3xl font-black text-white font-amiri leading-relaxed relative z-10 drop-shadow-2xl">
                     {story.text}
                   </p>
                 </div>

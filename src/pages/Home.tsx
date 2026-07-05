@@ -25,6 +25,12 @@ export default function Home() {
   const fileInputRef = React.useRef<HTMLInputElement>(null);
 
   useEffect(() => {
+    const handleRefresh = () => window.scrollTo({ top: 0, behavior: 'smooth' });
+    window.addEventListener('refresh-home', handleRefresh);
+    return () => window.removeEventListener('refresh-home', handleRefresh);
+  }, []);
+
+  useEffect(() => {
     if (!profile?.uid) return;
 
     const q = query(

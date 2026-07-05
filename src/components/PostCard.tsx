@@ -405,7 +405,6 @@ export default function PostCard({ post, isGroupPost, groupId, onDelete }: { pos
 
   const handleRepublish = async () => {
     if (!profile || !user) return;
-    if (!window.confirm('هل تريد إعادة حكاية هذا المنشور على صفحتك الشخصية؟')) return;
     
     setLoading(true);
     try {
@@ -416,6 +415,8 @@ export default function PostCard({ post, isGroupPost, groupId, onDelete }: { pos
         authorPhoto: profile.photoURL,
         content: post.content,
         imageUrl: post.imageUrl || '',
+        videoUrl: post.videoUrl || '',
+        background: post.background || '',
         republishedFrom: post.id,
         republishedAuthor: post.authorName,
         likes: [],
@@ -497,7 +498,7 @@ export default function PostCard({ post, isGroupPost, groupId, onDelete }: { pos
       )}
 
       {/* Content */}
-      <div className="px-4 py-3">
+      <div className="px-4 py-3 select-text">
         {isEditingPost ? (
           <div className="space-y-3">
             <textarea
@@ -523,16 +524,16 @@ export default function PostCard({ post, isGroupPost, groupId, onDelete }: { pos
             </div>
           </div>
         ) : post.background ? (
-          <div className="p-8 rounded-2xl flex items-center justify-center text-center text-lg sm:text-xl font-black text-white min-h-[160px] shadow-inner" style={{ 
+          <div className="p-8 rounded-2xl flex items-center justify-center text-center text-lg sm:text-xl font-black text-white min-h-[160px] shadow-inner select-text" style={{ 
             backgroundImage: post.background, 
             backgroundSize: 'cover', 
             backgroundPosition: 'center',
             backgroundRepeat: 'no-repeat'
           }}>
-            <p className="leading-tight drop-shadow-md">{post.content}</p>
+            <p className="leading-tight drop-shadow-md select-text">{post.content}</p>
           </div>
         ) : (
-          <p className="text-slate-200 text-sm sm:text-base leading-relaxed whitespace-pre-wrap font-bold">{post.content}</p>
+          <p className="text-slate-200 text-sm sm:text-base leading-relaxed whitespace-pre-wrap font-bold select-text">{post.content}</p>
         )}
       </div>
 
@@ -547,8 +548,6 @@ export default function PostCard({ post, isGroupPost, groupId, onDelete }: { pos
               src={post.imageUrl} 
               className="w-full h-auto max-h-[500px] object-cover transition-all duration-300 group-hover/img:scale-105" 
               alt="" 
-              onLoad={(e) => (e.currentTarget.style.opacity = '1')}
-              style={{ opacity: 0 }}
               loading="lazy" 
             />
           </div>

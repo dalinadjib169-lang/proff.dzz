@@ -2789,7 +2789,7 @@ export default function ChatBubble() {
                               </div>
                             )}
 
-                            {msg.text && <p className="whitespace-pre-wrap">{msg.text}</p>}
+                            {msg.text && <p className="whitespace-pre-wrap select-text">{msg.text}</p>}
                             {msg.imageUrl && (
                               <img 
                                 src={msg.imageUrl} 

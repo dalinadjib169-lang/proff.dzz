@@ -13,7 +13,6 @@ import { Edit3, Camera, Image as ImageIcon, MapPin, Book, Calendar, Mail, CheckC
 import { motion, AnimatePresence } from 'motion/react';
 import { playSound } from '../lib/sounds';
 import { handleFirestoreError, OperationType } from '../lib/firestore-errors';
-import { PrayerWaterBar } from '../components/PrayerWaterBar';
 
 export default function Profile() {
   const { uid } = useParams();
@@ -535,9 +534,58 @@ export default function Profile() {
     <div className="space-y-8">
       {/* Taskbar / Reminders */}
       {isOwner && (
-        <div className="mb-4">
-          <PrayerWaterBar />
-        </div>
+        <motion.div 
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="bg-slate-900 rounded-3xl p-4 border border-slate-800 flex flex-wrap items-center gap-6 shadow-xl"
+        >
+          {/* Prayer Times */}
+          {profile.reminders?.prayer && prayerTimes && (
+            <div className="flex items-center gap-3 px-4 py-2 bg-amber-500/10 rounded-2xl border border-amber-500/20">
+              <div className="bg-amber-500 p-2 rounded-xl">
+                <Bell className="w-4 h-4 text-white" />
+              </div>
+              <div className="flex gap-4 overflow-x-auto scrollbar-hide">
+                {['Fajr', 'Dhuhr', 'Asr', 'Maghrib', 'Isha'].map(p => (
+                  <div key={p} className="text-center min-w-[50px]">
+                    <p className="text-[8px] font-black text-amber-500 uppercase">{p}</p>
+                    <p className="text-xs font-bold text-white">{prayerTimes[p]}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Water Tracker */}
+          {profile.reminders?.water && (
+            <div className="flex items-center gap-4 px-4 py-2 bg-blue-500/10 rounded-2xl border border-blue-500/20">
+              <div className="bg-blue-500 p-2 rounded-xl">
+                <Droplets className="w-4 h-4 text-white" />
+              </div>
+              <div className="flex items-center gap-3">
+                <button onClick={() => handleWaterUpdate(-1)} className="p-1 hover:bg-blue-500/20 rounded-lg text-blue-400"><Minus className="w-4 h-4" /></button>
+                <div className="text-center">
+                  <p className="text-[8px] font-black text-blue-500 uppercase">Water Intake</p>
+                  <p className="text-xs font-bold text-white">{profile.reminders.waterCurrent || 0} / {profile.reminders.waterGoal || 8}</p>
+                </div>
+                <button onClick={() => handleWaterUpdate(1)} className="p-1 hover:bg-blue-500/20 rounded-lg text-blue-400"><Plus className="w-4 h-4" /></button>
+              </div>
+            </div>
+          )}
+
+          {/* Exercise Tracker */}
+          {profile.reminders?.exercise && (
+            <div className="flex items-center gap-3 px-4 py-2 bg-green-500/10 rounded-2xl border border-green-500/20">
+              <div className="bg-green-500 p-2 rounded-xl">
+                <Dumbbell className="w-4 h-4 text-white" />
+              </div>
+              <div className="text-left">
+                <p className="text-[8px] font-black text-green-500 uppercase">Exercise Plan</p>
+                <p className="text-xs font-bold text-white">Every {profile.reminders.exerciseDays || 2} Days</p>
+              </div>
+            </div>
+          )}
+        </motion.div>
       )}
 
       {/* Profile Header */}
