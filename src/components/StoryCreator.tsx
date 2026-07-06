@@ -13,6 +13,8 @@ interface StoryCreatorProps {
 }
 
 const STORY_BACKGROUNDS = [
+  { id: 'fighter', value: 'url(https://images.unsplash.com/photo-1517409393166-4e0d9b4b0a70?auto=format&fit=crop&q=80&w=800)', label: 'Fighter Jet' },
+  { id: 'cockpit', value: 'url(https://images.unsplash.com/photo-1518175510613-2e06a37eb5f0?auto=format&fit=crop&q=80&w=800)', label: 'Cockpit' },
   { id: 'emerald', value: 'linear-gradient(to bottom, #065f46, #064e3b)', label: 'Emerald' },
   { id: 'indigo', value: 'linear-gradient(to bottom, #312e81, #1e1b4b)', label: 'Night' },
   { id: 'gold', value: 'linear-gradient(to bottom, #92400e, #78350f)', label: 'Sunset' },
@@ -38,7 +40,11 @@ const PRESET_AUDIOS = [
   { id: 'fatiha', name: 'سورة الفاتحة', url: 'https://server11.mp3quran.net/hawashi/001.mp3' },
   { id: 'ikhlas', name: 'سورة الإخلاص', url: 'https://server11.mp3quran.net/hawashi/112.mp3' },
   { id: 'falaq', name: 'سورة الفلق', url: 'https://server11.mp3quran.net/hawashi/113.mp3' },
-  { id: 'nas-1', name: 'سورة الناس', url: 'https://server11.mp3quran.net/hawashi/114.mp3' }
+  { id: 'nas-1', name: 'سورة الناس', url: 'https://server11.mp3quran.net/hawashi/114.mp3' },
+  { id: 'kahf', name: 'سورة الكهف', url: 'https://server11.mp3quran.net/hawashi/018.mp3' },
+  { id: 'rahman', name: 'سورة الرحمن', url: 'https://server11.mp3quran.net/hawashi/055.mp3' },
+  { id: 'waqiah', name: 'سورة الواقعة', url: 'https://server11.mp3quran.net/hawashi/056.mp3' },
+  { id: 'mulk', name: 'سورة الملك', url: 'https://server11.mp3quran.net/hawashi/067.mp3' }
 ];
 
 import { handleFirestoreError, OperationType } from '../lib/firestore-errors';

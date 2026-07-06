@@ -121,6 +121,8 @@ export default function Home() {
     { type: 'gradient', value: 'linear-gradient(to right, #f093fb 0%, #f5576c 100%)', label: 'تدرج وردي' },
     { type: 'gradient', value: 'linear-gradient(120deg, #84fab0 0%, #8fd3f4 100%)', label: 'تدرج عشبي كلاسيكي' },
     { type: 'gradient', value: 'linear-gradient(to right, #fa709a 0%, #fee140 100%)', label: 'تدرج الغروب المشرق' },
+    { type: 'image', value: 'url(https://images.unsplash.com/photo-1517409393166-4e0d9b4b0a70?auto=format&fit=crop&q=80&w=800)', label: 'طائرة حربية' },
+    { type: 'image', value: 'url(https://images.unsplash.com/photo-1518175510613-2e06a37eb5f0?auto=format&fit=crop&q=80&w=800)', label: 'مقصورة طائرة حربية' },
     { type: 'image', value: 'url(https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&q=80&w=800)', label: 'شاطئ البحر' },
     { type: 'image', value: 'url(https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?auto=format&fit=crop&q=80&w=800)', label: 'القمم الجبلية' },
     { type: 'image', value: 'url(https://images.unsplash.com/photo-1441974231531-c6227db76b6e?auto=format&fit=crop&q=80&w=800)', label: 'غابات الطبيعة' },

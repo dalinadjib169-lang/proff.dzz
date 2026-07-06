@@ -52,6 +52,7 @@ export default function App() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isSoulMedOpen, setIsSoulMedOpen] = useState(false);
   const [isOnline, setIsOnline] = useState(true);
+  const [showOnlineStatus, setShowOnlineStatus] = useState(false);
   const [loadingProgress, setLoadingProgress] = useState(0);
   const [unlockLoading, setUnlockLoading] = useState(false);
 
@@ -109,7 +110,15 @@ export default function App() {
   }, [loading]);
 
   useEffect(() => {
-    return onConnectionChange(setIsOnline);
+    return onConnectionChange((connected) => {
+      setIsOnline((prev) => {
+        if (!prev && connected) {
+          setShowOnlineStatus(true);
+          setTimeout(() => setShowOnlineStatus(false), 3000);
+        }
+        return connected;
+      });
+    });
   }, []);
 
   useEffect(() => {
@@ -273,6 +282,16 @@ export default function App() {
                     <WifiOff className="w-3 h-3" />
                     البحث عن اتصال... (Offline Mode)
                     <button onClick={() => window.location.reload()} className="underline ml-2">Reload</button>
+                  </motion.div>
+                )}
+                {isOnline && showOnlineStatus && (
+                  <motion.div
+                    initial={{ height: 0, opacity: 0 }}
+                    animate={{ height: 'auto', opacity: 1 }}
+                    exit={{ height: 0, opacity: 0 }}
+                    className="bg-emerald-500 text-slate-950 px-4 py-2 text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-2 sticky top-0 z-[100]"
+                  >
+                    متصل
                   </motion.div>
                 )}
               </AnimatePresence>

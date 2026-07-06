@@ -1,9 +1,9 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { X, ChevronLeft, ChevronRight, Heart, Sparkles, MessageCircle, MoreVertical, Image as ImageIcon, Video, Volume2, Mic } from 'lucide-react';
+import { X, ChevronLeft, ChevronRight, Heart, Sparkles, MessageCircle, MoreVertical, Image as ImageIcon, Video, Volume2, Mic, Trash2 } from 'lucide-react';
 import { Story } from '../types';
 import { db } from '../firebase';
-import { doc, updateDoc, arrayUnion } from 'firebase/firestore';
+import { doc, updateDoc, arrayUnion, deleteDoc } from 'firebase/firestore';
 import { useAuth } from '../hooks/useAuth';
 
 interface StoryViewerProps {
@@ -81,11 +81,22 @@ export const StoryViewer: React.FC<StoryViewerProps> = ({ stories, initialIndex 
     }
   }, [currentIndex]);
 
+  const handleDeleteStory = async () => {
+    if (!story || !profile || story.userId !== profile.uid) return;
+    
+    try {
+      await deleteDoc(doc(db, 'stories', story.id));
+      onClose(); // Close viewer after deletion
+    } catch (error) {
+      handleFirestoreError(error, OperationType.DELETE, `stories/${story.id}`);
+    }
+  };
+
   useEffect(() => {
     if (!isOpen) return;
     
     const interval = setInterval(() => {
-      setProgress(prev => prev + (100 / 50)); // 5 seconds per story
+      setProgress(prev => prev + (100 / 300)); // 30 seconds per story (100ms * 300 = 30000ms)
     }, 100);
 
     return () => clearInterval(interval);
@@ -145,6 +156,27 @@ export const StoryViewer: React.FC<StoryViewerProps> = ({ stories, initialIndex 
             </div>
           </div>
           <div className="flex items-center gap-2">
+            {profile?.uid === story.userId && (
+              <div className="relative group/menu">
+                <button className="p-2 text-white/70 hover:text-white transition-colors">
+                  <MoreVertical className="w-6 h-6" />
+                </button>
+                <div className="absolute top-full left-0 mt-2 w-32 opacity-0 invisible group-hover/menu:opacity-100 group-hover/menu:visible transition-all z-50">
+                  <div className="bg-slate-900/90 backdrop-blur-xl border border-slate-700/50 rounded-xl overflow-hidden shadow-2xl">
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleDeleteStory();
+                      }}
+                      className="w-full flex items-center gap-2 px-4 py-3 text-sm font-bold text-red-400 hover:bg-white/5 transition-colors"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                      حذف القصة
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
             <button onClick={onClose} className="p-2 text-white/70 hover:text-white transition-colors">
               <X className="w-6 h-6" />
             </button>
