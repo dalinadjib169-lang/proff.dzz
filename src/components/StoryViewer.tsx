@@ -15,6 +15,15 @@ interface StoryViewerProps {
 
 import { handleFirestoreError, OperationType } from '../lib/firestore-errors';
 
+const getFixedAudioUrl = (url?: string) => {
+  if (!url) return undefined;
+  if (url.includes('/s_gmd/')) return url.replace('/s_gmd/', '/hawashi/');
+  if (url === 'https://www.islamcan.com/audio/dua/dua1.mp3') return 'https://server11.mp3quran.net/hawashi/001.mp3';
+  if (url === 'https://www.islamcan.com/audio/dua/dua2.mp3') return 'https://server11.mp3quran.net/hawashi/112.mp3';
+  if (url === 'https://server12.mp3quran.net/maher/002255.mp3') return 'https://server11.mp3quran.net/hawashi/114.mp3';
+  return url;
+};
+
 export const StoryViewer: React.FC<StoryViewerProps> = ({ stories, initialIndex = 0, isOpen, onClose }) => {
   const { profile } = useAuth();
   const [currentIndex, setCurrentIndex] = useState(initialIndex);
@@ -23,6 +32,8 @@ export const StoryViewer: React.FC<StoryViewerProps> = ({ stories, initialIndex 
   const [audioError, setAudioError] = useState<string | null>(null);
   const story = stories[currentIndex];
   const audioRef = useRef<HTMLAudioElement>(null);
+  
+  const fixedAudioUrl = getFixedAudioUrl(story?.audioUrl);
 
   const handleNext = useCallback(() => {
     if (currentIndex < stories.length - 1) {
@@ -37,7 +48,7 @@ export const StoryViewer: React.FC<StoryViewerProps> = ({ stories, initialIndex 
     const audio = audioRef.current;
     if (!audio) return;
 
-    if (isOpen && story?.audioUrl) {
+    if (isOpen && fixedAudioUrl) {
       setAudioError(null);
       // Wait for the src to update in DOM before playing
       setTimeout(() => {
@@ -61,7 +72,7 @@ export const StoryViewer: React.FC<StoryViewerProps> = ({ stories, initialIndex 
     return () => {
       audio.pause();
     };
-  }, [isOpen, story?.audioUrl, currentIndex]);
+  }, [isOpen, fixedAudioUrl, currentIndex]);
 
   const handlePrev = useCallback(() => {
     if (currentIndex > 0) {
@@ -74,17 +85,17 @@ export const StoryViewer: React.FC<StoryViewerProps> = ({ stories, initialIndex 
     if (!isOpen) return;
     
     const interval = setInterval(() => {
-      setProgress(prev => {
-        if (prev >= 100) {
-          handleNext();
-          return 0;
-        }
-        return prev + (100 / 50); // 5 seconds per story
-      });
+      setProgress(prev => prev + (100 / 50)); // 5 seconds per story
     }, 100);
 
     return () => clearInterval(interval);
-  }, [isOpen, handleNext]);
+  }, [isOpen]);
+
+  useEffect(() => {
+    if (progress >= 100) {
+      handleNext();
+    }
+  }, [progress, handleNext]);
 
   // Mark story as seen
   useEffect(() => {
@@ -238,7 +249,7 @@ export const StoryViewer: React.FC<StoryViewerProps> = ({ stories, initialIndex 
         {/* Footer Interaction */}
         <audio 
           ref={audioRef} 
-          src={story?.audioUrl || undefined}
+          src={fixedAudioUrl || undefined}
           playsInline
           className="hidden" 
           onPlay={() => setIsAudioPlaying(true)}
@@ -255,14 +266,14 @@ export const StoryViewer: React.FC<StoryViewerProps> = ({ stories, initialIndex 
             const message = error?.message || "Source not supported or blocked by CORS";
             console.error(`StoryViewer: Audio element error [Code: ${error?.code}]: ${message}`);
             // Only set error if there is actually a URL
-            if (story?.audioUrl) {
+            if (fixedAudioUrl) {
               setAudioError(message);
             }
           }}
         />
 
         {/* Audio Status indicator if exists */}
-        {story.audioUrl && (
+        {fixedAudioUrl && (
           <div className="absolute top-20 right-4 z-50 flex items-center gap-2">
             <button 
               onClick={() => {

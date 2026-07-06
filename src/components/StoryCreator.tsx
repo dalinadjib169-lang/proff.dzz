@@ -35,13 +35,10 @@ const PRESET_DUAS = [
 ];
 
 const PRESET_AUDIOS = [
-  { id: 'fatiha', name: 'سورة الفاتحة', url: 'https://server11.mp3quran.net/s_gmd/001.mp3' },
-  { id: 'dua-1', name: 'دعاء مؤثر', url: 'https://www.islamcan.com/audio/dua/dua1.mp3' },
-  { id: 'dua-2', name: 'يا أرحم الراحمين', url: 'https://www.islamcan.com/audio/dua/dua2.mp3' },
-  { id: 'ikhlas', name: 'سورة الإخلاص', url: 'https://server11.mp3quran.net/s_gmd/112.mp3' },
-  { id: 'falaq', name: 'سورة الفلق', url: 'https://server11.mp3quran.net/s_gmd/113.mp3' },
-  { id: 'nas-1', name: 'سورة الناس', url: 'https://server11.mp3quran.net/s_gmd/114.mp3' },
-  { id: 'ayat-kuris', name: 'آية الكرسي', url: 'https://server12.mp3quran.net/maher/002255.mp3' }
+  { id: 'fatiha', name: 'سورة الفاتحة', url: 'https://server11.mp3quran.net/hawashi/001.mp3' },
+  { id: 'ikhlas', name: 'سورة الإخلاص', url: 'https://server11.mp3quran.net/hawashi/112.mp3' },
+  { id: 'falaq', name: 'سورة الفلق', url: 'https://server11.mp3quran.net/hawashi/113.mp3' },
+  { id: 'nas-1', name: 'سورة الناس', url: 'https://server11.mp3quran.net/hawashi/114.mp3' }
 ];
 
 import { handleFirestoreError, OperationType } from '../lib/firestore-errors';
