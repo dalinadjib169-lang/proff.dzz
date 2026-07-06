@@ -37,14 +37,31 @@ export const StoryViewer: React.FC<StoryViewerProps> = ({ stories, initialIndex 
     const audio = audioRef.current;
     if (!audio) return;
 
-    if (!isOpen || !story?.audioUrl) {
+    if (isOpen && story?.audioUrl) {
+      setAudioError(null);
+      // Wait for the src to update in DOM before playing
+      setTimeout(() => {
+        const playPromise = audio.play();
+        if (playPromise !== undefined) {
+          playPromise.catch(error => {
+            if (error.name === 'NotAllowedError') {
+              console.warn("StoryViewer: Autoplay blocked. User must interact first.");
+              setIsAudioPlaying(false);
+            } else {
+              console.error("StoryViewer: Audio playback error:", error);
+              setAudioError("Error Playing Audio");
+            }
+          });
+        }
+      }, 50);
+    } else {
       audio.pause();
     }
     
     return () => {
       audio.pause();
     };
-  }, [isOpen, story?.audioUrl]);
+  }, [isOpen, story?.audioUrl, currentIndex]);
 
   const handlePrev = useCallback(() => {
     if (currentIndex > 0) {
@@ -221,8 +238,7 @@ export const StoryViewer: React.FC<StoryViewerProps> = ({ stories, initialIndex 
         {/* Footer Interaction */}
         <audio 
           ref={audioRef} 
-          src={story?.audioUrl || ''}
-          autoPlay
+          src={story?.audioUrl || undefined}
           playsInline
           className="hidden" 
           onPlay={() => setIsAudioPlaying(true)}
@@ -231,12 +247,17 @@ export const StoryViewer: React.FC<StoryViewerProps> = ({ stories, initialIndex 
             console.log('StoryViewer: Audio load start');
             setAudioError(null);
           }}
-          onCanPlay={() => console.log('StoryViewer: Audio can play')}
+          onCanPlay={() => {
+            console.log('StoryViewer: Audio can play');
+          }}
           onError={(e) => {
             const error = (e.target as HTMLAudioElement).error;
             const message = error?.message || "Source not supported or blocked by CORS";
             console.error(`StoryViewer: Audio element error [Code: ${error?.code}]: ${message}`);
-            setAudioError(message);
+            // Only set error if there is actually a URL
+            if (story?.audioUrl) {
+              setAudioError(message);
+            }
           }}
         />
 
