@@ -4,6 +4,7 @@ import { Gamepad2, Trophy, Clock, RefreshCcw, ArrowRight, Play, Star, Zap, X, He
 import { useNavigate } from 'react-router-dom';
 import { playSound } from '../lib/sounds';
 import confetti from 'canvas-confetti';
+import { toast } from 'react-hot-toast';
 
 const EMOJIS = ['🦊', '🐼', '🐨', '🐸', '🐷', '🐮', '🐵', '🦉', '🦄', '🐝', '🦋', '🐢', '🐙', '🦀', '🐳', '🐧', '🐻', '🦁', '🐞', '🐠', '🦖', '🦥'];
 
@@ -42,12 +43,116 @@ export default function GameBreak() {
   const [dhikrCount, setDhikrCount] = useState(0);
   const [activeDhikr, setActiveDhikr] = useState<string | null>(null);
 
+  const hasPossibleMoves = useCallback((checkGrid: (string | null)[][], c: number, r: number) => {
+    const checkEmpty = (x: number, y: number) => checkGrid[y][x] === null;
+
+    const checkLineInternal = (p1: Point, p2: Point) => {
+      if (p1.x !== p2.x && p1.y !== p2.y) return false;
+      if (p1.x === p2.x) {
+        const min = Math.min(p1.y, p2.y);
+        const max = Math.max(p1.y, p2.y);
+        for (let y = min + 1; y < max; y++) if (!checkEmpty(p1.x, y)) return false;
+        return true;
+      } else {
+        const min = Math.min(p1.x, p2.x);
+        const max = Math.max(p1.x, p2.x);
+        for (let x = min + 1; x < max; x++) if (!checkEmpty(x, p1.y)) return false;
+        return true;
+      }
+    };
+
+    const findPathInternal = (p1: Point, p2: Point): boolean => {
+      if (p1.x === p2.x && p1.y === p2.y) return false;
+      if (checkGrid[p1.y][p1.x] !== checkGrid[p2.y][p2.x]) return false;
+      if (checkLineInternal(p1, p2)) return true;
+
+      const pA = { x: p1.x, y: p2.y };
+      const pB = { x: p2.x, y: p1.y };
+      if (checkEmpty(pA.x, pA.y) && checkLineInternal(p1, pA) && checkLineInternal(pA, p2)) return true;
+      if (checkEmpty(pB.x, pB.y) && checkLineInternal(p1, pB) && checkLineInternal(pB, p2)) return true;
+
+      for (let x = 0; x <= c + 1; x++) {
+        if (x === p1.x) continue;
+        const p3 = { x, y: p1.y };
+        if (!checkEmpty(p3.x, p3.y)) continue;
+        if (checkLineInternal(p1, p3)) {
+          const p4 = { x: p3.x, y: p2.y };
+          if (checkEmpty(p4.x, p4.y) && checkLineInternal(p3, p4) && checkLineInternal(p4, p2)) {
+            return true;
+          }
+        }
+      }
+      for (let y = 0; y <= r + 1; y++) {
+        if (y === p1.y) continue;
+        const p3 = { x: p1.x, y };
+        if (!checkEmpty(p3.x, p3.y)) continue;
+        if (checkLineInternal(p1, p3)) {
+          const p4 = { x: p2.x, y: p3.y };
+          if (checkEmpty(p4.x, p4.y) && checkLineInternal(p3, p4) && checkLineInternal(p4, p2)) {
+            return true;
+          }
+        }
+      }
+      return false;
+    };
+
+    const tiles: Point[] = [];
+    for (let y = 1; y <= r; y++) {
+      for (let x = 1; x <= c; x++) {
+        if (checkGrid[y][x] !== null) {
+          tiles.push({ x, y });
+        }
+      }
+    }
+
+    for (let i = 0; i < tiles.length; i++) {
+      for (let j = i + 1; j < tiles.length; j++) {
+        if (checkGrid[tiles[i].y][tiles[i].x] === checkGrid[tiles[j].y][tiles[j].x]) {
+          if (findPathInternal(tiles[i], tiles[j])) return true;
+        }
+      }
+    }
+    return false;
+  }, []);
+
+  const forceShuffle = useCallback((currentGrid: (string | null)[][], c: number, r: number) => {
+    let attempts = 0;
+    let newGrid = currentGrid.map(row => [...row]);
+    
+    while (attempts < 10) {
+      const items: string[] = [];
+      for (let y = 1; y <= r; y++) {
+        for (let x = 1; x <= c; x++) {
+          if (newGrid[y][x]) items.push(newGrid[y][x]!);
+        }
+      }
+      
+      if (items.length === 0) return newGrid;
+
+      items.sort(() => Math.random() - 0.5);
+      
+      let i = 0;
+      for (let y = 1; y <= r; y++) {
+        for (let x = 1; x <= c; x++) {
+          if (newGrid[y][x] !== null) {
+            newGrid[y][x] = items[i++];
+          }
+        }
+      }
+      
+      if (hasPossibleMoves(newGrid, c, r)) {
+        return newGrid;
+      }
+      attempts++;
+    }
+    return newGrid; // fallback
+  }, [hasPossibleMoves]);
+
   // Initialize game
   const initGame = useCallback((newLevel: number) => {
     let c = 6 + Math.floor(newLevel / 2) * 2;
     let r = 4 + Math.floor((newLevel - 1) / 2) * 2;
     
-    // Cap size for mobile
     if (c > 10) c = 10;
     if (r > 12) r = 12;
 
@@ -58,11 +163,9 @@ export default function GameBreak() {
       emojiList.push(emoji, emoji);
     }
     
-    // Shuffle
     emojiList.sort(() => Math.random() - 0.5);
 
-    // Create grid with empty borders
-    const newGrid: (string | null)[][] = Array(r + 2).fill(null).map(() => Array(c + 2).fill(null));
+    let newGrid: (string | null)[][] = Array(r + 2).fill(null).map(() => Array(c + 2).fill(null));
     
     let index = 0;
     for (let y = 1; y <= r; y++) {
@@ -71,16 +174,19 @@ export default function GameBreak() {
       }
     }
 
+    if (!hasPossibleMoves(newGrid, c, r)) {
+        newGrid = forceShuffle(newGrid, c, r);
+    }
+
     setCols(c);
     setRows(r);
     setGrid(newGrid);
     setSelected(null);
     setPath([]);
     
-    // Decrease time with higher levels
     const timeForLevel = Math.max(120, 300 - (newLevel - 1) * 20);
     setTimeLeft(timeForLevel);
-  }, []);
+  }, [hasPossibleMoves, forceShuffle]);
 
   const startGame = () => {
     setLevel(1);
@@ -96,11 +202,10 @@ export default function GameBreak() {
     const next = level + 1;
     setLevel(next);
     initGame(next);
-    setShuffles(s => s + 1); // Reward a shuffle
+    setShuffles(s => s + 1); 
     playSound('success');
   };
 
-  // Timer
   useEffect(() => {
     let timer: NodeJS.Timeout;
     if (isPlaying && timeLeft > 0) {
@@ -112,7 +217,6 @@ export default function GameBreak() {
     return () => clearInterval(timer);
   }, [isPlaying, timeLeft]);
 
-  // Game Logic
   const isEmpty = (x: number, y: number) => grid[y][x] === null;
 
   const checkLine = (p1: Point, p2: Point) => {
@@ -134,17 +238,13 @@ export default function GameBreak() {
     if (p1.x === p2.x && p1.y === p2.y) return null;
     if (grid[p1.y][p1.x] !== grid[p2.y][p2.x]) return null;
 
-    // 0 turn (straight line)
     if (checkLine(p1, p2)) return [p1, p2];
 
-    // 1 turn
     const pA = { x: p1.x, y: p2.y };
     const pB = { x: p2.x, y: p1.y };
     if (isEmpty(pA.x, pA.y) && checkLine(p1, pA) && checkLine(pA, p2)) return [p1, pA, p2];
     if (isEmpty(pB.x, pB.y) && checkLine(p1, pB) && checkLine(pB, p2)) return [p1, pB, p2];
 
-    // 2 turns
-    // Search X axis from p1
     for (let x = 0; x <= cols + 1; x++) {
       if (x === p1.x) continue;
       const p3 = { x, y: p1.y };
@@ -156,7 +256,6 @@ export default function GameBreak() {
         }
       }
     }
-    // Search Y axis from p1
     for (let y = 0; y <= rows + 1; y++) {
       if (y === p1.y) continue;
       const p3 = { x: p1.x, y };
@@ -206,7 +305,6 @@ export default function GameBreak() {
     const pPath = findPath(selected, { x, y });
     
     if (pPath) {
-      // Match found
       playSound('success');
       setPath(pPath);
       
@@ -221,7 +319,6 @@ export default function GameBreak() {
       const bonus = dist > 5 ? 50 : 0; 
       setScore(s => s + 10 + bonus);
 
-      // Trigger Dhikr
       if (dhikrEnabled) {
         const randomDhikr = DHIKRS[Math.floor(Math.random() * DHIKRS.length)];
         setActiveDhikr(randomDhikr);
@@ -231,13 +328,35 @@ export default function GameBreak() {
       
       setTimeout(() => {
         let finalGrid = newGrid;
-        // Introduce gravity complexity at level 3+
         if (level >= 3) {
           finalGrid = applyGravity(newGrid);
         }
+        
+        let emptyCount = 0;
+        for (let r = 1; r <= rows; r++) {
+          for (let c = 1; c <= cols; c++) {
+            if (finalGrid[r][c] === null) emptyCount++;
+          }
+        }
+        
+        if (emptyCount === rows * cols) {
+          setIsPlaying(false);
+          playSound('success');
+          confetti({ particleCount: 150, spread: 70, origin: { y: 0.6 } });
+          setTimeout(nextLevel, 2000);
+          setGrid(finalGrid);
+          setPath([]);
+          return;
+        }
+
+        if (!hasPossibleMoves(finalGrid, cols, rows)) {
+            toast('لا يوجد حركات! جاري خلط الأوراق 🔀', { icon: '✨', duration: 2000 });
+            finalGrid = forceShuffle(finalGrid, cols, rows);
+            playSound('button-click');
+        }
+
         setGrid(finalGrid);
         setPath([]);
-        checkWin(finalGrid);
       }, 300);
       
     } else {
@@ -246,42 +365,10 @@ export default function GameBreak() {
     setSelected(null);
   };
 
-  const checkWin = (currentGrid: (string | null)[][]) => {
-    for (let y = 1; y <= rows; y++) {
-      for (let x = 1; x <= cols; x++) {
-        if (currentGrid[y][x] !== null) return;
-      }
-    }
-    // Win level
-    setIsPlaying(false);
-    playSound('success');
-    confetti({ particleCount: 150, spread: 70, origin: { y: 0.6 } });
-    setTimeout(nextLevel, 2000);
-  };
-
   const shuffleGrid = () => {
     if (shuffles <= 0) return;
     setShuffles(s => s - 1);
-    
-    const items: string[] = [];
-    for (let y = 1; y <= rows; y++) {
-      for (let x = 1; x <= cols; x++) {
-        if (grid[y][x]) items.push(grid[y][x]!);
-      }
-    }
-    
-    items.sort(() => Math.random() - 0.5);
-    
-    const newGrid = [...grid];
-    let i = 0;
-    for (let y = 1; y <= rows; y++) {
-      newGrid[y] = [...newGrid[y]];
-      for (let x = 1; x <= cols; x++) {
-        if (newGrid[y][x] !== null) {
-          newGrid[y][x] = items[i++];
-        }
-      }
-    }
+    const newGrid = forceShuffle(grid, cols, rows);
     setGrid(newGrid);
     setSelected(null);
     playSound('button-click');
@@ -290,7 +377,6 @@ export default function GameBreak() {
   return (
     <div className="min-h-screen bg-[#0a0f1d] p-4 md:p-8 flex flex-col items-center overflow-x-hidden">
       
-      {/* Floating Dhikr Animation */}
       <AnimatePresence>
         {activeDhikr && (
           <motion.div 
@@ -300,7 +386,7 @@ export default function GameBreak() {
             transition={{ type: "spring", bounce: 0.5 }}
             className="fixed top-[15%] left-1/2 -translate-x-1/2 z-50 pointer-events-none drop-shadow-2xl"
           >
-            <div className="bg-gradient-to-br from-emerald-500 to-teal-600 text-white font-black text-2xl md:text-4xl px-8 py-4 rounded-full shadow-[0_0_40px_rgba(16,185,129,0.5)] border-4 border-white/30 whitespace-nowrap tracking-wide flex items-center gap-3">
+            <div className="bg-gradient-to-br from-indigo-500 to-fuchsia-600 text-white font-black text-2xl md:text-4xl px-8 py-4 rounded-full shadow-[0_0_40px_rgba(16,185,129,0.5)] border-4 border-white/30 whitespace-nowrap tracking-wide flex items-center gap-3">
               <Heart className="w-6 h-6 md:w-8 md:h-8 text-rose-300 animate-pulse" fill="currentColor" />
               {activeDhikr}
               <Heart className="w-6 h-6 md:w-8 md:h-8 text-rose-300 animate-pulse" fill="currentColor" />
@@ -311,17 +397,17 @@ export default function GameBreak() {
 
       <div className="w-full max-w-4xl flex items-center justify-between mb-6">
         <div className="flex items-center gap-3">
-          <div className="bg-gradient-to-br from-emerald-500 to-teal-500 p-3 rounded-2xl shadow-lg shadow-emerald-500/30">
+          <div className="bg-gradient-to-br from-indigo-500 to-fuchsia-500 p-3 rounded-2xl shadow-lg shadow-fuchsia-500/30">
             <Gamepad2 className="w-6 h-6 text-white" />
           </div>
           <div>
             <h1 className="text-2xl font-black text-white tracking-tight">استراحة أستاذ</h1>
-            <p className="text-xs font-bold text-emerald-400 uppercase tracking-widest">تنشيط التركيز والذاكرة</p>
+            <p className="text-xs font-bold text-fuchsia-400 uppercase tracking-widest">تنشيط التركيز والذاكرة</p>
           </div>
         </div>
         <button 
           onClick={() => navigate('/')}
-          className="p-3 bg-slate-900/50 hover:bg-red-500/20 text-slate-400 hover:text-red-500 rounded-2xl transition-all backdrop-blur-md"
+          className="p-3 bg-slate-900/50 hover:bg-red-500/20 text-slate-400 hover:text-red-500 rounded-2xl transition-all backdrop-blur-md border border-white/5"
         >
           <X className="w-6 h-6" />
         </button>
@@ -332,11 +418,11 @@ export default function GameBreak() {
           <motion.div 
             initial={{ opacity: 0, scale: 0.9 }}
             animate={{ opacity: 1, scale: 1 }}
-            className="bg-slate-900/80 backdrop-blur-xl p-8 rounded-[2.5rem] border border-slate-800 text-center max-w-md shadow-2xl shadow-emerald-500/10"
+            className="bg-slate-900/80 backdrop-blur-xl p-8 rounded-[2.5rem] border border-fuchsia-500/20 text-center max-w-md shadow-2xl shadow-indigo-500/10"
           >
-            <div className="w-24 h-24 bg-gradient-to-br from-emerald-500/20 to-teal-500/20 rounded-full flex items-center justify-center mx-auto mb-6 relative">
-              <div className="absolute inset-0 bg-emerald-500/20 rounded-full animate-ping opacity-50"></div>
-              <Gamepad2 className="w-12 h-12 text-emerald-400 relative z-10" />
+            <div className="w-24 h-24 bg-gradient-to-br from-indigo-500/20 to-fuchsia-500/20 rounded-full flex items-center justify-center mx-auto mb-6 relative">
+              <div className="absolute inset-0 bg-fuchsia-500/20 rounded-full animate-ping opacity-50"></div>
+              <Gamepad2 className="w-12 h-12 text-fuchsia-400 relative z-10" />
             </div>
             <h2 className="text-3xl font-black text-white mb-4">لعبة التركيز والأذكار</h2>
             <p className="text-slate-400 mb-8 font-bold leading-relaxed text-sm">
@@ -350,7 +436,7 @@ export default function GameBreak() {
               </div>
               <button 
                 onClick={() => setDhikrEnabled(!dhikrEnabled)}
-                className={`w-14 h-8 rounded-full transition-colors relative ${dhikrEnabled ? 'bg-emerald-500' : 'bg-slate-700'}`}
+                className={`w-14 h-8 rounded-full transition-colors relative ${dhikrEnabled ? 'bg-fuchsia-500' : 'bg-slate-700'}`}
               >
                 <div className={`w-6 h-6 bg-white rounded-full absolute top-1 transition-all ${dhikrEnabled ? 'left-7' : 'left-1'}`}></div>
               </button>
@@ -358,7 +444,7 @@ export default function GameBreak() {
 
             <button 
               onClick={startGame}
-              className="w-full bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-white font-black py-4 rounded-2xl shadow-xl shadow-emerald-500/25 transition-all flex items-center justify-center gap-3 active:scale-95 text-lg"
+              className="w-full bg-gradient-to-r from-indigo-500 to-fuchsia-500 hover:from-indigo-400 hover:to-fuchsia-400 text-white font-black py-4 rounded-2xl shadow-xl shadow-fuchsia-500/25 transition-all flex items-center justify-center gap-3 active:scale-95 text-lg"
             >
               <Play className="w-6 h-6" fill="currentColor" />
               ابدأ اللعب الآن
@@ -367,26 +453,25 @@ export default function GameBreak() {
         </div>
       ) : (
         <div className="w-full max-w-4xl flex flex-col items-center">
-          {/* Game Stats Dashboard */}
           <div className="w-full grid grid-cols-2 md:grid-cols-5 gap-3 md:gap-4 mb-6">
-            <div className="bg-slate-900/60 backdrop-blur-md rounded-2xl p-4 border border-slate-800/50 flex flex-col items-center justify-center shadow-lg">
+            <div className="bg-slate-900/60 backdrop-blur-md rounded-2xl p-4 border border-white/5 flex flex-col items-center justify-center shadow-lg">
               <Star className="w-5 h-5 text-amber-400 mb-2" />
               <span className="text-slate-400 font-bold text-[10px] uppercase tracking-widest mb-1">المستوى</span>
               <span className="text-2xl font-black text-white">{level}</span>
             </div>
-            <div className="bg-slate-900/60 backdrop-blur-md rounded-2xl p-4 border border-slate-800/50 flex flex-col items-center justify-center shadow-lg">
-              <Trophy className="w-5 h-5 text-purple-400 mb-2" />
+            <div className="bg-slate-900/60 backdrop-blur-md rounded-2xl p-4 border border-white/5 flex flex-col items-center justify-center shadow-lg">
+              <Trophy className="w-5 h-5 text-indigo-400 mb-2" />
               <span className="text-slate-400 font-bold text-[10px] uppercase tracking-widest mb-1">النقاط</span>
               <span className="text-2xl font-black text-white">{score}</span>
             </div>
-            <div className="bg-slate-900/60 backdrop-blur-md rounded-2xl p-4 border border-slate-800/50 flex flex-col items-center justify-center shadow-lg">
+            <div className="bg-slate-900/60 backdrop-blur-md rounded-2xl p-4 border border-white/5 flex flex-col items-center justify-center shadow-lg">
               <Clock className={`w-5 h-5 mb-2 ${timeLeft < 30 ? 'text-red-400 animate-pulse' : 'text-sky-400'}`} />
               <span className="text-slate-400 font-bold text-[10px] uppercase tracking-widest mb-1">الوقت</span>
               <span className={`text-2xl font-black ${timeLeft < 30 ? 'text-red-400 animate-pulse' : 'text-white'}`}>
                 {Math.floor(timeLeft / 60)}:{(timeLeft % 60).toString().padStart(2, '0')}
               </span>
             </div>
-            <div className="bg-slate-900/60 backdrop-blur-md rounded-2xl p-4 border border-slate-800/50 flex flex-col items-center justify-center shadow-lg">
+            <div className="bg-slate-900/60 backdrop-blur-md rounded-2xl p-4 border border-white/5 flex flex-col items-center justify-center shadow-lg">
               <Heart className="w-5 h-5 text-rose-400 mb-2" />
               <span className="text-slate-400 font-bold text-[10px] uppercase tracking-widest mb-1">الأذكار</span>
               <span className="text-2xl font-black text-white">{dhikrCount}</span>
@@ -394,24 +479,23 @@ export default function GameBreak() {
             <button 
               onClick={shuffleGrid}
               disabled={shuffles <= 0}
-              className="bg-slate-900/60 hover:bg-slate-800/80 backdrop-blur-md rounded-2xl p-4 border border-slate-800/50 flex flex-col items-center justify-center shadow-lg disabled:opacity-50 transition-all active:scale-95"
+              className="bg-slate-900/60 hover:bg-slate-800/80 backdrop-blur-md rounded-2xl p-4 border border-white/5 flex flex-col items-center justify-center shadow-lg disabled:opacity-50 transition-all active:scale-95"
             >
-              <RefreshCcw className="w-5 h-5 text-emerald-400 mb-2" />
+              <RefreshCcw className="w-5 h-5 text-fuchsia-400 mb-2" />
               <span className="text-slate-400 font-bold text-[10px] uppercase tracking-widest mb-1">خلط (تبقّى)</span>
               <span className="text-2xl font-black text-white">{shuffles}</span>
             </button>
           </div>
 
-          {/* Game Board */}
-          <div className="relative bg-slate-900/40 backdrop-blur-xl p-3 md:p-6 rounded-[2.5rem] border border-slate-800/60 shadow-2xl">
+          <div className="relative bg-gradient-to-br from-indigo-900/50 via-purple-900/40 to-fuchsia-900/40 backdrop-blur-xl p-3 md:p-6 rounded-[2.5rem] border border-white/10 shadow-[0_0_50px_rgba(217,70,239,0.15)]">
             {timeLeft === 0 && (
               <div className="absolute inset-0 z-50 bg-slate-950/90 backdrop-blur-md flex items-center justify-center flex-col rounded-[2.5rem]">
                 <h2 className="text-4xl font-black text-white mb-4">انتهى الوقت!</h2>
-                <p className="text-slate-300 mb-2 font-bold text-lg">لقد حققت <span className="text-emerald-400">{score}</span> نقطة</p>
+                <p className="text-slate-300 mb-2 font-bold text-lg">لقد حققت <span className="text-fuchsia-400">{score}</span> نقطة</p>
                 <p className="text-slate-400 mb-8 font-bold">وذكرت الله <span className="text-rose-400">{dhikrCount}</span> مرة! تقبل الله.</p>
                 <button 
                   onClick={startGame}
-                  className="bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-white font-black py-4 px-10 rounded-2xl shadow-xl shadow-emerald-500/20 transition-all active:scale-95 flex items-center gap-3 text-lg"
+                  className="bg-gradient-to-r from-indigo-500 to-fuchsia-500 hover:from-indigo-400 hover:to-fuchsia-400 text-white font-black py-4 px-10 rounded-2xl shadow-xl shadow-fuchsia-500/20 transition-all active:scale-95 flex items-center gap-3 text-lg"
                 >
                   <RefreshCcw className="w-6 h-6" />
                   العب من جديد
@@ -419,7 +503,6 @@ export default function GameBreak() {
               </div>
             )}
 
-            {/* Path Overlay */}
             <svg className="absolute inset-0 pointer-events-none z-20 w-full h-full" style={{ minWidth: '100%', minHeight: '100%' }}>
               <defs>
                 <filter id="glow">
@@ -445,18 +528,18 @@ export default function GameBreak() {
                     y1={`${y1}%`}
                     x2={`${x2}%`}
                     y2={`${y2}%`}
-                    stroke="#34d399"
+                    stroke="#d946ef"
                     strokeWidth="8"
                     strokeLinecap="round"
                     filter="url(#glow)"
-                    className="animate-pulse shadow-emerald-500"
+                    className="animate-pulse shadow-fuchsia-500"
                   />
                 );
               })}
             </svg>
 
             <div 
-              className="grid gap-1 md:gap-2 relative z-10"
+              className="grid gap-1.5 md:gap-2.5 relative z-10"
               style={{ 
                 gridTemplateColumns: `repeat(${cols + 2}, minmax(0, 1fr))`,
                 width: 'min(95vw, 850px)' 
@@ -477,10 +560,10 @@ export default function GameBreak() {
                           onClick={() => handleTileClick(x, y)}
                           className={`
                             w-full h-full rounded-xl md:rounded-2xl flex items-center justify-center text-3xl md:text-5xl cursor-pointer
-                            transition-all duration-200 select-none
+                            transition-all duration-200 select-none border border-white/20 backdrop-blur-sm
                             ${isSelected 
-                              ? 'bg-emerald-400 shadow-[inset_0_4px_10px_rgba(0,0,0,0.3)] translate-y-1' 
-                              : 'bg-gradient-to-b from-slate-700 to-slate-800 shadow-[0_6px_0_#0f172a,0_10px_15px_rgba(0,0,0,0.5)] hover:-translate-y-1 hover:shadow-[0_8px_0_#0f172a,0_15px_20px_rgba(0,0,0,0.5)] active:translate-y-1 active:shadow-[0_2px_0_#0f172a,0_5px_10px_rgba(0,0,0,0.5)] border-t border-white/10'}
+                              ? 'bg-fuchsia-500 shadow-[inset_0_4px_10px_rgba(0,0,0,0.3),0_0_15px_rgba(217,70,239,0.6)] translate-y-1' 
+                              : 'bg-gradient-to-br from-indigo-500/80 to-purple-600/80 shadow-[0_6px_0_rgba(76,29,149,0.8),0_10px_15px_rgba(0,0,0,0.5)] hover:-translate-y-1 hover:shadow-[0_8px_0_rgba(76,29,149,0.8),0_15px_20px_rgba(0,0,0,0.5)] hover:from-indigo-400 hover:to-purple-500 active:translate-y-1 active:shadow-[0_2px_0_rgba(76,29,149,0.8),0_5px_10px_rgba(0,0,0,0.5)]'}
                           `}
                           style={{
                             transformStyle: 'preserve-3d',

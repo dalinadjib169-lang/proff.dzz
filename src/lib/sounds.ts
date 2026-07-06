@@ -21,13 +21,34 @@ const SOUND_URLS = {
 
 export type SoundType = keyof typeof SOUND_URLS;
 
+const audioCache: Partial<Record<SoundType, HTMLAudioElement>> = {};
+
+export const preloadSounds = () => {
+  if (typeof window === 'undefined') return;
+  (Object.keys(SOUND_URLS) as SoundType[]).forEach(key => {
+    const audio = new Audio(SOUND_URLS[key]);
+    audio.preload = 'auto';
+    audioCache[key] = audio;
+  });
+};
+
+// Start preloading immediately in the background
+preloadSounds();
+
 export const playSound = (type: SoundType, loop = false) => {
   try {
-    const audio = new Audio(SOUND_URLS[type]);
-    audio.volume = 0.5;
-    audio.loop = loop;
-    audio.play().catch(err => console.warn('Sound playback failed:', err));
-    return audio;
+    if (!audioCache[type]) {
+      audioCache[type] = new Audio(SOUND_URLS[type]);
+    }
+    // Clone the audio node to allow overlapping sounds without delay
+    const audio = audioCache[type]?.cloneNode() as HTMLAudioElement;
+    if (audio) {
+      audio.volume = 0.5;
+      audio.loop = loop;
+      audio.play().catch(err => console.warn('Sound playback failed:', err));
+      return audio;
+    }
+    return null;
   } catch (err) {
     console.warn('Error playing sound:', err);
     return null;
