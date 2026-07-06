@@ -37,39 +37,14 @@ export const StoryViewer: React.FC<StoryViewerProps> = ({ stories, initialIndex 
     const audio = audioRef.current;
     if (!audio) return;
 
-    if (isOpen && story?.audioUrl) {
-      console.log('StoryViewer: Attempting to play audio:', story.audioUrl);
-      setAudioError(null);
-      
-      const audio = audioRef.current;
-      if (audio) {
-        audio.crossOrigin = "anonymous";
-        audio.src = story.audioUrl;
-        audio.load();
-        
-        const playPromise = audio.play();
-        if (playPromise !== undefined) {
-          playPromise.catch(error => {
-            if (error.name === 'NotAllowedError') {
-               console.warn("StoryViewer: Autoplay blocked. User must interact first.");
-            } else {
-               console.error("StoryViewer: Audio playback error:", error);
-               setAudioError(error.message);
-            }
-          });
-        }
-      }
-    } else {
+    if (!isOpen || !story?.audioUrl) {
       audio.pause();
-      audio.src = '';
-      audio.load();
     }
-
+    
     return () => {
       audio.pause();
-      audio.src = '';
     };
-  }, [isOpen, currentIndex, story?.audioUrl]);
+  }, [isOpen, story?.audioUrl]);
 
   const handlePrev = useCallback(() => {
     if (currentIndex > 0) {
@@ -246,6 +221,9 @@ export const StoryViewer: React.FC<StoryViewerProps> = ({ stories, initialIndex 
         {/* Footer Interaction */}
         <audio 
           ref={audioRef} 
+          src={story?.audioUrl || ''}
+          autoPlay
+          playsInline
           className="hidden" 
           onPlay={() => setIsAudioPlaying(true)}
           onPause={() => setIsAudioPlaying(false)}
