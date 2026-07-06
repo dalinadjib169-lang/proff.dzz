@@ -1,0 +1,41 @@
+--- src/components/PrayerWaterBar.tsx
++++ src/components/PrayerWaterBar.tsx
+@@ -73,6 +73,12 @@
+     fetchPrayerTimesData(profile?.wilaya || 'Alger');
+   }, [profile?.wilaya]);
+ 
++  useEffect(() => {
++    if ((isAdhanEnabled || isWaterEnabled) && "Notification" in window && Notification.permission === "default") {
++      Notification.requestPermission();
++    }
++  }, [isAdhanEnabled, isWaterEnabled]);
++
+   useEffect(() => {
+     if (prayerTimes) {
+       calculateNextPrayer();
+@@ -82,6 +88,27 @@
+       if (prayerTimes) calculateNextPrayer();
+     }, 10000);
+     return () => clearInterval(interval);
+   }, [prayerTimes, isAdhanEnabled, adhanVoice]);
++
++  useEffect(() => {
++    let waterInterval: NodeJS.Timeout;
++    if (isWaterEnabled) {
++      // Check every 2 hours (7200000 ms)
++      waterInterval = setInterval(() => {
++        playWaterSound();
++        if ("Notification" in window && Notification.permission === "granted") {
++          new Notification("تذكير بشرب الماء", {
++            body: "حان وقت شرب كوب من الماء للحفاظ على صحتك!",
++            icon: "/favicon.ico"
++          });
++        }
++      }, 7200000);
++    }
++    return () => {
++      if (waterInterval) clearInterval(waterInterval);
++    };
++  }, [isWaterEnabled]);
+ 
+   const fetchPrayerTimesData = async (wilaya: string) => {

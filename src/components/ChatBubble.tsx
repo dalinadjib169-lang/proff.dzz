@@ -722,6 +722,8 @@ export default function ChatBubble() {
       
       try {
         await batch.commit();
+        const { clearSystemNotifications } = await import('../lib/notifications');
+        clearSystemNotifications();
       } catch (e) {
         console.error("Error committing seen batch:", e);
       }
@@ -731,6 +733,14 @@ export default function ChatBubble() {
 
     return unsubscribeSeen;
   }, [profile?.uid, activeChat?.uid, isOpen]);
+
+  useEffect(() => {
+    if (isOpen) {
+      import('../lib/notifications').then(({ clearSystemNotifications }) => {
+        clearSystemNotifications();
+      });
+    }
+  }, [isOpen]);
 
   // Cleanup recording on chat change or close
   useEffect(() => {

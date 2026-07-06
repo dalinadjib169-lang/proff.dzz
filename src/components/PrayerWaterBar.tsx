@@ -74,6 +74,12 @@ export const PrayerWaterBar: React.FC = () => {
   }, [profile?.wilaya]);
 
   useEffect(() => {
+    if ((isAdhanEnabled || isWaterEnabled) && "Notification" in window && Notification.permission === "default") {
+      Notification.requestPermission();
+    }
+  }, [isAdhanEnabled, isWaterEnabled]);
+
+  useEffect(() => {
     if (prayerTimes) {
       calculateNextPrayer();
     }
@@ -83,6 +89,24 @@ export const PrayerWaterBar: React.FC = () => {
     }, 10000);
     return () => clearInterval(interval);
   }, [prayerTimes, isAdhanEnabled, adhanVoice]);
+
+  useEffect(() => {
+    let waterInterval: NodeJS.Timeout;
+    if (isWaterEnabled) {
+      waterInterval = setInterval(() => {
+        playWaterSound();
+        if ("Notification" in window && Notification.permission === "granted") {
+          new Notification("تذكير بشرب الماء", {
+            body: "حان وقت شرب كوب من الماء للحفاظ على صحتك!",
+            icon: "/favicon.ico"
+          });
+        }
+      }, 7200000);
+    }
+    return () => {
+      if (waterInterval) clearInterval(waterInterval);
+    };
+  }, [isWaterEnabled]);
 
   const fetchPrayerTimesData = async (wilaya: string) => {
     try {
@@ -127,6 +151,13 @@ export const PrayerWaterBar: React.FC = () => {
             console.log(`Playing Adhan for ${active.name} at ${currentTime}`);
             adhanAudio.current = playSound(adhanVoice);
             lastAdhanPlayed.current = prayerKey;
+            
+            if ("Notification" in window && Notification.permission === "granted") {
+              new Notification("حان وقت الصلاة", {
+                body: `حان الآن موعد صلاة ${PRAYER_NAMES[active.name]}`,
+                icon: "/favicon.ico"
+              });
+            }
           }
         }
       }
@@ -320,7 +351,7 @@ export const PrayerWaterBar: React.FC = () => {
             className={`p-1.5 rounded-full transition-all ${isAdhanEnabled ? 'text-amber-400 bg-amber-400/10 border border-amber-400/20 shadow-lg shadow-amber-500/20' : 'text-slate-600 bg-slate-800/50'}`}
             title={isAdhanEnabled ? "تعطيل الأذان" : "تفعيل الأذان"}
           >
-            {isAdhanEnabled ? <Volume2 className="w-4 h-4" /> : <VolumeX className="w-4 h-4" />}
+            {isAdhanEnabled ? <Bell className="w-4 h-4" /> : <BellOff className="w-4 h-4" />}
           </button>
           
           <div className="flex gap-1" title="اختر صوت المؤذن">

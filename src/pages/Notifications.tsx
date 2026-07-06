@@ -9,6 +9,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { Link } from 'react-router-dom';
 import { handleFirestoreError, OperationType } from '../lib/firestore-errors';
 import { playSound } from '../lib/sounds';
+import { clearSystemNotifications } from '../lib/notifications';
 
 export default function Notifications() {
   const { profile } = useAuth();
@@ -53,8 +54,17 @@ export default function Notifications() {
   const markAsRead = async (id: string) => {
     try {
       await updateDoc(doc(db, 'notifications', id), { read: true });
+      clearSystemNotifications();
     } catch (error) {
       handleFirestoreError(error, OperationType.UPDATE, `notifications/${id}`);
+    }
+  };
+
+  const handleDeleteNotification = async (id: string) => {
+    try {
+      await deleteDoc(doc(db, 'notifications', id));
+    } catch (error) {
+      handleFirestoreError(error, OperationType.DELETE, `notifications/${id}`);
     }
   };
 
@@ -68,6 +78,7 @@ export default function Notifications() {
         batch.update(doc(db, 'notifications', n.id), { read: true });
       });
       await batch.commit();
+      clearSystemNotifications();
     } catch (error) {
       handleFirestoreError(error, OperationType.UPDATE, 'notifications');
     }
@@ -192,6 +203,14 @@ export default function Notifications() {
               initial={{ opacity: 0, x: -20 }}
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, scale: 0.95 }}
+              drag="x"
+              dragConstraints={{ left: 0, right: 0 }}
+              onDragEnd={(e, { offset, velocity }) => {
+                const swipe = Math.abs(offset.x) * velocity.x;
+                if (swipe < -1000 || swipe > 1000 || Math.abs(offset.x) > 100) {
+                  handleDeleteNotification(n.id);
+                }
+              }}
               className={`group relative flex items-center gap-4 p-5 rounded-3xl border transition-all ${
                 n.read ? 'bg-slate-900 border-slate-800' : 'bg-purple-500/5 border-purple-500/20 shadow-lg shadow-purple-500/5'
               }`}

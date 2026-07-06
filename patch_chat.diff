@@ -1,0 +1,17 @@
+--- src/components/ChatBubble.tsx
++++ src/components/ChatBubble.tsx
+@@ -733,6 +733,14 @@
+     return unsubscribeSeen;
+   }, [profile?.uid, activeChat?.uid, isOpen]);
+ 
++  useEffect(() => {
++    if (isOpen) {
++      import('../lib/notifications').then(({ clearSystemNotifications }) => {
++        clearSystemNotifications();
++      });
++    }
++  }, [isOpen]);
++
+   // Cleanup recording on chat change or close
+   useEffect(() => {
+     return () => {

@@ -64,3 +64,17 @@ export async function displayNotification(title: string, options: CustomNotifica
     console.error('Fallback Notification window-level API failed:', err);
   }
 }
+
+export async function clearSystemNotifications() {
+  if ('serviceWorker' in navigator) {
+    try {
+      const registration = await navigator.serviceWorker.ready;
+      if (registration && 'getNotifications' in registration) {
+        const notifications = await registration.getNotifications();
+        notifications.forEach(notification => notification.close());
+      }
+    } catch (e) {
+      console.warn("Failed to clear system notifications:", e);
+    }
+  }
+}
