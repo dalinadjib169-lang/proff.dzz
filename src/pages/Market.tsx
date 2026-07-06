@@ -9,6 +9,7 @@ import { formatDistanceToNow } from 'date-fns';
 import { handleFirestoreError, OperationType } from '../lib/firestore-errors';
 import { useUpload } from '../hooks/useUpload';
 import { playSound } from '../lib/sounds';
+import { useNavigate } from 'react-router-dom';
 
 const WILAYAS = [
   "Adrar", "Chlef", "Laghouat", "Oum El Bouaghi", "Batna", "Béjaïa", "Biskra", "Béchar", "Blida", "Bouira",
@@ -36,6 +37,7 @@ const CATEGORIES = [
 export default function Market() {
   const { profile } = useAuth();
   const { startUpload } = useUpload();
+  const navigate = useNavigate();
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
@@ -55,27 +57,10 @@ export default function Market() {
   });
 
   useEffect(() => {
-    let q = query(collection(db, 'products'), orderBy('createdAt', 'desc'), limit(50));
-
-    if (selectedCategory !== 'all') {
-      q = query(q, where('category', '==', selectedCategory));
-    }
-    
-    if (selectedWilaya) {
-      q = query(q, where('wilaya', '==', selectedWilaya));
-    }
+    const q = query(collection(db, 'products'), orderBy('createdAt', 'desc'), limit(100));
 
     const unsubscribe = onSnapshot(q, (snapshot) => {
-      let data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as Product[];
-      
-      // Client-side search because Firestore doesn't support easy full-text
-      if (searchTerm) {
-        data = data.filter(p => 
-          p.title.toLowerCase().includes(searchTerm.toLowerCase()) || 
-          p.description.toLowerCase().includes(searchTerm.toLowerCase())
-        );
-      }
-      
+      const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as Product[];
       setProducts(data);
       setLoading(false);
     }, (error) => {
@@ -84,7 +69,19 @@ export default function Market() {
     });
 
     return unsubscribe;
-  }, [selectedCategory, selectedWilaya, searchTerm]);
+  }, []);
+
+  const filteredProducts = React.useMemo(() => {
+    return products.filter(p => {
+      const matchSearch = searchTerm 
+        ? p.title.toLowerCase().includes(searchTerm.toLowerCase()) || p.description.toLowerCase().includes(searchTerm.toLowerCase())
+        : true;
+      const matchCategory = selectedCategory !== 'all' ? p.category === selectedCategory : true;
+      const matchWilaya = selectedWilaya ? p.wilaya === selectedWilaya : true;
+      
+      return matchSearch && matchCategory && matchWilaya;
+    });
+  }, [products, searchTerm, selectedCategory, selectedWilaya]);
 
   const handleCreateProduct = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -185,13 +182,22 @@ export default function Market() {
               <p className="text-xs font-bold text-orange-500 uppercase tracking-widest">بيع واشترِ مع زملائك</p>
             </div>
           </div>
-          <button 
-            onClick={() => setShowCreateModal(true)}
-            className="flex items-center gap-2 px-6 py-3 bg-orange-600 hover:bg-orange-500 text-white rounded-2xl font-black transition-all shadow-lg shadow-orange-600/20 active:scale-95"
-          >
-            <Plus className="w-5 h-5" />
-            <span className="hidden sm:inline">إضافة إعلان</span>
-          </button>
+          <div className="flex items-center gap-2">
+            <button 
+              onClick={() => setShowCreateModal(true)}
+              className="flex items-center gap-2 px-6 py-3 bg-orange-600 hover:bg-orange-500 text-white rounded-2xl font-black transition-all shadow-lg shadow-orange-600/20 active:scale-95"
+            >
+              <Plus className="w-5 h-5" />
+              <span className="hidden sm:inline">إضافة إعلان</span>
+            </button>
+            <button
+              onClick={() => navigate('/')}
+              className="p-3 bg-slate-800 hover:bg-red-500/20 text-slate-400 hover:text-red-500 rounded-2xl transition-all active:scale-95 border border-transparent hover:border-red-500/30"
+              title="خروج من السوق"
+            >
+              <X className="w-6 h-6" />
+            </button>
+          </div>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -249,7 +255,7 @@ export default function Market() {
       {/* Product Grid */}
       <div className="grid grid-cols-2 xs:grid-cols-2 md:grid-cols-4 lg:grid-cols-4 xl:grid-cols-4 gap-2 sm:gap-4">
         <AnimatePresence>
-          {products.map((p) => (
+          {filteredProducts.map((p) => (
             <motion.div
               key={p.id}
               layout

@@ -56,22 +56,18 @@ export default function Login() {
     setError('');
     setSuccess('');
     try {
-      if (authMethod === 'email') {
-        // We use standard Firebase for email, but simulate the UI for UX
-        await sendPasswordResetEmail(auth, email);
-        setSuccess('تم إرسال رابط/كود إعادة تعيين كلمة السر إلى بريدك الإلكتروني بنجاح!');
-        setForgotPasswordStep(2); // Go to code entry
-      } else {
-        // Simulate phone SMS sending for prototype
-        setTimeout(() => {
-          setSuccess('تم إرسال كود التحقق إلى رقم هاتفك (محاكاة)');
-          setForgotPasswordStep(2);
-        }, 1500);
-      }
+      // Simulate sending a 6-digit code for both email and phone
+      setTimeout(() => {
+        const dummyCode = Math.floor(100000 + Math.random() * 900000).toString();
+        // We use toast to display the code to the user for testing purposes
+        toast.success(`كود التحقق الخاص بك (للتجربة) هو: ${dummyCode}`, { duration: 10000 });
+        setSuccess(`تم إرسال كود التحقق إلى ${authMethod === 'email' ? 'بريدك الإلكتروني' : 'رقم هاتفك'} (محاكاة)`);
+        setForgotPasswordStep(2);
+      }, 1500);
     } catch (err: any) {
       setError(err.message || 'فشل إرسال الكود');
     } finally {
-      setLoading(false);
+      setTimeout(() => setLoading(false), 1500);
     }
   };
 
@@ -95,20 +91,18 @@ export default function Login() {
     try {
       // Note: In a real app without backend, we can't easily change the password using a dummy code.
       // We will simulate success and advise the user.
-      if (authMethod === 'email') {
-        // The user must click the link sent to their email to actually change it in Firebase.
-        setError('لأسباب أمنية (نسخة تجريبية)، يرجى الضغط على الرابط المرسل إلى بريدك الإلكتروني لتعيين كلمة السر الجديدة في Firebase مباشرة.');
-        setForgotPasswordStep(0);
-      } else {
+      setTimeout(() => {
         setSuccess('تم تعيين كلمة السر بنجاح! (محاكاة)');
         setForgotPasswordStep(0);
-        setAuthMethod('phone');
         setPassword(newPassword);
-      }
+        setResetCode('');
+        setNewPassword('');
+        setConfirmNewPassword('');
+      }, 1000);
     } catch (err: any) {
       setError(err.message || 'فشل تحديث كلمة السر');
     } finally {
-      setLoading(false);
+      setTimeout(() => setLoading(false), 1000);
     }
   };
 

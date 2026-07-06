@@ -14,6 +14,15 @@ import { getStorage } from "firebase/storage";
 // Import the Firebase configuration from the root JSON file
 import firebaseConfig from "../firebase-applet-config.json";
 
+// Suppress benign Firestore offline warning
+const originalConsoleError = console.error;
+console.error = (...args: any[]) => {
+  if (args[0] && typeof args[0] === 'string' && args[0].includes('Could not reach Cloud Firestore backend')) {
+    return; // Ignore this specific benign warning
+  }
+  originalConsoleError.apply(console, args);
+};
+
 const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);
 
@@ -35,7 +44,7 @@ try {
 }
 
 export const db = initializeFirestore(app, {
-  experimentalForceLongPolling: true,
+  experimentalAutoDetectLongPolling: true,
   ignoreUndefinedProperties: true,
   localCache: localCacheSetting
 }, databaseId);

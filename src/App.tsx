@@ -13,6 +13,7 @@ import Notifications from './pages/Notifications';
 import Settings from './pages/Settings';
 import Privacy from './pages/Privacy';
 import Market from './pages/Market';
+import GameBreak from './pages/GameBreak';
 import Fitness from './pages/Fitness';
 import Discussions from './pages/Discussions';
 import Saved from './pages/Saved';
@@ -487,6 +488,7 @@ export default function App() {
                         <Route path="/groups" element={user ? <Groups /> : <Navigate to="/login" />} />
                         <Route path="/groups/:groupId" element={user ? <GroupDetails /> : <Navigate to="/login" />} />
                         <Route path="/market" element={user ? <Market /> : <Navigate to="/login" />} />
+                        <Route path="/game" element={user ? <GameBreak /> : <Navigate to="/login" />} />
                         <Route path="/fitness" element={user ? <Fitness /> : <Navigate to="/login" />} />
                         <Route path="/settings" element={user ? <Settings /> : <Navigate to="/login" />} />
                         <Route path="/admin" element={user ? <AdminDashboard /> : <Navigate to="/login" />} />

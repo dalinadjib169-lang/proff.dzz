@@ -28,7 +28,7 @@ import { useAuth } from '../hooks/useAuth';
 import { db } from '../firebase';
 import { doc, updateDoc, getDocs, collection, query, where, arrayRemove, arrayUnion, deleteDoc } from 'firebase/firestore';
 import { UserProfile, UserSettings } from '../types';
-import { sendPasswordResetEmail, deleteUser, signOut } from 'firebase/auth';
+import { sendPasswordResetEmail, deleteUser, signOut, updatePassword } from 'firebase/auth';
 import { auth } from '../firebase';
 import { useTranslation } from '../hooks/useTranslation';
 import CloudinaryUploader from '../components/CloudinaryUploader';
@@ -47,6 +47,8 @@ export default function Settings() {
   const [blockedUsers, setBlockedUsers] = useState<UserProfile[]>([]);
   const [loading, setLoading] = useState(false);
   const [friends, setFriends] = useState<UserProfile[]>([]);
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmNewPassword, setConfirmNewPassword] = useState('');
 
   useEffect(() => {
     if (profile) {
@@ -173,14 +175,26 @@ export default function Settings() {
     }
   };
 
-  const handlePasswordReset = async () => {
-    if (!profile?.email) return;
-    if (!window.confirm('هل تريد إرسال رابط إعادة تعيين كلمة السر إلى بريدك الإلكتروني؟')) return;
+  const handleUpdatePassword = async () => {
+    if (!auth.currentUser) return;
+    if (!newPassword || newPassword !== confirmNewPassword) {
+      toast.error('كلمات السر غير متطابقة أو فارغة');
+      return;
+    }
+    setLoading(true);
     try {
-      await sendPasswordResetEmail(auth, profile.email);
-      alert('تم إرسال الرابط بنجاح. يرجى التحقق من بريدك الإلكتروني.');
+      await updatePassword(auth.currentUser, newPassword);
+      toast.success('تم تغيير كلمة السر بنجاح!');
+      setNewPassword('');
+      setConfirmNewPassword('');
     } catch (error: any) {
-      alert('فشل إرسال الرابط: ' + error.message);
+      if (error.code === 'auth/requires-recent-login') {
+        toast.error('يرجى تسجيل الخروج والدخول مجدداً لتغيير كلمة السر (دواعي أمنية)');
+      } else {
+        toast.error('فشل تغيير كلمة السر: ' + error.message);
+      }
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -677,17 +691,34 @@ export default function Settings() {
             </div>
 
             <div className="space-y-4">
-              <div className="p-4 bg-white dark:bg-slate-900 rounded-2xl border border-red-100 dark:border-red-900/20 flex flex-col md:flex-row md:items-center justify-between gap-4">
+              <div className="p-4 bg-white dark:bg-slate-900 rounded-2xl border border-red-100 dark:border-red-900/20 flex flex-col gap-4">
                 <div>
-                  <h3 className="text-sm font-black text-slate-800 dark:text-white">إعادة تعيين كلمة السر</h3>
-                  <p className="text-xs text-slate-500 font-bold">إرسال رابط تأكيد للبريد الإلكتروني لتغيير كلمة المرور</p>
+                  <h3 className="text-sm font-black text-slate-800 dark:text-white mb-1">تغيير كلمة السر</h3>
+                  <p className="text-xs text-slate-500 font-bold">يرجى إدخال كلمة السر الجديدة وتأكيدها</p>
                 </div>
-                <button 
-                  onClick={handlePasswordReset}
-                  className="px-6 py-2.5 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 rounded-xl font-bold text-xs hover:bg-slate-200 dark:hover:bg-slate-700 transition-all"
-                >
-                  تغيير كلمة السر
-                </button>
+                <div className="flex flex-col md:flex-row gap-3">
+                  <input
+                    type="password"
+                    placeholder="كلمة السر الجديدة"
+                    value={newPassword}
+                    onChange={(e) => setNewPassword(e.target.value)}
+                    className="flex-1 px-4 py-2 bg-slate-100 dark:bg-slate-800 border-none rounded-xl text-sm outline-none focus:ring-2 focus:ring-primary text-slate-800 dark:text-white placeholder:text-slate-400"
+                  />
+                  <input
+                    type="password"
+                    placeholder="تأكيد كلمة السر"
+                    value={confirmNewPassword}
+                    onChange={(e) => setConfirmNewPassword(e.target.value)}
+                    className="flex-1 px-4 py-2 bg-slate-100 dark:bg-slate-800 border-none rounded-xl text-sm outline-none focus:ring-2 focus:ring-primary text-slate-800 dark:text-white placeholder:text-slate-400"
+                  />
+                  <button 
+                    onClick={handleUpdatePassword}
+                    disabled={loading || !newPassword || !confirmNewPassword}
+                    className="px-6 py-2.5 bg-slate-800 dark:bg-white text-white dark:text-slate-900 rounded-xl font-bold text-xs hover:bg-slate-700 dark:hover:bg-slate-200 transition-all disabled:opacity-50"
+                  >
+                    تأكيد التغيير
+                  </button>
+                </div>
               </div>
 
               <div className="p-4 bg-orange-600/5 rounded-2xl border border-orange-600/20 flex flex-col md:flex-row md:items-center justify-between gap-4">
