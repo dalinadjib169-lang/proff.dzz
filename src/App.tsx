@@ -30,6 +30,7 @@ import { SoulMedicine } from './components/SoulMedicine';
 import FriendSuggestions from './components/FriendSuggestions';
 import CompleteProfile from './components/CompleteProfile';
 import { ErrorBoundary } from './components/ErrorBoundary';
+import PageTransition from './components/PageTransition';
 import { GraduationCap, LogOut, AlertCircle, Lock, Unlock, ChevronRight, ChevronLeft } from 'lucide-react';
 import { auth, db, onConnectionChange } from './firebase';
 import { signOut } from 'firebase/auth';
@@ -477,23 +478,23 @@ export default function App() {
                     )}
                     <main className={user ? "lg:col-span-9 xl:col-span-6" : "col-span-12"}>
                       <Routes>
-                        <Route path="/login" element={!user ? <Login /> : <Navigate to="/" />} />
-                        <Route path="/" element={user ? <Home /> : <Navigate to="/login" />} />
-                        <Route path="/profile/:uid" element={user ? <Profile /> : <Navigate to="/login" />} />
-                        <Route path="/profile/loading" element={<ProfileRedirect />} />
-                        <Route path="/notifications" element={user ? <Notifications /> : <Navigate to="/login" />} />
-                        <Route path="/discussions" element={user ? <Discussions /> : <Navigate to="/login" />} />
-                        <Route path="/saved" element={user ? <Saved /> : <Navigate to="/login" />} />
-                        <Route path="/colleagues" element={user ? <Colleagues /> : <Navigate to="/login" />} />
-                        <Route path="/groups" element={user ? <Groups /> : <Navigate to="/login" />} />
-                        <Route path="/groups/:groupId" element={user ? <GroupDetails /> : <Navigate to="/login" />} />
-                        <Route path="/market" element={user ? <Market /> : <Navigate to="/login" />} />
-                        <Route path="/game" element={user ? <GameBreak /> : <Navigate to="/login" />} />
-                        <Route path="/fitness" element={user ? <Fitness /> : <Navigate to="/login" />} />
-                        <Route path="/settings" element={user ? <Settings /> : <Navigate to="/login" />} />
-                        <Route path="/admin" element={user ? <AdminDashboard /> : <Navigate to="/login" />} />
-                        <Route path="/admin-dashboard" element={user ? <AdminDashboard /> : <Navigate to="/login" />} />
-                        <Route path="/privacy" element={<Privacy />} />
+                        <Route path="/login" element={!user ? <PageTransition><Login /></PageTransition> : <Navigate to="/" />} />
+                        <Route path="/" element={user ? <PageTransition><Home /></PageTransition> : <Navigate to="/login" />} />
+                        <Route path="/profile/:uid" element={user ? <PageTransition><Profile /></PageTransition> : <Navigate to="/login" />} />
+                        <Route path="/profile/loading" element={<PageTransition><ProfileRedirect /></PageTransition>} />
+                        <Route path="/notifications" element={user ? <PageTransition><Notifications /></PageTransition> : <Navigate to="/login" />} />
+                        <Route path="/discussions" element={user ? <PageTransition><Discussions /></PageTransition> : <Navigate to="/login" />} />
+                        <Route path="/saved" element={user ? <PageTransition><Saved /></PageTransition> : <Navigate to="/login" />} />
+                        <Route path="/colleagues" element={user ? <PageTransition><Colleagues /></PageTransition> : <Navigate to="/login" />} />
+                        <Route path="/groups" element={user ? <PageTransition><Groups /></PageTransition> : <Navigate to="/login" />} />
+                        <Route path="/groups/:groupId" element={user ? <PageTransition><GroupDetails /></PageTransition> : <Navigate to="/login" />} />
+                        <Route path="/market" element={user ? <PageTransition><Market /></PageTransition> : <Navigate to="/login" />} />
+                        <Route path="/game" element={user ? <PageTransition><GameBreak /></PageTransition> : <Navigate to="/login" />} />
+                        <Route path="/fitness" element={user ? <PageTransition><Fitness /></PageTransition> : <Navigate to="/login" />} />
+                        <Route path="/settings" element={user ? <PageTransition><Settings /></PageTransition> : <Navigate to="/login" />} />
+                        <Route path="/admin" element={user ? <PageTransition><AdminDashboard /></PageTransition> : <Navigate to="/login" />} />
+                        <Route path="/admin-dashboard" element={user ? <PageTransition><AdminDashboard /></PageTransition> : <Navigate to="/login" />} />
+                        <Route path="/privacy" element={<PageTransition><Privacy /></PageTransition>} />
                         <Route path="*" element={<Navigate to="/" />} />
                       </Routes>
                     </main>
