@@ -297,11 +297,6 @@ export const PrayerWaterBar: React.FC = () => {
   if (!isBarVisible) {
     return (
       <div className="fixed bottom-4 left-4 z-50">
-        {!isFirestoreConnected && (
-          <div className="absolute -top-6 right-0 text-[8px] font-bold text-red-500 bg-red-500/10 px-2 py-0.5 rounded-full animate-pulse whitespace-nowrap">
-            مشكلة في الاتصال
-          </div>
-        )}
         <motion.button 
           whileHover={{ scale: 1.1 }}
           whileTap={{ scale: 0.9 }}
@@ -323,11 +318,6 @@ export const PrayerWaterBar: React.FC = () => {
 
   return (
     <div className="w-full space-y-2 mb-4 px-2 relative">
-      {!isFirestoreConnected && (
-        <div className="absolute -top-6 right-2 text-[8px] font-bold text-red-500 bg-red-500/10 px-2 py-0.5 rounded-full animate-pulse z-30">
-          مشكلة في الاتصال بقاعدة البيانات - قد لا يتم حفظ بياناتك
-        </div>
-      )}
       <button 
         onClick={() => setIsBarVisible(false)}
         className="absolute -top-1 -right-1 z-20 p-1 bg-slate-800 rounded-full text-slate-500 hover:text-white border border-slate-700 shadow-sm"
