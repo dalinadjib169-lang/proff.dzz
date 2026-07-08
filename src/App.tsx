@@ -28,6 +28,7 @@ import BottomNav from './components/BottomNav';
 import ChatBubble from './components/ChatBubble';
 import { SoulMedicine } from './components/SoulMedicine';
 import FriendSuggestions from './components/FriendSuggestions';
+import { PrayerWaterBar } from './components/PrayerWaterBar';
 import CompleteProfile from './components/CompleteProfile';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import PageTransition from './components/PageTransition';
@@ -470,6 +471,7 @@ export default function App() {
         </AnimatePresence>
 
                 <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-4 sm:py-8 pb-24 lg:pb-8">
+                  {user && profile?.isProfileComplete && <div className="mb-6"><PrayerWaterBar /></div>}
                   <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 lg:gap-8">
                     {user && (
                       <div className="hidden lg:block lg:col-span-3">

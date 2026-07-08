@@ -8,7 +8,6 @@ import { Send, GraduationCap, X, Globe, Users, Lock, ChevronDown, Image as Image
 import { handleFirestoreError, OperationType } from '../lib/firestore-errors';
 import { playSound } from '../lib/sounds';
 import { useUpload } from '../hooks/useUpload';
-import { PrayerWaterBar } from '../components/PrayerWaterBar';
 import { StoriesSection } from '../components/StoriesSection';
 import { checkAndBlockThreat } from '../lib/security';
 
@@ -143,7 +142,6 @@ export default function Home() {
 
   return (
     <div className="space-y-6">
-      <PrayerWaterBar />
       <StoriesSection />
 
       <div className="bg-slate-900/20 backdrop-blur-3xl border border-slate-800/50 rounded-2xl p-4 shadow-lg overflow-hidden relative">

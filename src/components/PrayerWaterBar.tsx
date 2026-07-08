@@ -98,7 +98,8 @@ export const PrayerWaterBar: React.FC = () => {
         if ("Notification" in window && Notification.permission === "granted") {
           new Notification("تذكير بشرب الماء", {
             body: "حان وقت شرب كوب من الماء للحفاظ على صحتك!",
-            icon: "/favicon.ico"
+            icon: "/favicon.ico",
+                silent: true
           });
         }
       }, 7200000);
@@ -155,7 +156,8 @@ export const PrayerWaterBar: React.FC = () => {
             if ("Notification" in window && Notification.permission === "granted") {
               new Notification("حان وقت الصلاة", {
                 body: `حان الآن موعد صلاة ${PRAYER_NAMES[active.name]}`,
-                icon: "/favicon.ico"
+                icon: "/favicon.ico",
+                silent: true
               });
             }
           }

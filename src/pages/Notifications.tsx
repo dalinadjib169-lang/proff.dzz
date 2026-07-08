@@ -7,6 +7,7 @@ import { Heart, MessageCircle, UserPlus, Bell, Check, GraduationCap, X, UserChec
 import { formatDistanceToNow } from 'date-fns';
 import { motion, AnimatePresence } from 'motion/react';
 import { Link } from 'react-router-dom';
+import toast from 'react-hot-toast';
 import { handleFirestoreError, OperationType } from '../lib/firestore-errors';
 import { playSound } from '../lib/sounds';
 import { clearSystemNotifications } from '../lib/notifications';
@@ -89,52 +90,46 @@ export default function Notifications() {
     try {
       const q = query(
         collection(db, 'invitations'),
-        where('recipientId', '==', profile.uid)
+        where('recipientId', '==', profile.uid),
+        where('senderId', '==', notification.senderId),
+        where('status', '==', 'pending')
       );
       
       const snapshot = await getDocs(q);
       
-      const pendingInvites = snapshot.docs.filter(doc => 
-        doc.data().senderId === notification.senderId && 
-        doc.data().status === 'pending'
-      );
+      const batch = writeBatch(db);
       
-      if (pendingInvites.length > 0) {
-        const invDoc = pendingInvites[0];
-        const batch = writeBatch(db);
-        
+      if (snapshot.docs.length > 0) {
+        const invDoc = snapshot.docs[0];
         // Update invitation status
         batch.update(doc(db, 'invitations', invDoc.id), { 
           status: 'accepted',
           updatedAt: serverTimestamp()
         });
-        
-        // Update both users' friends and followers
-        const myRef = doc(db, 'users', profile.uid);
-        const theirRef = doc(db, 'users', notification.senderId);
-        
-        batch.update(myRef, {
-          friends: arrayUnion(notification.senderId),
-          followers: arrayUnion(notification.senderId),
-          following: arrayUnion(notification.senderId)
-        });
-        
-        batch.update(theirRef, {
-          friends: arrayUnion(profile.uid),
-          followers: arrayUnion(profile.uid),
-          following: arrayUnion(profile.uid)
-        });
-
-        // Mark notification as read
-        batch.update(doc(db, 'notifications', notification.id), { read: true });
-        
-        await batch.commit();
-        playSound('notification');
-      } else {
-        console.warn("No pending invitation found for this notification.");
-        // Fallback: just mark notification as read
-        await updateDoc(doc(db, 'notifications', notification.id), { read: true });
       }
+      
+      // Update both users' friends and followers
+      const myRef = doc(db, 'users', profile.uid);
+      const theirRef = doc(db, 'users', notification.senderId);
+      
+      batch.update(myRef, {
+        friends: arrayUnion(notification.senderId),
+        followers: arrayUnion(notification.senderId),
+        following: arrayUnion(notification.senderId)
+      });
+      
+      batch.update(theirRef, {
+        friends: arrayUnion(profile.uid),
+        followers: arrayUnion(profile.uid),
+        following: arrayUnion(profile.uid)
+      });
+      
+      // Mark notification as read
+      batch.update(doc(db, 'notifications', notification.id), { read: true });
+      
+      await batch.commit();
+      playSound('notification');
+      toast.success(`تم قبول صداقة ${notification.senderName || ''}`);
     } catch (error) {
       console.error("Error accepting connection:", error);
       handleFirestoreError(error, OperationType.UPDATE, 'invitations');
@@ -146,24 +141,21 @@ export default function Notifications() {
     try {
       const q = query(
         collection(db, 'invitations'),
-        where('recipientId', '==', profile.uid)
+        where('recipientId', '==', profile.uid),
+        where('senderId', '==', notification.senderId),
+        where('status', '==', 'pending')
       );
       const snapshot = await getDocs(q);
       
-      const pendingInvites = snapshot.docs.filter(doc => 
-        doc.data().senderId === notification.senderId && 
-        doc.data().status === 'pending'
-      );
-      
       const batch = writeBatch(db);
-      if (pendingInvites.length > 0) {
-        batch.delete(doc(db, 'invitations', pendingInvites[0].id));
+      if (snapshot.docs.length > 0) {
+        batch.delete(doc(db, 'invitations', snapshot.docs[0].id));
       }
       batch.update(doc(db, 'notifications', notification.id), { read: true });
       await batch.commit();
+      toast.success('تم رفض طلب الصداقة');
     } catch (error) {
       console.error("Error declining connection:", error);
-      handleFirestoreError(error, OperationType.DELETE, 'invitations');
     }
   };
 
@@ -232,7 +224,7 @@ export default function Notifications() {
                   <span className="font-black text-white">{n.senderName}</span>{' '}
                   {n.type === 'like' && 'liked your post'}
                   {n.type === 'comment' && 'commented on your post'}
-                  {n.type === 'follow' && 'sent you a connection request'}
+                  {n.type === 'follow' && 'أرسل لك طلب صداقة'}
                   {n.type === 'market_interest' && (n.message || 'is interested in your product')}
                 </p>
                 <p className="text-xs font-bold text-slate-500 uppercase tracking-wider mt-1">
@@ -245,16 +237,12 @@ export default function Notifications() {
                       onClick={(e) => { e.stopPropagation(); handleAcceptConnection(n); }}
                       className="px-4 py-1.5 bg-purple-600 hover:bg-purple-700 text-white text-xs font-black rounded-xl transition-all flex items-center gap-1.5"
                     >
-                      <UserCheck className="w-3.5 h-3.5" />
-                      Accept
-                    </button>
+                      <UserCheck className="w-3.5 h-3.5" />قبول</button>
                     <button 
                       onClick={(e) => { e.stopPropagation(); handleDeclineConnection(n); }}
                       className="px-4 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-black rounded-xl transition-all flex items-center gap-1.5"
                     >
-                      <X className="w-3.5 h-3.5" />
-                      Decline
-                    </button>
+                      <X className="w-3.5 h-3.5" />رفض</button>
                   </div>
                 )}
               </div>
