@@ -93,7 +93,13 @@ export function useBackgroundFeatures() {
       const now = Date.now();
       const intervalMs = waterReminderMinutes * 60 * 1000;
       
-      if (!lastWaterPlayed.current || (now - lastWaterPlayed.current >= intervalMs)) {
+      if (!lastWaterPlayed.current) {
+        // Initialize to prevent immediate playback on load
+        lastWaterPlayed.current = now;
+        return;
+      }
+      
+      if (now - lastWaterPlayed.current >= intervalMs) {
         playWaterReminder();
         lastWaterPlayed.current = now;
       }

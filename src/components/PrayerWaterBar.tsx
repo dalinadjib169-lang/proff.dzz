@@ -90,24 +90,7 @@ export const PrayerWaterBar: React.FC = () => {
     return () => clearInterval(interval);
   }, [prayerTimes, isAdhanEnabled, adhanVoice]);
 
-  useEffect(() => {
-    let waterInterval: NodeJS.Timeout;
-    if (isWaterEnabled) {
-      waterInterval = setInterval(() => {
-        playWaterSound();
-        if ("Notification" in window && Notification.permission === "granted") {
-          new Notification("تذكير بشرب الماء", {
-            body: "حان وقت شرب كوب من الماء للحفاظ على صحتك!",
-            icon: "/favicon.ico",
-                silent: true
-          });
-        }
-      }, 7200000);
-    }
-    return () => {
-      if (waterInterval) clearInterval(waterInterval);
-    };
-  }, [isWaterEnabled]);
+
 
   const fetchPrayerTimesData = async (wilaya: string) => {
     try {

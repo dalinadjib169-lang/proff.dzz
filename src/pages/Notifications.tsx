@@ -52,6 +52,16 @@ export default function Notifications() {
     return unsubscribe;
   }, [profile]);
 
+  useEffect(() => {
+    // Automatically mark all as read when opening notifications
+    if (notifications.length > 0 && notifications.some(n => !n.read)) {
+      const timer = setTimeout(() => {
+        markAllAsRead();
+      }, 2000);
+      return () => clearTimeout(timer);
+    }
+  }, [notifications]);
+
   const markAsRead = async (id: string) => {
     try {
       await updateDoc(doc(db, 'notifications', id), { read: true });
@@ -164,6 +174,8 @@ export default function Notifications() {
       case 'like': return <Heart className="w-5 h-5 text-red-500 fill-red-500" />;
       case 'comment': return <MessageCircle className="w-5 h-5 text-purple-500 fill-purple-500" />;
       case 'follow': return <UserPlus className="w-5 h-5 text-blue-500 fill-blue-500" />;
+      case 'friend_request_accepted': return <UserCheck className="w-5 h-5 text-green-500 fill-green-500" />;
+      case 'friend_request_declined': return <X className="w-5 h-5 text-red-500" />;
       case 'market_interest': return <ShoppingBag className="w-5 h-5 text-orange-500" />;
       default: return <Bell className="w-5 h-5 text-slate-400" />;
     }
@@ -226,6 +238,8 @@ export default function Notifications() {
                   {n.type === 'comment' && 'commented on your post'}
                   {n.type === 'follow' && 'أرسل لك طلب صداقة'}
                   {n.type === 'market_interest' && (n.message || 'is interested in your product')}
+                  {n.type === 'friend_request_accepted' && 'قام بقبول طلب المراسلة الخاص بك'}
+                  {n.type === 'friend_request_declined' && 'قام برفض طلب المراسلة الخاص بك'}
                 </p>
                 <p className="text-xs font-bold text-slate-500 uppercase tracking-wider mt-1">
                   {n.createdAt ? formatDistanceToNow(n.createdAt.toDate()) + ' ago' : 'Just now'}

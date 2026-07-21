@@ -162,7 +162,7 @@ export interface Notification {
   recipientId: string;
   senderId: string;
   senderName: string;
-  type: 'like' | 'comment' | 'follow' | 'market_interest' | 'group_invite' | 'group_request' | 'group_accepted' | 'group_rejected';
+  type: 'like' | 'comment' | 'follow' | 'market_interest' | 'group_invite' | 'group_request' | 'group_accepted' | 'group_rejected' | 'friend_request_accepted' | 'friend_request_declined' | 'group_addition';
   postId?: string;
   groupId?: string;
   message?: string;
