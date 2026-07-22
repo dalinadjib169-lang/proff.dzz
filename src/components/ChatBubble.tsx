@@ -1266,6 +1266,8 @@ export default function ChatBubble() {
       return;
     }
 
+    const isAlreadyFriend = !!(profile.friends?.includes(activeChat.uid) || profile.followers?.includes(activeChat.uid) || profile.following?.includes(activeChat.uid));
+
     const q = query(
       collection(db, 'invitations'),
       where('participants', 'array-contains', profile.uid)
@@ -1278,17 +1280,17 @@ export default function ChatBubble() {
       
       if (inv) {
         setFriendRequest(inv);
-        setIsFriend(inv.status === 'accepted');
+        setIsFriend(inv.status === 'accepted' || isAlreadyFriend);
       } else {
         setFriendRequest(null);
-        setIsFriend(false);
+        setIsFriend(isAlreadyFriend);
       }
     }, (error) => {
       handleFirestoreError(error, OperationType.LIST, 'invitations');
     });
 
     return unsubscribe;
-  }, [profile?.uid, activeChat?.uid]);
+  }, [profile, activeChat?.uid]);
 
   const handleAcceptRequest = async () => {
     if (!friendRequest || !profile?.uid) {
@@ -2864,7 +2866,7 @@ export default function ChatBubble() {
                               </div>
                             )}
 
-                            {msg.text && <p className="whitespace-pre-wrap select-text">{msg.text}</p>}
+                            {msg.text && <p className="whitespace-pre-wrap select-text break-words w-full overflow-hidden">{msg.text}</p>}
                             {msg.imageUrl && (
                               <img 
                                 src={msg.imageUrl} 
