@@ -2843,9 +2843,9 @@ export default function ChatBubble() {
                         }}
                         onTouchEnd={() => clearTimeout(pressTimer.current)}
                       >
-                        <div className="group relative">
+                        <div className="group relative max-w-[85%]">
                           <div 
-                            className={`max-w-[85%] p-3 rounded-2xl text-sm font-medium shadow-sm transition-all relative overflow-visible ${
+                            className={`p-3 rounded-2xl text-sm font-medium shadow-sm transition-all relative overflow-visible ${
                               msg.senderId === profile.uid 
                                 ? 'bg-purple-600 text-white rounded-tr-none' 
                                 : 'bg-slate-900 text-slate-100 rounded-tl-none border border-slate-800'
