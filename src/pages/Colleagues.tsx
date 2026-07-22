@@ -18,7 +18,7 @@ export default function Colleagues() {
   const [actionUserId, setActionUserId] = useState<string | null>(null);
 
   useEffect(() => {
-    const q = query(collection(db, 'users'), orderBy('lastSeen', 'desc'), limit(100));
+    const q = query(collection(db, 'users'), limit(500));
     return onSnapshot(q, (snapshot) => {
       const allUsers = snapshot.docs.map(doc => ({ uid: doc.id, ...doc.data() })) as UserProfile[];
       

@@ -49,7 +49,7 @@ function Sidebar() {
     });
 
     // Fetch total registered users and colleagues (sorted by recent)
-    const usersQuery = query(collection(db, 'users'), orderBy('createdAt', 'desc'), limit(40));
+    const usersQuery = query(collection(db, 'users'), limit(500));
     const unsubscribeUsers = onSnapshot(usersQuery, (snapshot) => {
       const allUsers = snapshot.docs.map(doc => ({ uid: doc.id, ...doc.data() })) as UserProfile[];
       setTotalUsers(allUsers.length);
@@ -313,10 +313,10 @@ function Sidebar() {
           </div>
         </div>
 
-        <button className="w-full mt-6 py-3 bg-slate-950 border border-slate-800 hover:border-primary/50 text-slate-300 hover:text-primary font-bold text-xs rounded-2xl transition-all flex items-center justify-center gap-2 group">
+        <Link to="/colleagues" className="w-full mt-6 py-3 bg-slate-950 border border-slate-800 hover:border-primary/50 text-slate-300 hover:text-primary font-bold text-xs rounded-2xl transition-all flex items-center justify-center gap-2 group">
           <UserPlus className="w-4 h-4 group-hover:scale-110 transition-transform" />
-          Invite Colleague
-        </button>
+          عرض كل الزملاء (All Colleagues)
+        </Link>
       </div>
 
     </div>

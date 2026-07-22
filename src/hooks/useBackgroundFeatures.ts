@@ -37,8 +37,17 @@ export function useBackgroundFeatures() {
   }, []);
 
   // Sounds
-  const athanSound = useRef(new Audio('https://assets.mixkit.co/active_storage/sfx/2281/2281-preview.mp3'));
-  const waterSound = useRef(new Audio('https://assets.mixkit.co/active_storage/sfx/1350/1350-preview.mp3'));
+  const athanSound = useRef<HTMLAudioElement | null>(null);
+  const waterSound = useRef<HTMLAudioElement | null>(null);
+  
+  useEffect(() => {
+    try {
+      athanSound.current = new Audio('https://assets.mixkit.co/active_storage/sfx/2281/2281-preview.mp3');
+      waterSound.current = new Audio('https://assets.mixkit.co/active_storage/sfx/1350/1350-preview.mp3');
+    } catch(e) {
+      console.warn("Audio init failed", e);
+    }
+  }, []);
 
   useEffect(() => {
     // Register Service Worker
@@ -125,7 +134,7 @@ export function useBackgroundFeatures() {
       icon: '/logo.png'
     });
     
-    athanSound.current.play().catch(e => console.log('Audio blocked', e));
+    athanSound.current?.play().catch(e => console.log('Audio blocked', e));
     toast.success(`حان وقت الصلاة: ${name}`);
   };
 
@@ -134,7 +143,7 @@ export function useBackgroundFeatures() {
       body: 'حافظ على رطوبة جسمك وصحتك، اشرب كوباً من الماء الآن.',
       icon: '/logo.png'
     });
-    waterSound.current.play().catch(e => console.error('Audio blocked', e));
+    waterSound.current?.play().catch(e => console.error('Audio blocked', e));
     toast('💦 حان وقت شرب الماء!', { icon: '🥛' });
   };
 

@@ -31,7 +31,7 @@ export default function FriendSuggestions() {
     });
 
     // Fetch all users (increased limit and sorted by recent)
-    const usersQuery = query(collection(db, 'users'), orderBy('createdAt', 'desc'), limit(100));
+    const usersQuery = query(collection(db, 'users'), limit(500));
     const unsubUsers = onSnapshot(usersQuery, (snapshot) => {
       const allUsers = snapshot.docs.map(doc => ({ uid: doc.id, ...doc.data() })) as UserProfile[];
       

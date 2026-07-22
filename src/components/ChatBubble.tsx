@@ -1912,7 +1912,7 @@ export default function ChatBubble() {
             initial={isMobile ? { opacity: 0, y: '100%' } : { opacity: 0, scale: 0.8, y: 20, x: 20 }}
             animate={isMobile ? { opacity: 1, y: 0 } : { opacity: 1, scale: 1, y: 0, x: 0 }}
             exit={isMobile ? { opacity: 0, y: '100%' } : { opacity: 0, scale: 0.8, y: 20, x: 20 }}
-            drag={!isMobile}
+            drag={false}
             dragMomentum={false}
             dragElastic={0.1}
             className={`fixed bg-slate-950/40 backdrop-blur-2xl overflow-hidden flex flex-col z-[200] ${
@@ -2786,7 +2786,7 @@ export default function ChatBubble() {
                     </div>
                   )}
 
-                  <div ref={scrollRef} className="flex-1 overflow-y-auto p-4 space-y-4 custom-scrollbar overscroll-contain">
+                  <div ref={scrollRef} className="flex-1 overflow-y-auto overflow-x-hidden p-4 space-y-4 custom-scrollbar overscroll-contain w-full">
                     {/* Message Request UI */}
                     {!isFriend && !localIsFriendOverride && activeChat.uid !== 'global' && (
                       <div className="bg-slate-900/80 border border-slate-700 rounded-3xl p-6 text-center shadow-xl mb-6">
@@ -2795,11 +2795,13 @@ export default function ChatBubble() {
                         </div>
                         <h4 className="text-white font-black mb-2 font-amiri text-lg">طلب مراسلة - Message Request</h4>
                         <p className="text-slate-400 text-xs font-bold mb-6">
-                          {friendRequest?.senderId === profile.uid 
-                            ? 'لقد ارسلت طلب صداقة، انتظر قبول الزميل لكي تتمكنا من التحدث.'
-                            : 'يريد هذا الزميل التواصل معك، هل توافق؟'}
+                          {!friendRequest 
+                            ? 'أرسل رسالة للزميل لطلب التواصل معه.'
+                            : friendRequest.senderId === profile.uid 
+                              ? 'لقد ارسلت طلب صداقة، انتظر قبول الزميل لكي تتمكنا من التحدث.'
+                              : 'يريد هذا الزميل التواصل معك، هل توافق؟'}
                         </p>
-                        {friendRequest?.senderId !== profile.uid ? (
+                        {!friendRequest ? null : friendRequest.senderId !== profile.uid ? (
                           <div className="flex gap-2">
                             <button 
                               onClick={handleDeclineRequest}
@@ -3358,8 +3360,8 @@ export default function ChatBubble() {
                     exit={{ opacity: 0, scale: 0, y: 20 }}
                     transition={{ type: "spring", stiffness: 300, damping: 25, delay: index * 0.05 }}
                     className="relative group cursor-pointer"
-                    drag="y"
-                    dragConstraints={{ top: 0, bottom: 0 }}
+                    drag
+                    dragConstraints={{ left: -300, right: 0, top: -600, bottom: 0 }}
                     dragElastic={0.8}
                     onDragEnd={(e, info) => {
                       if (info.offset.y > 60 || info.offset.y < -60) {
@@ -3459,7 +3461,7 @@ export default function ChatBubble() {
 
         {/* Incoming Call UI */}
         <AnimatePresence initial={false}>
-          {incomingCall && (
+          {incomingCall && !isCalling && (
             <motion.div
               key={`incoming-call-${incomingCall.id}`}
               initial={{ opacity: 0, scale: 0.8, y: 20 }}
@@ -3483,7 +3485,7 @@ export default function ChatBubble() {
                 </button>
                 <button 
                   onClick={handleAcceptCall}
-                  className="flex-1 py-2 bg-green-500 hover:bg-green-600 text-white rounded-xl font-bold text-xs transition-all animate-bounce"
+                  className="flex-1 py-2 bg-green-500 hover:bg-green-600 text-white rounded-xl font-bold text-xs transition-all shadow-[0_0_15px_rgba(34,197,94,0.4)]"
                 >
                   Accept
                 </button>

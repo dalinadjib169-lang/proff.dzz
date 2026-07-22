@@ -11,6 +11,19 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <title>TeachDZ</title>
     <script>
+      window.onerror = function(msg, url, lineNo, columnNo, error) {
+        var errDiv = document.createElement('div');
+        errDiv.style.cssText = 'color:red;position:fixed;top:0;left:0;z-index:9999;background:black;padding:20px;width:100%;font-size:12px;overflow-wrap:break-word;';
+        errDiv.innerHTML = 'ERROR: ' + msg + '<br>' + (error ? error.stack : '');
+        document.body.appendChild(errDiv);
+        return false;
+      };
+      window.addEventListener('unhandledrejection', function(event) {
+        var errDiv = document.createElement('div');
+        errDiv.style.cssText = 'color:orange;position:fixed;top:150px;left:0;z-index:9999;background:black;padding:20px;width:100%;font-size:12px;overflow-wrap:break-word;';
+        errDiv.innerHTML = 'PROMISE ERROR: ' + (event.reason ? event.reason.stack || event.reason : 'Unknown');
+        document.body.appendChild(errDiv);
+      });
       if ('serviceWorker' in navigator) {
         window.addEventListener('load', () => {
           navigator.serviceWorker.register('/sw.js').catch(err => {
