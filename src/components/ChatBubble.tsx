@@ -144,23 +144,7 @@ const ChatTrigger = ({
         transition={{ repeat: Infinity, duration: 3 }}
       />
       
-      {/* Floating unread message alert (Sender name & avatar alert) */}
-      {!isOpen && unreadSender && (
-        <motion.div
-          initial={{ opacity: 0, x: 20, scale: 0.9 }}
-          animate={{ opacity: 1, x: 0, scale: 1 }}
-          className="absolute right-24 bottom-2 sm:bottom-4 bg-slate-950/95 border border-purple-500/50 backdrop-blur-md text-white px-3 py-2 rounded-2xl shadow-xl flex items-center gap-2.5 w-48 z-30"
-          style={{ direction: 'rtl' }}
-        >
-          <div className="w-7 h-7 rounded-lg overflow-hidden shrink-0 ring-2 ring-purple-500/30">
-            <img src={unreadSender.photoURL || '/prof_dali_logo.png'} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
-          </div>
-          <div className="flex-1 min-w-0 text-right">
-            <p className="text-[11px] font-black text-purple-400 truncate">{unreadSender.displayName}</p>
-            <p className="text-[9px] text-slate-300 truncate">أرسل رسالة جديدة 💬</p>
-          </div>
-        </motion.div>
-      )}
+      
 
       <div className="relative w-16 h-16 sm:w-20 sm:h-20 z-10">
         {/* Neon Orbit Line */}
@@ -279,7 +263,7 @@ export default function ChatBubble() {
       collection(db, 'messages'),
       where('participants', 'array-contains', profile.uid),
       orderBy('createdAt', 'desc'),
-      limit(50)
+      limit(200)
     );
 
     // Listen to chat_rooms for groups
@@ -530,8 +514,8 @@ export default function ChatBubble() {
         .map(doc => ({ id: doc.id, ...doc.data() }))
         .filter((m: any) => m.senderId !== profile.uid)
         .sort((a: any, b: any) => {
-          const tA = a.createdAt?.toMillis ? a.createdAt.toMillis() : 0;
-          const tB = b.createdAt?.toMillis ? b.createdAt.toMillis() : 0;
+          const tA = a.createdAt?.toMillis ? a.createdAt.toMillis() : (a.clientCreatedAt || 0);
+          const tB = b.createdAt?.toMillis ? b.createdAt.toMillis() : (b.clientCreatedAt || 0);
           return tA - tB;
         });
       setUnreadMessages(msgs);
@@ -2648,15 +2632,17 @@ export default function ChatBubble() {
                         {/* Recent Main Conversations */}
                         {conversations.filter(c => {
                           if (c.isGroup || c.uid === 'global') return true;
-                          const inv = allInvitations.find(i => i.participants.includes(c.uid));
-                          return inv && inv.status === 'accepted';
+                          const isAlreadyFriend = !!(profile.friends?.includes(c.uid) || profile.followers?.includes(c.uid) || profile.following?.includes(c.uid));
+                              const inv = allInvitations.find(i => i.participants.includes(c.uid));
+                              return isAlreadyFriend || (inv && inv.status === 'accepted');
                         }).length > 0 && (
                           <div className="space-y-2 mb-6">
                             <h5 className="text-[9px] font-black text-slate-500 uppercase tracking-widest px-2">محادثات أخيرة</h5>
                             {conversations.filter(c => {
                               if (c.isGroup || c.uid === 'global') return true;
+                              const isAlreadyFriend = !!(profile.friends?.includes(c.uid) || profile.followers?.includes(c.uid) || profile.following?.includes(c.uid));
                               const inv = allInvitations.find(i => i.participants.includes(c.uid));
-                              return inv && inv.status === 'accepted';
+                              return isAlreadyFriend || (inv && inv.status === 'accepted');
                             }).map(conv => {
                               const user = users.find(u => u.uid === conv.uid);
                               const isGroupDoc = conv.isGroup;
@@ -2877,7 +2863,7 @@ export default function ChatBubble() {
                               </div>
                             )}
 
-                            {msg.text && <p className="whitespace-pre-wrap select-text min-w-fit" dir="auto" style={{ overflowWrap: "anywhere" }}>{msg.text}</p>}
+                            {msg.text && <p className="whitespace-pre-wrap select-text break-words" dir="auto">{msg.text}</p>}
                             {msg.imageUrl && (
                               <img 
                                 src={msg.imageUrl} 
