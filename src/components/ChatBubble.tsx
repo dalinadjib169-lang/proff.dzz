@@ -325,7 +325,13 @@ export default function ChatBubble() {
           }
         }
       });
-      setConversations(Array.from(convosMap.values()));
+      const convos = Array.from(convosMap.values());
+      convos.sort((a, b) => {
+        const timeA = a.lastTime?.toMillis ? a.lastTime.toMillis() : 0;
+        const timeB = b.lastTime?.toMillis ? b.lastTime.toMillis() : 0;
+        return timeB - timeA;
+      });
+      setConversations(convos);
     }, (error) => {
       handleFirestoreError(error, OperationType.LIST, 'messages');
     });
@@ -522,7 +528,12 @@ export default function ChatBubble() {
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const msgs = snapshot.docs
         .map(doc => ({ id: doc.id, ...doc.data() }))
-        .filter((m: any) => m.senderId !== profile.uid);
+        .filter((m: any) => m.senderId !== profile.uid)
+        .sort((a: any, b: any) => {
+          const tA = a.createdAt?.toMillis ? a.createdAt.toMillis() : 0;
+          const tB = b.createdAt?.toMillis ? b.createdAt.toMillis() : 0;
+          return tA - tB;
+        });
       setUnreadMessages(msgs);
 
       // Ignore initial snapshot of already existing unread messages on mount/load
@@ -704,7 +715,7 @@ export default function ChatBubble() {
   useEffect(() => {
     if (!profile?.uid || !activeChat?.uid || !isOpen || activeChat.uid === 'global') return;
     
-    const roomId = [profile.uid, activeChat.uid].sort().join('_');
+    const roomId = activeChat.isGroup ? activeChat.uid : [profile.uid, activeChat.uid].sort().join('_');
     const q = query(
       collection(db, 'messages'),
       where('roomId', '==', roomId),
@@ -2866,7 +2877,7 @@ export default function ChatBubble() {
                               </div>
                             )}
 
-                            {msg.text && <p className="whitespace-pre-wrap select-text break-words w-full overflow-hidden">{msg.text}</p>}
+                            {msg.text && <p className="whitespace-pre-wrap select-text min-w-fit" dir="auto" style={{ overflowWrap: "anywhere" }}>{msg.text}</p>}
                             {msg.imageUrl && (
                               <img 
                                 src={msg.imageUrl} 
