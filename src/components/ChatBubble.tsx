@@ -2863,7 +2863,7 @@ export default function ChatBubble() {
                               </div>
                             )}
 
-                            {msg.text && <p className="whitespace-pre-wrap select-text break-words" dir="auto">{msg.text}</p>}
+                            {msg.text && <p className="whitespace-pre-wrap select-text" style={{ wordBreak: 'normal', overflowWrap: 'break-word' }} dir="auto">{msg.text}</p>}
                             {msg.imageUrl && (
                               <img 
                                 src={msg.imageUrl} 

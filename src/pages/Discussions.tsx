@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { MessageSquare, TrendingUp, Filter, Plus, ChevronRight, User, Loader2, X, Send } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { db } from '../firebase';
-import { collection, query, orderBy, onSnapshot, addDoc, serverTimestamp, where, limit, doc, getDoc, updateDoc, increment, Timestamp } from 'firebase/firestore';
+import { collection, query, orderBy, onSnapshot, addDoc, serverTimestamp, where, limit, doc, getDoc, updateDoc, increment, Timestamp, deleteDoc } from 'firebase/firestore';
 import { useAuth } from '../hooks/useAuth';
 import { formatDistanceToNow } from 'date-fns';
 import { handleFirestoreError, OperationType } from '../lib/firestore-errors';
@@ -59,6 +59,19 @@ export default function Discussions() {
 
     return unsubscribe;
   }, [activeTopic]);
+
+  const handleDeleteTopic = async (e: React.MouseEvent, topicId: string) => {
+    e.stopPropagation();
+    if (!window.confirm('هل أنت متأكد من حذف هذا النقاش نهائياً؟')) return;
+    try {
+      await deleteDoc(doc(db, 'discussions', topicId));
+      if (activeTopic?.id === topicId) {
+        setActiveTopic(null);
+      }
+    } catch (error) {
+      console.error("Error deleting topic:", error);
+    }
+  };
 
   const handleCreateTopic = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -193,8 +206,21 @@ export default function Discussions() {
                             </div>
                           </div>
                         </div>
-                        <div className="p-2 text-slate-700 group-hover:text-indigo-500 transform group-hover:translate-x-1 transition-all">
-                          <ChevronRight className="w-6 h-6 rotate-180" />
+                        <div className="flex flex-col items-center gap-2">
+                          <div className="p-2 text-slate-700 group-hover:text-indigo-500 transform group-hover:-translate-x-1 transition-all">
+                            <ChevronRight className="w-5 h-5 rotate-180" />
+                          </div>
+                          {profile?.uid === topic.authorId && (
+                            <button
+                              onClick={(e) => handleDeleteTopic(e, topic.id)}
+                              className="p-2 text-slate-600 hover:text-red-500 hover:bg-red-500/10 rounded-xl transition-all"
+                              title="حذف النقاش"
+                            >
+                              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                              </svg>
+                            </button>
+                          )}
                         </div>
                       </div>
                     </motion.div>
@@ -273,7 +299,7 @@ export default function Discussions() {
                         ? 'bg-indigo-600 text-white rounded-tr-none' 
                         : 'bg-slate-900 text-slate-100 border border-slate-800 rounded-tl-none'
                     }`}>
-                      <p className="whitespace-pre-wrap leading-relaxed text-sm" dir="rtl">{msg.text}</p>
+                      <p className="whitespace-pre-wrap leading-relaxed text-sm" style={{ wordBreak: 'normal', overflowWrap: 'break-word' }} dir="auto">{msg.text}</p>
                     </div>
                   </div>
                 </motion.div>
