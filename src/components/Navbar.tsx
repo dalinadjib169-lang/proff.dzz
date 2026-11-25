@@ -1,9 +1,10 @@
-import React, { memo } from 'react';
+import React, { memo, useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { 
   GraduationCap, 
   Bell, 
+  BellRing,
   Search, 
   User as UserIcon, 
   MessageSquare, 
@@ -17,13 +18,61 @@ import { useUnreadMessages } from '../hooks/useUnreadMessages';
 import { cn } from '../lib/utils';
 import { toast } from 'react-hot-toast';
 import { signOut } from 'firebase/auth';
-import { auth } from '../firebase';
+import { collection, onSnapshot, query, where, updateDoc, doc } from 'firebase/firestore';
+import { auth, db } from '../firebase';
 import { isUserAdmin } from '../lib/admin';
+import { subscribeToPushNotifications, displayNotification } from '../lib/notifications';
+import { playSound, unlockAudio } from '../lib/sounds';
 
 function Navbar() {
   const { user, profile } = useAuth();
   const unreadMessagesCount = useUnreadMessages();
   const isAdmin = isUserAdmin(profile, user);
+  const [unreadNotifsCount, setUnreadNotifsCount] = useState(0);
+  const [notifPermission, setNotifPermission] = useState<NotificationPermission>(
+    typeof window !== 'undefined' && 'Notification' in window ? window.Notification.permission : 'default'
+  );
+  const [enablingPush, setEnablingPush] = useState(false);
+
+  useEffect(() => {
+    if (!profile?.uid) return;
+    const q = query(
+      collection(db, 'notifications'),
+      where('recipientId', '==', profile.uid),
+      where('read', '==', false)
+    );
+    return onSnapshot(q, (snap) => {
+      setUnreadNotifsCount(snap.size);
+    }, () => {});
+  }, [profile?.uid]);
+
+  const handleEnablePush = async () => {
+    if (!profile?.uid) return;
+    setEnablingPush(true);
+    try {
+      unlockAudio();
+      const ok = await subscribeToPushNotifications(profile.uid);
+      const perm = typeof window !== 'undefined' && 'Notification' in window ? window.Notification.permission : 'default';
+      setNotifPermission(perm);
+      if (ok || perm === 'granted') {
+        await updateDoc(doc(db, 'users', profile.uid), {
+          'settings.isPushNotificationsEnabled': true,
+          'settings.isNotificationSoundEnabled': true,
+        }).catch(() => {});
+        playSound('notification');
+        displayNotification('تم تفعيل إشعارات الخلفية ✅', {
+          body: 'ستصلك التنبيهات الصوتية والكتابية حتى عند إغلاق التطبيق.',
+          soundType: 'notification',
+          url: '/notifications',
+        });
+        toast.success('تم تفعيل إشعارات الخلفية والصوت بنجاح');
+      } else {
+        toast.error('يرجى السماح بالإشعارات من إعدادات المتصفح');
+      }
+    } finally {
+      setEnablingPush(false);
+    }
+  };
 
   const handleLogout = async () => {
     try {
@@ -62,6 +111,19 @@ function Navbar() {
             </div>
 
             <div className="flex items-center gap-2 sm:gap-4">
+              {notifPermission !== 'granted' && (
+                <button
+                  type="button"
+                  onClick={handleEnablePush}
+                  disabled={enablingPush}
+                  className="p-2 sm:px-2.5 sm:py-2 bg-amber-500/15 hover:bg-amber-500 text-amber-400 hover:text-white rounded-xl transition-all border border-amber-500/30 flex items-center gap-1.5 animate-pulse disabled:opacity-60"
+                  title="تفعيل إشعارات الخلفية والصوت"
+                >
+                  <BellRing className="w-4 h-4 sm:w-4.5 sm:h-4.5" />
+                  <span className="hidden lg:inline text-[10px] font-black">تفعيل الإشعارات</span>
+                </button>
+              )}
+
               <button
                 onClick={() => window.dispatchEvent(new CustomEvent('show-chat'))}
                 className="p-2 sm:p-2.5 text-slate-400 hover:text-primary hover:bg-primary/10 bg-slate-900 rounded-xl transition-all relative border border-slate-800 md:hidden"
@@ -90,7 +152,11 @@ function Navbar() {
 
               <Link to="/notifications" className="p-2 sm:p-2.5 text-slate-400 hover:text-primary hover:bg-primary/10 bg-slate-900 rounded-xl transition-all relative border border-slate-800">
                 <Bell className="w-4 h-4 sm:w-5 sm:h-5" />
-                <span className="absolute top-2 right-2 w-1.5 h-1.5 sm:w-2 sm:h-2 bg-primary rounded-full border-2 border-slate-950"></span>
+                {unreadNotifsCount > 0 && (
+                  <span className="absolute -top-1 -right-1 min-w-[16px] h-4 px-1 bg-purple-600 rounded-full border-2 border-slate-950 flex items-center justify-center text-[8px] font-black text-white animate-pulse">
+                    {unreadNotifsCount > 9 ? '9+' : unreadNotifsCount}
+                  </span>
+                )}
               </Link>
               
               {isAdmin && (

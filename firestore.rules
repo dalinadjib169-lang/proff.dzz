@@ -186,9 +186,9 @@ service cloud.firestore {
              (!('senderId' in data) || (data.senderId == request.auth.uid || isAdmin() || (data.recipientId == request.auth.uid && (data.type == 'missed_call' || data.type == 'group_request')))) &&
              (!('recipientId' in data) || data.recipientId is string) &&
              (!('senderName' in data) || data.senderName is string) &&
-             (!('type' in data) || data.type in ['like', 'comment', 'follow', 'missed_call', 'market_interest', 'group_invite', 'group_request', 'group_accepted', 'group_rejected', 'group_addition', 'friend_request_accepted']) &&
+             (!('type' in data) || data.type in ['like', 'comment', 'follow', 'message_invite', 'missed_call', 'market_interest', 'group_invite', 'group_request', 'group_accepted', 'group_rejected', 'group_addition', 'group_removed', 'group_disbanded', 'friend_request_accepted', 'friend_request_declined']) &&
              (!('read' in data) || data.read is bool) &&
-             (!('message' in data) || data.message is string) &&
+             (!('message' in data) || (data.message is string && data.message.size() <= 1000)) &&
              (!('postId' in data) || data.postId is string) &&
              (!('groupId' in data) || data.groupId is string) &&
              (!('groupName' in data) || data.groupName is string) &&
@@ -203,10 +203,15 @@ service cloud.firestore {
              (!('senderName' in data) || data.senderName is string) &&
              (!('seen' in data) || data.seen is bool) &&
              (!('text' in data) || (data.text is string && data.text.size() <= 2000)) &&
+             (!('roomName' in data) || (data.roomName is string && data.roomName.size() <= 200)) &&
              (!('imageUrl' in data) || (data.imageUrl is string && data.imageUrl.size() <= 1000)) &&
              (!('audioUrl' in data) || (data.audioUrl is string && data.audioUrl.size() <= 1000)) &&
              (!('videoUrl' in data) || (data.videoUrl is string && data.videoUrl.size() <= 1000)) &&
              (!('reactions' in data) || (data.reactions is map)) &&
+             (!('replyTo' in data) || (data.replyTo is map || data.replyTo == null)) &&
+             (!('isForwarded' in data) || (data.isForwarded is bool)) &&
+             (!('forwardedFrom' in data) || (data.forwardedFrom is string && data.forwardedFrom.size() <= 200)) &&
+             (!('isInvite' in data) || (data.isInvite is bool)) &&
              (!('clientCreatedAt' in data) || (data.clientCreatedAt is int)) &&
              (!('createdAt' in data) || (request.method == 'create' ? data.createdAt == request.time : data.createdAt == existing().createdAt));
     }
@@ -251,6 +256,8 @@ service cloud.firestore {
              (!('text' in data) || (data.text is string && data.text.size() > 0 && data.text.size() <= 5000)) &&
              (!('senderName' in data) || data.senderName is string) &&
              (!('senderPhoto' in data) || data.senderPhoto is string) &&
+             (!('replyTo' in data) || (data.replyTo is map || data.replyTo == null)) &&
+             (!('reactions' in data) || (data.reactions is map)) &&
              (!('createdAt' in data) || (request.method == 'create' ? data.createdAt == request.time : data.createdAt == existing().createdAt));
     }
 
@@ -287,13 +294,17 @@ service cloud.firestore {
 
     function isValidChatRoom(data) {
       return (request.method == 'create' ? data.keys().hasAll(['name', 'participants', 'createdBy', 'isGroup', 'createdAt']) : true) &&
-             (!('name' in data) || (data.name is string && data.name.size() <= 200)) &&
+             (!('name' in data) || (data.name is string && data.name.size() > 0 && data.name.size() <= 200)) &&
+             (!('description' in data) || (data.description is string && data.description.size() <= 1000)) &&
              (!('participants' in data) || (data.participants is list && data.participants.size() <= 200)) &&
-             (!('createdBy' in data) || (data.createdBy is string)) &&
+             (!('admins' in data) || (data.admins is list && data.admins.size() <= 50)) &&
+             (!('createdBy' in data) || (data.createdBy is string && data.createdBy.size() <= 128)) &&
              (!('isGroup' in data) || (data.isGroup is bool)) &&
+             (!('settings' in data) || (data.settings is map)) &&
+             (!('pinnedMessage' in data) || (data.pinnedMessage is map || data.pinnedMessage == null)) &&
              (!('lastMessage' in data) || (data.lastMessage is string && data.lastMessage.size() <= 2000)) &&
              (!('lastTime' in data) || (data.lastTime is timestamp || data.lastTime is string)) &&
-             (!('photoURL' in data) || (data.photoURL is string)) &&
+             (!('photoURL' in data) || (data.photoURL is string && data.photoURL.size() <= 200000)) &&
              (!('createdAt' in data) || (request.method == 'create' ? data.createdAt == request.time : data.createdAt == existing().createdAt));
     }
 
@@ -386,7 +397,7 @@ service cloud.firestore {
         ) && (
           incoming().diff(existing()).affectedKeys().hasOnly(['seen', 'reactions', 'deletedFor', 'clientCreatedAt'])
         )) || isAdmin());
-      allow delete: if isOwner(existing().senderId) || isAdmin();
+      allow delete: if isOwner(existing().senderId) || (existing().roomId != null && exists(/databases/$(database)/documents/chat_rooms/$(existing().roomId)) && (request.auth.uid == get(/databases/$(database)/documents/chat_rooms/$(existing().roomId)).data.createdBy || (get(/databases/$(database)/documents/chat_rooms/$(existing().roomId)).data.admins is list && request.auth.uid in get(/databases/$(database)/documents/chat_rooms/$(existing().roomId)).data.admins))) || isAdmin();
     }
 
     match /invitations/{invitationId} {
@@ -407,9 +418,26 @@ service cloud.firestore {
 
     match /chat_rooms/{roomId} {
       allow read: if isSignedIn() && (resource == null || request.auth.uid in resource.data.participants || isAdmin());
-      allow create: if isSignedIn() && isValidChatRoom(incoming());
-      allow update: if (isSignedIn() && (request.auth.uid in existing().participants || isAdmin()) && isValidChatRoom(incoming()));
-      allow delete: if isAdmin();
+      allow create: if isSignedIn() && isValidChatRoom(incoming()) && incoming().createdBy == request.auth.uid;
+      allow update: if (
+        isSignedIn() &&
+        isValidChatRoom(incoming()) &&
+        (
+          request.auth.uid == existing().createdBy ||
+          ('admins' in existing() && existing().admins is list && request.auth.uid in existing().admins) ||
+          (
+            request.auth.uid in existing().participants &&
+            incoming().diff(existing()).affectedKeys().hasOnly(['lastMessage', 'lastTime', 'participants'])
+          )
+        )
+      ) || isAdmin();
+      allow delete: if (
+        isSignedIn() &&
+        (
+          existing().createdBy == request.auth.uid ||
+          ('admins' in existing() && existing().admins is list && request.auth.uid in existing().admins)
+        )
+      ) || isAdmin();
     }
 
     match /products/{productId} {
@@ -482,7 +510,8 @@ service cloud.firestore {
       match /messages/{messageId} {
         allow get, list: if isSignedIn();
         allow create: if isSignedIn() && isValidDiscussionMessage(incoming());
-        allow update, delete: if (isSignedIn() && existing().senderId == request.auth.uid) || isAdmin();
+        allow update: if (isSignedIn() && existing().senderId == request.auth.uid) || (isSignedIn() && incoming().diff(existing()).affectedKeys().hasOnly(['reactions'])) || isAdmin();
+        allow delete: if (isSignedIn() && existing().senderId == request.auth.uid) || isAdmin();
       }
     }
 

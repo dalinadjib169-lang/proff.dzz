@@ -1,55 +1,96 @@
-
-// PWA Service Worker Core for TeachDZ
+// PWA Service Worker Core for TeachDZ (Background Push + Audio & Text Alerts)
 
 self.addEventListener('install', (event) => {
   self.skipWaiting();
 });
 
 self.addEventListener('activate', (event) => {
-  event.waitUntil(clients.claim());
+  event.waitUntil(self.clients.claim());
 });
 
 self.addEventListener('fetch', (event) => {
-  // Simple pass-through fetch listener to satisfy Chrome PWA installability requirements
-  // without interfering with the app's dynamic assets or API calls
+  // Pass-through GET requests without interfering with POST/API mutations
+  if (event.request.method !== 'GET') return;
   event.respondWith(
     fetch(event.request).catch(() => {
-      // Offline fallback can go here if needed
+      return caches.match(event.request);
     })
   );
 });
 
 self.addEventListener('push', function(event) {
-  const data = event.data?.json() ?? {};
-  const title = data.title || 'تنبیه جديد';
+  let data = {};
+  try {
+    data = event.data ? event.data.json() : {};
+  } catch (e) {
+    data = { title: 'TeachDZ', body: event.data ? event.data.text() : '' };
+  }
+
+  const title = data.title || 'TeachDZ - تنبيه جديد';
+  const isCall = data.type === 'call';
+
   const options = {
-    body: data.body || '',
-    icon: '/prof_dali_logo.png',
-    badge: '/prof_dali_logo.png',
-    data: data.url,
-    tag: data.tag || 'general-notif',
-    renotify: true
+    body: data.body || 'لديك إشعار جديد في منصة TeachDZ',
+    icon: data.icon || '/prof_dali_logo.png',
+    badge: data.badge || '/icon-192x192.png',
+    vibrate: isCall ? [400, 150, 400, 150, 400] : [250, 100, 250, 100, 300],
+    silent: false, // Triggers OS notification sound even when app is completely closed
+    renotify: true,
+    requireInteraction: isCall,
+    timestamp: Date.now(),
+    dir: 'rtl',
+    lang: 'ar',
+    tag: data.tag || `teachdz-notif-${Date.now()}`,
+    data: {
+      url: data.url || '/',
+      type: data.type || 'general',
+      roomId: data.roomId || null,
+      senderId: data.senderId || null
+    },
+    actions: [
+      { action: 'open', title: isCall ? 'الرد الآن' : 'فتح وعرض' }
+    ]
   };
 
   event.waitUntil(
-    self.registration.showNotification(title, options)
+    Promise.all([
+      self.registration.showNotification(title, options),
+      // Also notify any open/minimized tabs so they can play crisp in-app chimes immediately
+      self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((windowClients) => {
+        windowClients.forEach((client) => {
+          client.postMessage({
+            type: 'PUSH_RECEIVED',
+            payload: data
+          });
+        });
+      })
+    ])
   );
 });
 
 self.addEventListener('notificationclick', function(event) {
   event.notification.close();
-  const urlToOpen = event.notification.data || '/';
-  
+  const notifData = event.notification.data || {};
+  const urlToOpen = typeof notifData === 'string' ? notifData : (notifData.url || '/');
+
   event.waitUntil(
-    clients.matchAll({ type: 'window', includeUncontrolled: true }).then(function(windowClients) {
+    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then(function(windowClients) {
       for (let i = 0; i < windowClients.length; i++) {
         const client = windowClients[i];
-        if (client.url === urlToOpen && 'focus' in client) {
-          return client.focus();
+        if ('focus' in client) {
+          client.focus();
+          client.postMessage({
+            type: 'NOTIFICATION_CLICKED',
+            payload: notifData
+          });
+          if (urlToOpen && urlToOpen !== '/' && 'navigate' in client) {
+            return client.navigate(urlToOpen);
+          }
+          return;
         }
       }
-      if (clients.openWindow) {
-        return clients.openWindow(urlToOpen);
+      if (self.clients.openWindow) {
+        return self.clients.openWindow(urlToOpen);
       }
     })
   );

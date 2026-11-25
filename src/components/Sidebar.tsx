@@ -1,7 +1,7 @@
 import React, { useState, useEffect, memo } from 'react';
 import { NavLink, Link } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
-import { Home, User, Bell, Bookmark, Settings, Users, BookOpen, MessageSquare, TrendingUp, UserPlus, Sparkles, Wand2, CheckSquare, FileText, Image, Share2, ExternalLink, Zap, Car, ShoppingBag, Heart, Dumbbell, LogOut, Shield, Gamepad2 } from 'lucide-react';
+import { Home, User, Bell, Bookmark, Settings, Users, BookOpen, MessageSquare, TrendingUp, UserPlus, Sparkles, Wand2, CheckSquare, FileText, Image, Share2, ExternalLink, Zap, Car, ShoppingBag, Heart, Dumbbell, LogOut, Shield, Gamepad2, ClipboardCheck, Presentation } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { db, auth } from '../firebase';
 import { signOut } from 'firebase/auth';
@@ -93,6 +93,9 @@ function Sidebar() {
   const baseNavItems = [
     { icon: Home, label: t('home'), path: '/' },
     { icon: MessageSquare, label: t('discussions'), path: '/discussions' },
+    { icon: FileText, label: 'مولد مذكرات 1', path: '/memo-generator-1' },
+    { icon: ClipboardCheck, label: 'مولد مذكرات 2', path: '/memo-generator-2' },
+    { icon: Presentation, label: 'السبورة الاحترافية', path: '/whiteboard' },
     { icon: Dumbbell, label: 'النمط الرياضي - Sport Mode', path: '/fitness' },
     { icon: ShoppingBag, label: t('market'), path: '/market' },
     { icon: Gamepad2, label: 'استراحة أستاذ', path: '/game' },

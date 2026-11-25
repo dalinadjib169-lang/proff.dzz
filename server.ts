@@ -1,8 +1,10 @@
 import express from "express";
 import path from "path";
+import fs from "fs";
 import { createServer as createViteServer } from "vite";
 import { GoogleGenAI } from "@google/genai";
 import dotenv from "dotenv";
+import webpush from "web-push";
 
 dotenv.config();
 
@@ -11,6 +13,64 @@ const PORT = 3000;
 
 app.use(express.json({ limit: "50mb" }));
 
+// Web Push VAPID Initialization (Persisted locally so subscriptions stay valid across restarts)
+const VAPID_FILE = path.join(process.cwd(), ".vapid-keys.json");
+const SUBS_FILE = path.join(process.cwd(), ".push-subscriptions.json");
+
+function loadVapidKeys() {
+  if (process.env.VAPID_PUBLIC_KEY && process.env.VAPID_PRIVATE_KEY) {
+    return {
+      publicKey: process.env.VAPID_PUBLIC_KEY,
+      privateKey: process.env.VAPID_PRIVATE_KEY,
+    };
+  }
+  try {
+    if (fs.existsSync(VAPID_FILE)) {
+      const parsed = JSON.parse(fs.readFileSync(VAPID_FILE, "utf8"));
+      if (parsed.publicKey && parsed.privateKey) return parsed;
+    }
+  } catch (e) {
+    console.warn("Could not read .vapid-keys.json:", e);
+  }
+  const generated = webpush.generateVAPIDKeys();
+  try {
+    fs.writeFileSync(VAPID_FILE, JSON.stringify(generated, null, 2));
+  } catch (e) {
+    console.warn("Could not persist .vapid-keys.json:", e);
+  }
+  return generated;
+}
+
+const vapidKeys = loadVapidKeys();
+webpush.setVapidDetails(
+  "mailto:support@teachdz.edu.dz",
+  vapidKeys.publicKey,
+  vapidKeys.privateKey
+);
+
+type PushSubMap = Record<string, webpush.PushSubscription[]>;
+
+function loadSubscriptions(): PushSubMap {
+  try {
+    if (fs.existsSync(SUBS_FILE)) {
+      return JSON.parse(fs.readFileSync(SUBS_FILE, "utf8"));
+    }
+  } catch (e) {
+    console.warn("Could not read .push-subscriptions.json:", e);
+  }
+  return {};
+}
+
+function saveSubscriptions(map: PushSubMap) {
+  try {
+    fs.writeFileSync(SUBS_FILE, JSON.stringify(map, null, 2));
+  } catch (e) {
+    console.warn("Could not save .push-subscriptions.json:", e);
+  }
+}
+
+let pushSubscriptions: PushSubMap = loadSubscriptions();
+
 // Initialize Gemini
 const ai = new GoogleGenAI({ 
   apiKey: process.env.GEMINI_API_KEY || "dummy-key-if-not-set",
@@ -18,6 +78,104 @@ const ai = new GoogleGenAI({
     headers: {
       'User-Agent': 'aistudio-build',
     }
+  }
+});
+
+// Web Push API Routes
+app.get("/api/push/vapid-public-key", (req, res) => {
+  res.json({ publicKey: vapidKeys.publicKey });
+});
+
+app.post("/api/push/subscribe", (req, res) => {
+  try {
+    const { uid, subscription } = req.body;
+    if (!uid || !subscription || !subscription.endpoint) {
+      return res.status(400).json({ error: "Invalid subscription payload" });
+    }
+    const existing = pushSubscriptions[uid] || [];
+    const filtered = existing.filter((s) => s.endpoint !== subscription.endpoint);
+    filtered.push(subscription);
+    // Keep up to 10 recent devices per user
+    pushSubscriptions[uid] = filtered.slice(-10);
+    saveSubscriptions(pushSubscriptions);
+    res.json({ ok: true, count: pushSubscriptions[uid].length });
+  } catch (err: any) {
+    console.error("Push subscribe error:", err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post("/api/push/unsubscribe", (req, res) => {
+  try {
+    const { uid, endpoint } = req.body;
+    if (uid && pushSubscriptions[uid]) {
+      pushSubscriptions[uid] = endpoint
+        ? pushSubscriptions[uid].filter((s) => s.endpoint !== endpoint)
+        : [];
+      saveSubscriptions(pushSubscriptions);
+    }
+    res.json({ ok: true });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post("/api/push/send", async (req, res) => {
+  try {
+    const { recipientId, recipientIds, title, body, icon, tag, url, type } = req.body;
+    const targets: string[] = Array.from(
+      new Set([
+        ...(recipientId ? [recipientId] : []),
+        ...(Array.isArray(recipientIds) ? recipientIds : []),
+      ])
+    ).filter(Boolean);
+
+    if (targets.length === 0) {
+      return res.json({ ok: true, sent: 0 });
+    }
+
+    const payload = JSON.stringify({
+      title: title || "TeachDZ - إشعار جديد",
+      body: body || "",
+      icon: icon || "/prof_dali_logo.png",
+      badge: "/icon-192x192.png",
+      tag: tag || `teachdz-${Date.now()}`,
+      url: url || "/",
+      type: type || "general",
+    });
+
+    let sent = 0;
+    let changed = false;
+
+    for (const uid of targets) {
+      const subs = pushSubscriptions[uid];
+      if (!subs || subs.length === 0) continue;
+
+      const validSubs: webpush.PushSubscription[] = [];
+      for (const sub of subs) {
+        try {
+          await webpush.sendNotification(sub, payload, { TTL: 86400, urgency: "high" });
+          validSubs.push(sub);
+          sent++;
+        } catch (err: any) {
+          if (err?.statusCode === 404 || err?.statusCode === 410) {
+            changed = true;
+          } else {
+            validSubs.push(sub);
+          }
+        }
+      }
+      if (validSubs.length !== subs.length) {
+        pushSubscriptions[uid] = validSubs;
+        changed = true;
+      }
+    }
+
+    if (changed) saveSubscriptions(pushSubscriptions);
+    res.json({ ok: true, sent });
+  } catch (err: any) {
+    console.error("Push send error:", err);
+    res.status(500).json({ error: err.message });
   }
 });
 

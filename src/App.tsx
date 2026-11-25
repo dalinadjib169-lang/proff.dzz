@@ -22,6 +22,9 @@ import Groups from './pages/Groups';
 import GroupDetails from './pages/GroupDetails';
 import ProfileRedirect from './pages/ProfileRedirect';
 import AdminDashboard from './pages/AdminDashboard';
+import MemoGenerator1 from './pages/MemoGenerator1';
+import MemoGenerator2 from './pages/MemoGenerator2';
+import Whiteboard from './pages/Whiteboard';
 import Navbar from './components/Navbar';
 import Sidebar from './components/Sidebar';
 import BottomNav from './components/BottomNav';
@@ -36,8 +39,8 @@ import { GraduationCap, LogOut, AlertCircle, Lock, Unlock, ChevronRight, Chevron
 import { auth, db, onConnectionChange } from './firebase';
 import { signOut } from 'firebase/auth';
 import { collection, query, where, orderBy, limit, onSnapshot, doc, updateDoc } from 'firebase/firestore';
-import { playSound } from './lib/sounds';
-import { displayNotification } from './lib/notifications';
+import { playSound, setNotificationSoundEnabled } from './lib/sounds';
+import { displayNotification, subscribeToPushNotifications } from './lib/notifications';
 import { motion, AnimatePresence } from 'motion/react';
 import { WifiOff, X } from 'lucide-react';
 import AcademicLoader from './components/AcademicLoader';
@@ -185,8 +188,41 @@ export default function App() {
         document.documentElement.dir = 'ltr';
         document.documentElement.lang = language || 'en';
       }
+
+      if (typeof profile.settings.isNotificationSoundEnabled === 'boolean') {
+        setNotificationSoundEnabled(profile.settings.isNotificationSoundEnabled);
+      }
     }
   }, [profile?.settings]);
+
+  useEffect(() => {
+    if (!profile?.uid) return;
+    if ('Notification' in window && Notification.permission === 'granted') {
+      subscribeToPushNotifications(profile.uid);
+    }
+
+    const handleSwMessage = (event: MessageEvent) => {
+      if (event.data?.type === 'PUSH_RECEIVED') {
+        const pType = event.data?.payload?.type;
+        const soundType = pType === 'message' ? 'message' : pType === 'call' ? 'ringtone' : 'notification';
+        playSound(soundType);
+      } else if (event.data?.type === 'NOTIFICATION_CLICKED') {
+        const p = event.data?.payload || {};
+        if (p.type === 'message' || p.type === 'call' || p.roomId) {
+          window.dispatchEvent(new CustomEvent('show-chat'));
+        }
+      }
+    };
+
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.addEventListener('message', handleSwMessage);
+    }
+    return () => {
+      if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.removeEventListener('message', handleSwMessage);
+      }
+    };
+  }, [profile?.uid]);
 
   useEffect(() => {
     if (!profile?.uid) return;
@@ -209,15 +245,10 @@ export default function App() {
       
       if (!snapshot.empty) {
         const newNotif = snapshot.docs[0].data();
-        // Only play if it was created in the last 15 seconds (avoid processing old unread ones as "new")
         const now = Date.now();
         const createdAt = newNotif.createdAt?.toMillis?.() || 0;
         
-        // If it's very recent or just synced, trigger it
         if (createdAt === 0 || (now - createdAt < 15000)) {
-          playSound('notification');
-
-          // Standard push notification to show on mobile external slide menu or lock screen
           let actionText = '';
           switch (newNotif.type) {
             case 'like':
@@ -227,10 +258,25 @@ export default function App() {
               actionText = `علّق على منشورك: "${newNotif.message || ''}"`;
               break;
             case 'follow':
-              actionText = 'بدأ في متابعتك الآن 🤝';
+              actionText = 'أرسل لك طلب صداقة ومراسلة 🤝';
+              break;
+            case 'message_invite':
+              actionText = `📩 أرسل لك دعوة محادثة: "${newNotif.message || 'يريد التحدث معك'}"`;
+              break;
+            case 'friend_request_accepted':
+              actionText = 'وافق على طلب المراسلة، يمكنكما التحدث الآن! ✅';
               break;
             case 'market_interest':
               actionText = 'مهتم بمنتجك المعروض في السوق 🛒';
+              break;
+            case 'group_addition':
+              actionText = `أضافك إلى مجموعة: ${newNotif.groupName || 'مجموعة محادثة'} 👥`;
+              break;
+            case 'group_removed':
+              actionText = `تمت إزالتك من مجموعة: ${newNotif.groupName || 'مجموعة محادثة'}`;
+              break;
+            case 'group_disbanded':
+              actionText = `تم تفكيك مجموعة: ${newNotif.groupName || 'مجموعة محادثة'}`;
               break;
             case 'group_invite':
               actionText = 'دعاك للانضمام إلى مجموعة تعليمية 👥';
@@ -245,10 +291,21 @@ export default function App() {
               actionText = newNotif.message || 'لديك تفاعل جديد في التطبيق';
           }
 
+          const soundType =
+            newNotif.type === 'like'
+              ? 'like'
+              : newNotif.type === 'comment'
+              ? 'comment'
+              : newNotif.type === 'message_invite'
+              ? 'message'
+              : 'notification';
+
           displayNotification(newNotif.senderName || 'تنبيه جديد', {
             body: actionText,
             icon: '/prof_dali_logo.png',
-            tag: `notif-${snapshot.docs[0].id}`
+            tag: `notif-${snapshot.docs[0].id}`,
+            url: '/notifications',
+            soundType,
           });
         }
       }
@@ -470,7 +527,7 @@ export default function App() {
           )}
         </AnimatePresence>
 
-                <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-4 sm:py-8 pb-24 lg:pb-8">
+                <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-4 sm:py-8 pb-28 lg:pb-24">
                   {user && profile?.isProfileComplete && <div className="mb-6"><PrayerWaterBar /></div>}
                   <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 lg:gap-8">
                     {user && (
@@ -486,6 +543,9 @@ export default function App() {
                         <Route path="/profile/loading" element={<PageTransition><ProfileRedirect /></PageTransition>} />
                         <Route path="/notifications" element={user ? <PageTransition><Notifications /></PageTransition> : <Navigate to="/login" />} />
                         <Route path="/discussions" element={user ? <PageTransition><Discussions /></PageTransition> : <Navigate to="/login" />} />
+                        <Route path="/memo-generator-1" element={user ? <PageTransition><MemoGenerator1 /></PageTransition> : <Navigate to="/login" />} />
+                        <Route path="/memo-generator-2" element={user ? <PageTransition><MemoGenerator2 /></PageTransition> : <Navigate to="/login" />} />
+                        <Route path="/whiteboard" element={user ? <PageTransition><Whiteboard /></PageTransition> : <Navigate to="/login" />} />
                         <Route path="/saved" element={user ? <PageTransition><Saved /></PageTransition> : <Navigate to="/login" />} />
                         <Route path="/colleagues" element={user ? <PageTransition><Colleagues /></PageTransition> : <Navigate to="/login" />} />
                         <Route path="/groups" element={user ? <PageTransition><Groups /></PageTransition> : <Navigate to="/login" />} />

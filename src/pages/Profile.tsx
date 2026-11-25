@@ -12,6 +12,7 @@ import { ALGERIAN_WILAYAS } from '../constants';
 import { Edit3, Camera, Image as ImageIcon, MapPin, Book, Calendar, Mail, CheckCircle, GraduationCap, PenTool, UserPlus, UserCheck, UserX, Clock, Phone, Eye, EyeOff, Bell, Droplets, Dumbbell, Plus, Minus, ShoppingBag, Lock, Users, X } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { playSound } from '../lib/sounds';
+import { sendRemotePushNotification } from '../lib/notifications';
 import { handleFirestoreError, OperationType } from '../lib/firestore-errors';
 
 export default function Profile() {
@@ -313,8 +314,19 @@ export default function Profile() {
           senderId: loggedInProfile.uid,
           senderName: loggedInProfile.displayName,
           type: 'follow', // Using 'follow' as a placeholder for connection request
+          message: 'أرسل لك طلب صداقة ومراسلة',
           read: false,
           createdAt: serverTimestamp(),
+        });
+
+        sendRemotePushNotification({
+          recipientId: uid,
+          title: `طلب صداقة ومراسلة من ${loggedInProfile.displayName}`,
+          body: 'يريد التواصل معك عبر TeachDZ',
+          icon: loggedInProfile.photoURL || '/prof_dali_logo.png',
+          tag: `invite-${loggedInProfile.uid}`,
+          url: '/notifications',
+          type: 'notification',
         });
         
         playSound('notification');
@@ -358,20 +370,39 @@ export default function Profile() {
         followers: arrayUnion(loggedInProfile.uid)
       });
 
-      // Find and mark related notification as read
+      // Find and mark related notifications as read
       const notifQ = query(
         collection(db, 'notifications'),
         where('recipientId', '==', loggedInProfile.uid),
         where('senderId', '==', uid),
-        where('type', '==', 'follow'),
         where('read', '==', false)
       );
       const notifSnap = await getDocs(notifQ);
       notifSnap.forEach(d => {
-        batch.update(doc(db, 'notifications', d.id), { read: true });
+        if (['follow', 'message_invite'].includes(d.data().type)) {
+          batch.update(doc(db, 'notifications', d.id), { read: true });
+        }
+      });
+
+      await addDoc(collection(db, 'notifications'), {
+        recipientId: uid,
+        senderId: loggedInProfile.uid,
+        senderName: loggedInProfile.displayName,
+        type: 'friend_request_accepted',
+        read: false,
+        createdAt: serverTimestamp(),
       });
       
       await batch.commit();
+      sendRemotePushNotification({
+        recipientId: uid,
+        title: `تم قبول طلب المراسلة ✅`,
+        body: `وافق ${loggedInProfile.displayName} على طلبك، يمكنكما التحدث الآن!`,
+        icon: loggedInProfile.photoURL || '/prof_dali_logo.png',
+        tag: `accepted-${loggedInProfile.uid}`,
+        url: '/',
+        type: 'notification',
+      });
       playSound('notification');
     } catch (error) {
       handleFirestoreError(error, OperationType.UPDATE, 'invitations');

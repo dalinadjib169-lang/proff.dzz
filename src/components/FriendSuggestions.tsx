@@ -7,6 +7,8 @@ import { UserPlus, UserCheck, MapPin, Book, GraduationCap, Clock, Sparkles, Chev
 import { motion, AnimatePresence } from 'motion/react';
 import { Link } from 'react-router-dom';
 import { playSound } from '../lib/sounds';
+import { sendRemotePushNotification } from '../lib/notifications';
+import toast from 'react-hot-toast';
 import { handleFirestoreError, OperationType } from '../lib/firestore-errors';
 
 export default function FriendSuggestions() {
@@ -95,11 +97,23 @@ export default function FriendSuggestions() {
         senderId: loggedInProfile.uid,
         senderName: loggedInProfile.displayName,
         type: 'follow',
+        message: 'أرسل لك طلب صداقة ومراسلة',
         read: false,
         createdAt: serverTimestamp(),
       });
-      
+
+      sendRemotePushNotification({
+        recipientId: targetUid,
+        title: `طلب صداقة ومراسلة من ${loggedInProfile.displayName}`,
+        body: 'يريد التواصل معك عبر TeachDZ',
+        icon: loggedInProfile.photoURL || '/prof_dali_logo.png',
+        tag: `invite-${loggedInProfile.uid}`,
+        url: '/notifications',
+        type: 'notification',
+      });
+
       playSound('notification');
+      toast.success(`تم إرسال طلب الصداقة إلى ${targetName}`);
     } catch (error) {
       handleFirestoreError(error, OperationType.CREATE, 'invitations');
     }

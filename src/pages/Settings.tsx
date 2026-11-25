@@ -22,7 +22,11 @@ import {
   Plus,
   Image as ImageIcon,
   Smartphone,
-  Download
+  Download,
+  Bell,
+  BellRing,
+  Volume2,
+  VolumeX
 } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
 import { db } from '../firebase';
@@ -32,6 +36,8 @@ import { sendPasswordResetEmail, deleteUser, signOut, updatePassword } from 'fir
 import { auth } from '../firebase';
 import { useTranslation } from '../hooks/useTranslation';
 import CloudinaryUploader from '../components/CloudinaryUploader';
+import { subscribeToPushNotifications, displayNotification, playTestNotificationSound } from '../lib/notifications';
+import { setNotificationSoundEnabled, unlockAudio } from '../lib/sounds';
 
 export default function Settings() {
   const { profile } = useAuth();
@@ -49,6 +55,10 @@ export default function Settings() {
   const [friends, setFriends] = useState<UserProfile[]>([]);
   const [newPassword, setNewPassword] = useState('');
   const [confirmNewPassword, setConfirmNewPassword] = useState('');
+  const [pushStatus, setPushStatus] = useState<NotificationPermission>(
+    typeof window !== 'undefined' && 'Notification' in window ? Notification.permission : 'default'
+  );
+  const [activatingPush, setActivatingPush] = useState(false);
 
   useEffect(() => {
     if (profile) {
@@ -138,14 +148,65 @@ export default function Settings() {
       
       await updateDoc(userRef, { settings });
       await updateDoc(privateRef, { settings });
+      setNotificationSoundEnabled(settings.isNotificationSoundEnabled !== false);
       
-      alert("تم حفظ الإعدادات بنجاح");
+      toast.success("تم حفظ الإعدادات بنجاح");
     } catch (error) {
       console.error("Error saving settings:", error);
-      alert("فشل حفظ الإعدادات");
+      toast.error("فشل حفظ الإعدادات");
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleEnableBackgroundPush = async () => {
+    if (!profile) return;
+    setActivatingPush(true);
+    try {
+      unlockAudio();
+      const ok = await subscribeToPushNotifications(profile.uid);
+      const perm = typeof window !== 'undefined' && 'Notification' in window ? Notification.permission : 'default';
+      setPushStatus(perm);
+      const updatedSettings: UserSettings = {
+        ...settings,
+        isPushNotificationsEnabled: ok || perm === 'granted',
+        isNotificationSoundEnabled: settings.isNotificationSoundEnabled !== false
+      };
+      setSettings(updatedSettings);
+      await updateDoc(doc(db, 'users', profile.uid), { settings: updatedSettings });
+      await updateDoc(doc(db, 'users_private', profile.uid), { settings: updatedSettings });
+      setNotificationSoundEnabled(updatedSettings.isNotificationSoundEnabled !== false);
+
+      if (ok || perm === 'granted') {
+        playTestNotificationSound();
+        await displayNotification('تم تفعيل إشعارات TeachDZ', {
+          body: 'ستصلك الآن تنبيهات صوتية وكتابية للرسائل والتفاعلات حتى عند إغلاق التطبيق.',
+          soundType: 'notification',
+          url: '/notifications'
+        });
+        toast.success('تم تفعيل الإشعارات الصوتية والكتابية في الخلفية بنجاح!');
+      } else if (perm === 'denied') {
+        toast.error('تم حظر الإشعارات من المتصفح، يرجى السماح بها من إعدادات المتصفح');
+      } else {
+        toast.error('تعذر إكمال تفعيل الإشعارات');
+      }
+    } catch (error) {
+      console.error('Push enable error:', error);
+      toast.error('حدث خطأ أثناء تفعيل الإشعارات');
+    } finally {
+      setActivatingPush(false);
+    }
+  };
+
+  const handleTestNotification = async () => {
+    unlockAudio();
+    playTestNotificationSound();
+    await displayNotification('إشعار تجريبي من TeachDZ', {
+      body: 'هكذا تصلك الرسائل والإشعارات صوتياً وكتابياً مثل فيسبوك حتى عند إغلاق التطبيق.',
+      soundType: 'message',
+      url: '/notifications'
+    });
+    toast.success('تم إرسال إشعار تجريبي بصوت التنبيه');
   };
 
   const handleBlock = async (userId: string) => {
@@ -510,21 +571,92 @@ export default function Settings() {
             </div>
 
             <div className="space-y-6">
+              {/* Facebook-style Background Push & Sound Notifications */}
+              <div className="p-5 bg-gradient-to-br from-indigo-500/10 via-purple-500/10 to-cyan-500/10 border border-indigo-500/25 rounded-3xl space-y-4">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex items-center gap-3">
+                    <div className="w-11 h-11 rounded-2xl bg-indigo-600 flex items-center justify-center shadow-lg shadow-indigo-500/30 shrink-0">
+                      <BellRing className="w-5 h-5 text-white" />
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <h4 className="text-sm font-black text-slate-800 dark:text-white">إشعارات الخلفية والصوت (مثل فيسبوك)</h4>
+                        <span className={`px-2 py-0.5 rounded-lg text-[10px] font-black ${pushStatus === 'granted' ? 'bg-emerald-500/20 text-emerald-500' : 'bg-amber-500/20 text-amber-500'}`}>
+                          {pushStatus === 'granted' ? 'مفعّلة' : pushStatus === 'denied' ? 'محظورة من المتصفح' : 'غير مفعّلة'}
+                        </span>
+                      </div>
+                      <p className="text-xs text-slate-500 dark:text-slate-400 font-bold mt-1">
+                        وصول إشعارات صوتية وكتابية للرسائل والتعليقات حتى عند إغلاق التطبيق أو قفل الشاشة
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-between p-3.5 bg-white/70 dark:bg-slate-900/60 rounded-2xl border border-slate-200/60 dark:border-slate-700/50">
+                  <div className="flex items-center gap-3">
+                    {settings.isNotificationSoundEnabled !== false ? (
+                      <Volume2 className="w-5 h-5 text-indigo-500" />
+                    ) : (
+                      <VolumeX className="w-5 h-5 text-slate-400" />
+                    )}
+                    <div>
+                      <p className="text-xs font-black text-slate-800 dark:text-white">صوت الإشعارات والرسائل</p>
+                      <p className="text-[11px] text-slate-500 font-bold">نغمة تنبيه واضحة مع كل إشعار وارد</p>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const nextVal = settings.isNotificationSoundEnabled === false;
+                      setSettings({ ...settings, isNotificationSoundEnabled: nextVal });
+                      setNotificationSoundEnabled(nextVal);
+                      if (nextVal) {
+                        unlockAudio();
+                        playTestNotificationSound();
+                      }
+                    }}
+                    className={`w-14 h-8 rounded-full p-1 transition-all duration-300 ${settings.isNotificationSoundEnabled !== false ? 'bg-indigo-600' : 'bg-slate-300 dark:bg-slate-700'}`}
+                  >
+                    <div className={`w-6 h-6 bg-white rounded-full shadow-md transform transition-all duration-300 ${settings.isNotificationSoundEnabled !== false ? 'translate-x-6' : 'translate-x-0'}`} />
+                  </button>
+                </div>
+
+                <div className="flex flex-wrap items-center gap-2.5">
+                  <button
+                    type="button"
+                    onClick={handleEnableBackgroundPush}
+                    disabled={activatingPush}
+                    className="flex-1 min-w-[180px] flex items-center justify-center gap-2 px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-black shadow-lg shadow-indigo-600/20 transition-all disabled:opacity-60"
+                  >
+                    <Bell className="w-4 h-4" />
+                    {activatingPush ? 'جاري التفعيل...' : pushStatus === 'granted' ? 'تحديث ربط إشعارات الخلفية' : 'تفعيل إشعارات الخلفية'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleTestNotification}
+                    className="flex items-center justify-center gap-2 px-4 py-2.5 bg-slate-800 dark:bg-slate-700 hover:bg-slate-700 text-white rounded-xl text-xs font-black transition-all"
+                  >
+                    <Volume2 className="w-4 h-4 text-cyan-400" />
+                    تجربة الإشعار الصوتي والكتابي
+                  </button>
+                </div>
+              </div>
+
               <div className="p-4 bg-primary/10 border border-primary/20 rounded-2xl flex items-center justify-between gap-4 mb-4">
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 rounded-full bg-primary flex items-center justify-center">
                     <Zap className="w-5 h-5 text-white animate-pulse" />
                   </div>
                   <div>
-                    <h4 className="text-sm font-black text-slate-800 dark:text-white uppercase tracking-tighter">تفعيل الصوت للحلفية</h4>
+                    <h4 className="text-sm font-black text-slate-800 dark:text-white uppercase tracking-tighter">تفعيل الصوت في الخلفية</h4>
                     <p className="text-[10px] text-slate-500 font-bold">اضغط هنا للسماح للمتصفح بتشغيل الأذان والتنبيهات</p>
                   </div>
                 </div>
                 <button 
+                  type="button"
                   onClick={() => {
-                    const audio = new Audio('https://assets.mixkit.co/active_storage/sfx/1350/1350-preview.mp3');
-                    audio.volume = 0;
-                    audio.play().catch(() => {});
+                    unlockAudio();
+                    playTestNotificationSound();
                     toast.success('تم تفعيل الصلاحية الصوتية');
                   }}
                   className="px-4 py-2 bg-primary text-white rounded-xl text-[10px] font-black uppercase tracking-widest shadow-lg shadow-primary/20 hover:scale-105 transition-all"

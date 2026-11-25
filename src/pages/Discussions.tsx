@@ -1,11 +1,14 @@
 import React, { useState, useEffect } from 'react';
-import { MessageSquare, TrendingUp, Filter, Plus, ChevronRight, User, Loader2, X, Send } from 'lucide-react';
+import { MessageSquare, TrendingUp, Filter, Plus, ChevronRight, User, Loader2, X, Send, Copy, Smile, Reply, Forward } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
+import { toast } from 'react-hot-toast';
 import { db } from '../firebase';
-import { collection, query, orderBy, onSnapshot, addDoc, serverTimestamp, where, limit, doc, getDoc, updateDoc, increment, Timestamp, deleteDoc } from 'firebase/firestore';
+import { collection, query, orderBy, onSnapshot, addDoc, serverTimestamp, where, limit, doc, getDoc, updateDoc, increment, Timestamp, deleteDoc, deleteField } from 'firebase/firestore';
 import { useAuth } from '../hooks/useAuth';
 import { formatDistanceToNow } from 'date-fns';
 import { handleFirestoreError, OperationType } from '../lib/firestore-errors';
+import { copyToClipboard } from '../lib/utils';
+import { playSound } from '../lib/sounds';
 
 export default function Discussions() {
   const { profile } = useAuth();
@@ -17,6 +20,8 @@ export default function Discussions() {
   const [messages, setMessages] = useState<any[]>([]);
   const [newMessage, setNewMessage] = useState('');
   const [activeCategory, setActiveCategory] = useState('الكل');
+  const [replyToMsg, setReplyToMsg] = useState<any | null>(null);
+  const [emojiPickerMsgId, setEmojiPickerMsgId] = useState<string | null>(null);
 
   const categories = ['الكل', 'بيداغوجيا', 'أخبار', 'تكنولوجيا', 'إدارة', 'موارد'];
 
@@ -106,7 +111,9 @@ export default function Discussions() {
     if (!profile || !newMessage.trim() || !activeTopic) return;
 
     const msg = newMessage;
+    const currentReply = replyToMsg;
     setNewMessage('');
+    setReplyToMsg(null);
 
     try {
       await addDoc(collection(db, 'discussions', activeTopic.id, 'messages'), {
@@ -114,6 +121,13 @@ export default function Discussions() {
         senderId: profile.uid,
         senderName: profile.displayName,
         senderPhoto: profile.photoURL,
+        replyTo: currentReply
+          ? {
+              id: currentReply.id,
+              senderName: currentReply.senderName,
+              text: currentReply.text || '',
+            }
+          : null,
         createdAt: serverTimestamp()
       });
 
@@ -123,6 +137,44 @@ export default function Discussions() {
       });
     } catch (error) {
       handleFirestoreError(error, OperationType.CREATE, `discussions/${activeTopic.id}/messages`);
+    }
+  };
+
+  const handleToggleDiscussionReaction = async (msg: any, emoji: string) => {
+    if (!profile?.uid || !activeTopic) return;
+    const ref = doc(db, 'discussions', activeTopic.id, 'messages', msg.id);
+    const current = msg.reactions?.[profile.uid];
+    try {
+      if (current === emoji) {
+        await updateDoc(ref, { [`reactions.${profile.uid}`]: deleteField() });
+      } else {
+        await updateDoc(ref, { [`reactions.${profile.uid}`]: emoji });
+        playSound('like');
+      }
+    } catch (e) {
+      console.error('Discussion reaction error:', e);
+    }
+  };
+
+  const handleForwardDiscussionToGlobalChat = async (msg: any) => {
+    if (!profile || !msg.text) return;
+    try {
+      await addDoc(collection(db, 'messages'), {
+        roomId: 'global',
+        participants: ['global'],
+        senderId: profile.uid,
+        senderName: profile.displayName,
+        text: msg.text,
+        isForwarded: true,
+        forwardedFrom: `${msg.senderName} (من النقاشات)`,
+        seen: false,
+        clientCreatedAt: Date.now(),
+        createdAt: serverTimestamp(),
+      });
+      playSound('message');
+      toast.success('تمت إعادة إرسال الرسالة إلى قاعة الأساتذة العامة');
+    } catch (e) {
+      toast.error('تعذر إعادة الإرسال');
     }
   };
 
@@ -267,6 +319,7 @@ export default function Discussions() {
               {messages.map((msg, idx) => (
                 <motion.div
                   key={msg.id}
+                  id={`disc-msg-${msg.id}`}
                   initial={{ opacity: 0, x: idx % 2 === 0 ? 20 : -20 }}
                   animate={{ opacity: 1, x: 0 }}
                   className={`flex gap-4 ${msg.senderId === profile?.uid ? 'flex-row-reverse' : ''}`}
@@ -276,7 +329,7 @@ export default function Discussions() {
                     className="w-10 h-10 rounded-xl border-2 border-slate-800 object-cover shrink-0" 
                     referrerPolicy="no-referrer"
                   />
-                  <div className={`max-w-[80%] space-y-1 ${msg.senderId === profile?.uid ? 'text-right' : 'text-left'}`}>
+                  <div className={`max-w-[80%] space-y-1.5 ${msg.senderId === profile?.uid ? 'text-right' : 'text-left'}`}>
                     <div className="flex items-center gap-2 mb-1">
                       {msg.senderId === profile?.uid ? (
                         <>
@@ -294,12 +347,94 @@ export default function Discussions() {
                         </>
                       )}
                     </div>
-                    <div className={`p-4 rounded-3xl font-medium shadow-xl ${
+                    <div className={`relative p-4 rounded-3xl font-medium shadow-xl ${
                       msg.senderId === profile?.uid 
                         ? 'bg-indigo-600 text-white rounded-tr-none' 
                         : 'bg-slate-900 text-slate-100 border border-slate-800 rounded-tl-none'
                     }`}>
-                      <p className="whitespace-pre-wrap leading-relaxed text-sm" style={{ wordBreak: 'normal', overflowWrap: 'break-word' }} dir="auto">{msg.text}</p>
+                      {msg.replyTo && (
+                        <button
+                          type="button"
+                          onClick={() => document.getElementById(`disc-msg-${msg.replyTo.id}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' })}
+                          className="w-full text-right mb-2 p-2 rounded-xl text-[11px] bg-black/25 border-r-2 border-white/40 text-white/90 block"
+                        >
+                          <span className="font-black block">{msg.replyTo.senderName}</span>
+                          <span className="truncate block">{msg.replyTo.text}</span>
+                        </button>
+                      )}
+                      <p className="whitespace-pre-wrap leading-relaxed text-sm select-text" style={{ wordBreak: 'normal', overflowWrap: 'break-word' }} dir="auto">{msg.text}</p>
+
+                      {msg.reactions && Object.keys(msg.reactions).length > 0 && (
+                        <div className="flex flex-wrap gap-1 mt-2">
+                          {Object.entries(msg.reactions as Record<string, string>).map(([uid, emoji]) => (
+                            <button
+                              key={uid}
+                              type="button"
+                              onClick={() => handleToggleDiscussionReaction(msg, emoji)}
+                              className={`px-1.5 py-0.5 rounded-full text-xs bg-slate-950/80 border ${uid === profile?.uid ? 'border-indigo-400' : 'border-slate-700'}`}
+                            >
+                              {emoji}
+                            </button>
+                          ))}
+                        </div>
+                      )}
+
+                      {emojiPickerMsgId === msg.id && (
+                        <div className="mt-2 bg-slate-950 border border-slate-700 rounded-2xl p-1.5 flex flex-wrap gap-1 shadow-2xl">
+                          {['👍', '❤️', '😂', '👏', '🔥', '🙏'].map((emoji) => (
+                            <button
+                              key={emoji}
+                              type="button"
+                              onClick={() => {
+                                handleToggleDiscussionReaction(msg, emoji);
+                                setEmojiPickerMsgId(null);
+                              }}
+                              className="text-lg p-1 hover:scale-125 transition-transform"
+                            >
+                              {emoji}
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Action Bar: Emoji Reaction, Reply, Copy, Forward */}
+                    <div className={`flex items-center gap-1.5 ${msg.senderId === profile?.uid ? 'justify-end' : 'justify-start'}`}>
+                      <button
+                        type="button"
+                        onClick={() => setEmojiPickerMsgId(emojiPickerMsgId === msg.id ? null : msg.id)}
+                        className="p-1.5 rounded-lg bg-slate-900 border border-slate-800 text-slate-400 hover:text-amber-400 transition-colors"
+                        title="تفاعل بإيموجي"
+                      >
+                        <Smile className="w-3.5 h-3.5" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setReplyToMsg(msg)}
+                        className="p-1.5 rounded-lg bg-slate-900 border border-slate-800 text-slate-400 hover:text-indigo-400 transition-colors"
+                        title="رد كتابي"
+                      >
+                        <Reply className="w-3.5 h-3.5 rotate-180" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          const ok = await copyToClipboard(msg.text || '');
+                          if (ok) toast.success('تم نسخ النص');
+                        }}
+                        className="p-1.5 rounded-lg bg-slate-900 border border-slate-800 text-slate-400 hover:text-sky-400 transition-colors"
+                        title="نسخ"
+                      >
+                        <Copy className="w-3.5 h-3.5" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleForwardDiscussionToGlobalChat(msg)}
+                        className="p-1.5 rounded-lg bg-slate-900 border border-slate-800 text-slate-400 hover:text-emerald-400 transition-colors"
+                        title="إعادة إرسال إلى الدردشة العامة"
+                      >
+                        <Forward className="w-3.5 h-3.5" />
+                      </button>
                     </div>
                   </div>
                 </motion.div>
@@ -315,7 +450,18 @@ export default function Discussions() {
             </div>
 
             {/* Thread Input */}
-            <div className="p-6 bg-slate-900 border-t border-slate-800">
+            <div className="p-6 bg-slate-900 border-t border-slate-800 space-y-3">
+              {replyToMsg && (
+                <div className="flex items-center justify-between bg-slate-950 border border-indigo-500/30 rounded-2xl px-4 py-2 text-xs" dir="rtl">
+                  <div className="truncate">
+                    <span className="text-indigo-400 font-black">رد على {replyToMsg.senderName}: </span>
+                    <span className="text-slate-400">{replyToMsg.text}</span>
+                  </div>
+                  <button type="button" onClick={() => setReplyToMsg(null)} className="text-slate-400 hover:text-white p-1">
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+              )}
               <form onSubmit={handleSendMessage} className="relative">
                 <textarea
                   placeholder="شارك برأيك في هذا الموضوع..."

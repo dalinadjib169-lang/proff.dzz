@@ -5,7 +5,7 @@ import { toast } from 'react-hot-toast';
 import { useAuth } from './useAuth';
 import { db } from '../firebase';
 import { doc, updateDoc } from 'firebase/firestore';
-import { requestNotificationPermission, displayNotification } from '../lib/notifications';
+import { requestNotificationPermission, displayNotification, subscribeToPushNotifications } from '../lib/notifications';
 
 export function useBackgroundFeatures() {
   const { profile } = useAuth();
@@ -57,9 +57,13 @@ export function useBackgroundFeatures() {
       });
     }
     
-    // Request Notification Permissions
-    requestNotificationPermission();
-  }, []);
+    // Request Notification Permissions & subscribe when granted
+    requestNotificationPermission().then((perm) => {
+      if (perm === 'granted' && profile?.uid) {
+        subscribeToPushNotifications(profile.uid);
+      }
+    });
+  }, [profile?.uid]);
 
   // Prayer Times Monitoring
   useEffect(() => {
@@ -131,7 +135,9 @@ export function useBackgroundFeatures() {
     
     displayNotification(`حان الآن موعد أذان ${name}`, {
       body: 'اذكر الله وصل على النبي محمد صلى الله عليه وسلم',
-      icon: '/logo.png'
+      icon: '/prof_dali_logo.png',
+      soundType: 'notification',
+      url: '/'
     });
     
     athanSound.current?.play().catch(e => console.log('Audio blocked', e));
@@ -141,7 +147,9 @@ export function useBackgroundFeatures() {
   const playWaterReminder = () => {
     displayNotification('تذكير: اشرب الماء', {
       body: 'حافظ على رطوبة جسمك وصحتك، اشرب كوباً من الماء الآن.',
-      icon: '/logo.png'
+      icon: '/prof_dali_logo.png',
+      soundType: 'notification',
+      url: '/'
     });
     waterSound.current?.play().catch(e => console.error('Audio blocked', e));
     toast('💦 حان وقت شرب الماء!', { icon: '🥛' });

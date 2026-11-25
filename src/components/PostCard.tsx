@@ -3,14 +3,16 @@ import { db } from '../firebase';
 import { doc, updateDoc, arrayUnion, arrayRemove, collection, addDoc, serverTimestamp, query, where, orderBy, onSnapshot, deleteDoc, increment, Timestamp, limit } from 'firebase/firestore';
 import { useAuth } from '../hooks/useAuth';
 import { Post, Comment as CommentType, GroupPost } from '../types';
-import { ThumbsUp, MessageCircle, MessageSquare, Share2, MoreHorizontal, GraduationCap, Send, Trash2, Globe, Users, Lock as LockIcon, X, Smile, Edit2, Reply, Image as ImageIcon, Camera, EyeOff, Loader2, Flag, ShieldAlert, Facebook } from 'lucide-react';
+import { ThumbsUp, MessageCircle, MessageSquare, Share2, MoreHorizontal, GraduationCap, Send, Trash2, Globe, Users, Lock as LockIcon, X, Smile, Edit2, Reply, Image as ImageIcon, Camera, EyeOff, Loader2, Flag, ShieldAlert, Facebook, Copy } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { Link } from 'react-router-dom';
 import React from 'react';
 import { motion, AnimatePresence } from 'motion/react';
+import { toast } from 'react-hot-toast';
 import { playSound } from '../lib/sounds';
+import { sendRemotePushNotification } from '../lib/notifications';
 import { useUpload } from '../hooks/useUpload';
-import { cn } from '../lib/utils';
+import { cn, copyToClipboard } from '../lib/utils';
 import { checkAndBlockThreat } from '../lib/security';
 
 // Helper for dropdown
@@ -217,6 +219,18 @@ export default function PostCard({ post, isGroupPost, groupId, onDelete }: { pos
         reactions: newReactions,
         likes: newLikes
       });
+      if (!isRemoving && post.authorId && post.authorId !== profile.uid) {
+        const chosenEmoji = REACTIONS.find(r => r.type === type)?.emoji || '👍';
+        sendRemotePushNotification({
+          recipientId: post.authorId,
+          title: `${profile.displayName} تفاعل مع منشورك ${chosenEmoji}`,
+          body: (post.content || '').slice(0, 100) || 'تفاعل جديد على منشورك',
+          icon: profile.photoURL || '/prof_dali_logo.png',
+          tag: `like-${post.id}`,
+          url: '/notifications',
+          type: 'like',
+        });
+      }
     } catch (e) {
       setReactions(post.reactions || {});
       setLikes(post.likes || []);
@@ -316,6 +330,17 @@ export default function PostCard({ post, isGroupPost, groupId, onDelete }: { pos
         });
         setCommentCount(prev => prev + 1);
         playSound('comment');
+        if (post.authorId && post.authorId !== profile.uid) {
+          sendRemotePushNotification({
+            recipientId: post.authorId,
+            title: `تعليق جديد من ${profile.displayName}`,
+            body: text ? text.slice(0, 120) : 'أرفق صورة في تعليق على منشورك',
+            icon: profile.photoURL || '/prof_dali_logo.png',
+            tag: `comment-${post.id}`,
+            url: '/notifications',
+            type: 'comment',
+          });
+        }
       }
       
       setNewComment('');
@@ -366,10 +391,22 @@ export default function PostCard({ post, isGroupPost, groupId, onDelete }: { pos
     }
   };
 
+  const handleCopyPostText = async () => {
+    if (!post.content) {
+      toast.error('لا يوجد نص في هذا المنشور لنسخه');
+      return;
+    }
+    const ok = await copyToClipboard(post.content);
+    if (ok) toast.success('تم نسخ نص المنشور');
+    else toast.error('تعذر النسخ');
+    setIsShareMenuOpen(false);
+    setIsHeaderMenuOpen(false);
+  };
+
   const handleCopyLink = async () => {
     const url = window.location.origin + '/post/' + post.id;
-    await navigator.clipboard.writeText(url);
-    alert('تم نسخ رابط المنشور بنجاح!');
+    const ok = await copyToClipboard(url);
+    if (ok) toast.success('تم نسخ رابط المنشور بنجاح!');
     setIsShareMenuOpen(false);
   };
 
@@ -466,6 +503,11 @@ export default function PostCard({ post, isGroupPost, groupId, onDelete }: { pos
           onOpenChange={setIsHeaderMenuOpen}
           trigger={<button className="p-2 text-slate-500 hover:text-white transition-colors"><MoreHorizontal className="w-5 h-5" /></button>}
         >
+          {post.content && (
+            <button onClick={handleCopyPostText} className="w-full text-right px-4 py-2 text-xs font-bold text-slate-200 hover:bg-slate-800 flex items-center justify-end gap-2">
+              <Copy className="w-3.5 h-3.5 text-sky-400" /> نسخ نص المنشور
+            </button>
+          )}
           {(profile?.uid === post.authorId || profile?.email === 'dalinadjib1990@gmail.com') && (
             <>
               <button onClick={() => setIsEditingPost(true)} className="w-full text-right px-4 py-2 text-xs font-bold text-slate-300 hover:bg-slate-800 flex items-center justify-end gap-2">
@@ -621,6 +663,17 @@ export default function PostCard({ post, isGroupPost, groupId, onDelete }: { pos
             <MessageCircle className="w-4.5 h-4.5" />
             <span>{commentCount > 0 ? commentCount : 'تعليق'}</span>
           </button>
+
+          {post.content && (
+            <button
+              onClick={handleCopyPostText}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-black text-slate-400 hover:text-sky-400 hover:bg-slate-800 transition-all"
+              title="نسخ نص المنشور"
+            >
+              <Copy className="w-4 h-4" />
+              <span className="hidden sm:inline">نسخ</span>
+            </button>
+          )}
         </div>
         <Dropdown 
           align="left" 
@@ -639,6 +692,11 @@ export default function PostCard({ post, isGroupPost, groupId, onDelete }: { pos
               إعادة نشر بصفحتك المعلمة <Share2 className="w-4.5 h-4.5" />
             </button>
           </div>
+          {post.content && (
+            <button onClick={handleCopyPostText} className="w-full text-right px-4 py-2.5 text-xs font-bold text-slate-300 hover:bg-slate-800 flex items-center justify-end gap-2 border-t border-slate-800">
+              نسخ نص المنشور <Copy className="w-3.5 h-3.5 text-sky-400" />
+            </button>
+          )}
           <button onClick={handleShareToChat} className="w-full text-right px-4 py-2.5 text-xs font-bold text-slate-300 hover:bg-slate-800 flex items-center justify-end gap-2 border-t border-slate-800">
             مشاركة مع زميل أو مجموعة <MessageSquare className="w-3.5 h-3.5" />
           </button>

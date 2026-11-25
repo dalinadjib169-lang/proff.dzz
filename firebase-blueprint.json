@@ -65,7 +65,9 @@
             "theme": { "type": "string", "enum": ["light", "dark"] },
             "fontSize": { "type": "string", "enum": ["small", "medium", "large"] },
             "fontType": { "type": "string", "enum": ["sans", "serif", "mono"] },
-            "defaultPostPrivacy": { "type": "string", "enum": ["public", "friends", "private"] }
+            "defaultPostPrivacy": { "type": "string", "enum": ["public", "friends", "private"] },
+            "isPushNotificationsEnabled": { "type": "boolean" },
+            "isNotificationSoundEnabled": { "type": "boolean" }
           }
         },
         "reminders": {
@@ -131,9 +133,11 @@
         "recipientId": { "type": "string" },
         "senderId": { "type": "string" },
         "senderName": { "type": "string" },
-        "type": { "type": "string", "enum": ["like", "comment", "follow", "missed_call", "market_interest"] },
+        "type": { "type": "string", "enum": ["like", "comment", "follow", "message_invite", "missed_call", "market_interest", "group_invite", "group_request", "group_accepted", "group_rejected", "friend_request_accepted", "friend_request_declined", "group_addition", "group_removed", "group_disbanded"] },
         "reactionType": { "type": "string" },
         "postId": { "type": "string" },
+        "groupId": { "type": "string" },
+        "groupName": { "type": "string" },
         "message": { "type": "string" },
         "callType": { "type": "string" },
         "read": { "type": "boolean" },
@@ -157,6 +161,9 @@
         "senderName": { "type": "string" },
         "seen": { "type": "boolean" },
         "reactions": { "type": "object" },
+        "replyTo": { "type": "object" },
+        "isForwarded": { "type": "boolean" },
+        "forwardedFrom": { "type": "string" },
         "clientCreatedAt": { "type": "number" },
         "createdAt": { "type": "string", "format": "date-time" }
       },
@@ -209,6 +216,8 @@
         "recipientId": { "type": "string" },
         "participants": { "type": "array", "items": { "type": "string" } },
         "status": { "type": "string", "enum": ["pending", "accepted", "declined"] },
+        "inviteMessage": { "type": "string" },
+        "updatedAt": { "type": "string", "format": "date-time" },
         "createdAt": { "type": "string", "format": "date-time" }
       },
       "required": ["senderId", "recipientId", "participants", "status", "createdAt"]
@@ -297,10 +306,14 @@
       "properties": {
         "id": { "type": "string" },
         "name": { "type": "string" },
+        "description": { "type": "string" },
         "photoURL": { "type": "string" },
         "participants": { "type": "array", "items": { "type": "string" } },
+        "admins": { "type": "array", "items": { "type": "string" } },
         "createdBy": { "type": "string" },
         "isGroup": { "type": "boolean" },
+        "settings": { "type": "object" },
+        "pinnedMessage": { "type": "object" },
         "lastMessage": { "type": "string" },
         "lastTime": { "type": "string", "format": "date-time" },
         "createdAt": { "type": "string", "format": "date-time" }

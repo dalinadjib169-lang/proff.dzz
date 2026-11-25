@@ -3,10 +3,12 @@ import { db } from '../firebase';
 import { doc, updateDoc, deleteDoc, arrayUnion, arrayRemove, serverTimestamp } from 'firebase/firestore';
 import { useAuth } from '../hooks/useAuth';
 import { Comment } from '../types';
-import { MoreHorizontal, Edit3, Trash2, Reply, Send, X, Image as ImageIcon, ThumbsUp, Heart, MessageCircle } from 'lucide-react';
+import { MoreHorizontal, Edit3, Trash2, Reply, Send, X, Image as ImageIcon, ThumbsUp, Heart, MessageCircle, Copy } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { motion, AnimatePresence } from 'motion/react';
+import { toast } from 'react-hot-toast';
 import { playSound } from '../lib/sounds';
+import { copyToClipboard } from '../lib/utils';
 import { handleFirestoreError, OperationType } from '../lib/firestore-errors';
 
 interface CommentItemProps {
@@ -244,6 +246,18 @@ export default function CommentItem({
               <Reply className="w-3 h-3" />
               رد
             </button>
+            {comment.content && (
+              <button
+                onClick={async () => {
+                  const ok = await copyToClipboard(comment.content);
+                  if (ok) toast.success('تم نسخ التعليق');
+                }}
+                className="text-[10px] font-black text-slate-500 hover:text-sky-400 transition-all flex items-center gap-1"
+              >
+                <Copy className="w-3 h-3" />
+                نسخ
+              </button>
+            )}
           </div>
         )}
       </div>

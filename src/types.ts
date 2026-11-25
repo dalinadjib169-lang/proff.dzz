@@ -82,6 +82,8 @@ export interface UserSettings {
   isAthanEnabled?: boolean;
   isWaterEnabled?: boolean;
   waterReminderMinutes?: number;
+  isPushNotificationsEnabled?: boolean;
+  isNotificationSoundEnabled?: boolean;
 }
 
 export interface Product {
@@ -122,6 +124,13 @@ export interface Message {
   videoUrl?: string;
   seen: boolean;
   reactions?: { [userId: string]: string };
+  replyTo?: {
+    text: string;
+    senderName: string;
+    id: string;
+  } | null;
+  isForwarded?: boolean;
+  forwardedFrom?: string;
   createdAt: Timestamp;
 }
 
@@ -162,12 +171,43 @@ export interface Notification {
   recipientId: string;
   senderId: string;
   senderName: string;
-  type: 'like' | 'comment' | 'follow' | 'market_interest' | 'group_invite' | 'group_request' | 'group_accepted' | 'group_rejected' | 'friend_request_accepted' | 'friend_request_declined' | 'group_addition';
+  type: 'like' | 'comment' | 'follow' | 'message_invite' | 'market_interest' | 'group_invite' | 'group_request' | 'group_accepted' | 'group_rejected' | 'friend_request_accepted' | 'friend_request_declined' | 'group_addition' | 'group_removed' | 'group_disbanded';
   postId?: string;
   groupId?: string;
+  groupName?: string;
   message?: string;
   read: boolean;
   createdAt: Timestamp;
+}
+
+export interface ChatRoomSettings {
+  onlyAdminsCanSend?: boolean;
+  allowMedia?: boolean;
+  allowVoice?: boolean;
+  allowForward?: boolean;
+  allowMembersAdd?: boolean;
+}
+
+export interface ChatRoom {
+  id?: string;
+  uid: string;
+  name: string;
+  displayName?: string;
+  description?: string;
+  photoURL?: string;
+  participants: string[];
+  admins?: string[];
+  createdBy: string;
+  isGroup: boolean;
+  settings?: ChatRoomSettings;
+  pinnedMessage?: {
+    id: string;
+    text: string;
+    senderName: string;
+  } | null;
+  lastMessage?: string;
+  lastTime?: Timestamp | any;
+  createdAt?: Timestamp | any;
 }
 
 export interface EducationalGroup {

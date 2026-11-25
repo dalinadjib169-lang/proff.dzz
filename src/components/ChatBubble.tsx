@@ -55,21 +55,32 @@ import {
   ShieldAlert,
   Eye,
   EyeOff,
+  Copy,
+  Forward,
+  Settings,
+  Shield,
+  Lock,
+  Unlock,
+  Pin,
+  Bell,
+  BellRing,
 } from 'lucide-react';
 import { db, storage, onConnectionChange } from '../firebase';
-import { collection, query, orderBy, onSnapshot, addDoc, serverTimestamp, where, limit, Timestamp, updateDoc, doc, arrayUnion, arrayRemove, setDoc, writeBatch, getDoc, deleteDoc, getDocs } from 'firebase/firestore';
+import { collection, query, orderBy, onSnapshot, addDoc, serverTimestamp, where, limit, Timestamp, updateDoc, doc, arrayUnion, arrayRemove, setDoc, writeBatch, getDoc, deleteDoc, getDocs, deleteField } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL, uploadString, uploadBytesResumable } from 'firebase/storage';
 import { useAuth } from '../hooks/useAuth';
-import { UserProfile } from '../types';
+import { ChatRoom, UserProfile } from '../types';
 import { formatDistanceToNow } from 'date-fns';
 import { Link } from 'react-router-dom';
 import { handleFirestoreError, OperationType } from '../lib/firestore-errors';
-import { playSound } from '../lib/sounds';
-import { displayNotification } from '../lib/notifications';
+import { playSound, unlockAudio } from '../lib/sounds';
+import { displayNotification, sendRemotePushNotification, subscribeToPushNotifications } from '../lib/notifications';
+import { copyToClipboard } from '../lib/utils';
 import { useUpload } from '../hooks/useUpload';
 import AgoraRTC, { IAgoraRTCClient, ICameraVideoTrack, IMicrophoneAudioTrack, IAgoraRTCRemoteUser } from 'agora-rtc-sdk-ng';
 
 import ImageLightbox from './ImageLightbox';
+import GroupManagementModal from './GroupManagementModal';
 import { useUnreadMessages } from '../hooks/useUnreadMessages';
 
 interface Message {
@@ -82,6 +93,8 @@ interface Message {
   createdAt: any;
   reactions?: { [uid: string]: string };
   deletedFor?: string[];
+  isForwarded?: boolean;
+  forwardedFrom?: string;
   replyTo?: {
     text: string;
     senderName: string;
@@ -206,9 +219,29 @@ export default function ChatBubble() {
   });
   const [users, setUsers] = useState<UserProfile[]>([]);
   const [conversations, setConversations] = useState<any[]>([]);
+  const [chatRooms, setChatRooms] = useState<any[]>([]);
   const [messages, setMessages] = useState<any[]>([]);
   const [unreadMessages, setUnreadMessages] = useState<any[]>([]);
   const [cachedUsers, setCachedUsers] = useState<{[uid: string]: any}>({});
+  const [forwardingMessage, setForwardingMessage] = useState<any | null>(null);
+  const [forwardSearch, setForwardSearch] = useState('');
+  const [forwardTargets, setForwardTargets] = useState<Array<{ id: string; isGroup: boolean; name: string; participants: string[] }>>([]);
+  const [isForwarding, setIsForwarding] = useState(false);
+  const [highlightMessageId, setHighlightMessageId] = useState<string | null>(null);
+  const [showGroupTools, setShowGroupTools] = useState(false);
+  const [groupSearchTerm, setGroupSearchTerm] = useState('');
+  const [groupDescription, setGroupDescription] = useState('');
+  const [groupCreateSettings, setGroupCreateSettings] = useState({
+    onlyAdminsCanSend: false,
+    allowMedia: true,
+    allowVoice: true,
+    allowForward: true,
+    allowMembersAdd: false,
+  });
+  const [pushPerm, setPushPerm] = useState<NotificationPermission>(
+    typeof window !== 'undefined' && 'Notification' in window ? window.Notification.permission : 'default'
+  );
+  const [roomsLoaded, setRoomsLoaded] = useState(false);
 
   const [activeChatHeads, setActiveChatHeads] = useState<UserProfile[]>(() => {
     const saved = localStorage.getItem('active_chat_heads');
@@ -321,8 +354,15 @@ export default function ChatBubble() {
     });
 
     const unsubscribeRooms = onSnapshot(qRooms, (snapshot) => {
-      // Logic to merge rooms info with conversations if needed
-      // For now we'll just use the message-based approach for recency
+      const roomsData = snapshot.docs.map(d => ({
+        id: d.id,
+        uid: d.id,
+        ...d.data(),
+        isGroup: true,
+        displayName: d.data().name || 'مجموعة'
+      }));
+      setChatRooms(roomsData);
+      setRoomsLoaded(true);
     }, (error) => {
       handleFirestoreError(error, OperationType.LIST, 'chat_rooms');
     });
@@ -332,6 +372,26 @@ export default function ChatBubble() {
       unsubscribeRooms();
     };
   }, [profile?.uid]);
+
+  // Keep active group chat synced in real time with chat_rooms updates
+  useEffect(() => {
+    if (!roomsLoaded || !activeChat?.isGroup || !activeChat?.uid) return;
+    const matched = chatRooms.find((r) => r.uid === activeChat.uid);
+    if (matched) {
+      setActiveChat((prev: any) => {
+        if (!prev || prev.uid !== matched.uid) return prev;
+        return {
+          ...prev,
+          ...matched,
+          displayName: matched.name || matched.displayName || prev.displayName,
+        };
+      });
+    } else {
+      setShowGroupTools(false);
+      setActiveChat(null);
+      toast('تمت إزالتك من المجموعة أو تم تفكيكها');
+    }
+  }, [chatRooms, roomsLoaded]);
 
   useEffect(() => {
     const handleShare = (e: any) => {
@@ -575,7 +635,7 @@ export default function ChatBubble() {
                     </div>
                     <div className="mr-3 flex-1 text-right">
                       <p className="text-sm font-bold text-white">
-                        {data.senderName}
+                        {data.isInvite ? `📩 دعوة محادثة من ${data.senderName}` : data.senderName}
                       </p>
                       <p className="mt-1 text-xs text-slate-300 line-clamp-1 font-sans">
                         {data.text || '💬 أرسل لك ملفاً/صوت/صورة'}
@@ -602,13 +662,18 @@ export default function ChatBubble() {
             { duration: 4500 }
           );
 
-          // Background Notification for messages
+          // Background Notification for messages (with sound & text even when minimized/closed)
           if (document.visibilityState !== 'visible') {
-            displayNotification(`رسالة جديدة من ${data.senderName}`, {
-              body: data.text || 'أرسل لك ملفاً/صورة',
-              icon: senderPhoto,
-              tag: 'new-message'
-            });
+            displayNotification(
+              data.isInvite ? `دعوة محادثة جديدة من ${data.senderName}` : `رسالة جديدة من ${data.senderName}`,
+              {
+                body: data.text || 'أرسل لك ملفاً/صورة',
+                icon: senderPhoto,
+                tag: `msg-${latestChange.doc.id}`,
+                url: '/',
+                soundType: 'message',
+              }
+            );
           }
         }
       }
@@ -1175,7 +1240,7 @@ export default function ChatBubble() {
   useEffect(() => {
     if (!profile?.uid) return;
 
-    const q = query(collection(db, 'users'), limit(100));
+    const q = query(collection(db, 'users'), limit(300));
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const allUsers = snapshot.docs
         .map(doc => ({ uid: doc.id, ...doc.data() })) as UserProfile[];
@@ -1200,7 +1265,7 @@ export default function ChatBubble() {
     const handleOpenChat = (e: any) => {
       const user = e.detail as UserProfile;
       if (profile?.blockedUsers?.includes(user.uid) || user.blockedUsers?.includes(profile?.uid || '')) {
-        alert("You cannot message this user.");
+        toast.error('لا يمكنك مراسلة هذا المستخدم');
         return;
       }
       setActiveChat(user);
@@ -1252,16 +1317,15 @@ export default function ChatBubble() {
     }
   }, [incomingCall]);
 
-  // Check friendship status for activeChat
+  // Check friendship status for activeChat (also listen to all invitations in lobby)
   useEffect(() => {
     setLocalIsFriendOverride(false); // Reset override on chat change
-    if (!profile?.uid || !activeChat?.uid || activeChat.uid === 'global') {
-      setIsFriend(true); 
+    if (!profile?.uid) {
+      setAllInvitations([]);
+      setIsFriend(false);
       setFriendRequest(null);
       return;
     }
-
-    const isAlreadyFriend = !!(profile.friends?.includes(activeChat.uid) || profile.followers?.includes(activeChat.uid) || profile.following?.includes(activeChat.uid));
 
     const q = query(
       collection(db, 'invitations'),
@@ -1271,8 +1335,15 @@ export default function ChatBubble() {
     const unsubscribe = onSnapshot(q, (snap) => {
       const invs = snap.docs.map(d => ({ id: d.id, ...d.data() })) as any[];
       setAllInvitations(invs);
+
+      if (!activeChat?.uid || activeChat.uid === 'global' || activeChat.isGroup) {
+        setIsFriend(true);
+        setFriendRequest(null);
+        return;
+      }
+
+      const isAlreadyFriend = !!profile.friends?.includes(activeChat.uid);
       const inv = invs.find(i => i.participants.includes(activeChat.uid));
-      
       if (inv) {
         setFriendRequest(inv);
         setIsFriend(inv.status === 'accepted' || isAlreadyFriend);
@@ -1285,93 +1356,59 @@ export default function ChatBubble() {
     });
 
     return unsubscribe;
-  }, [profile, activeChat?.uid]);
+  }, [profile?.uid, profile?.friends, activeChat?.uid, activeChat?.isGroup]);
 
-  const handleAcceptRequest = async () => {
-    if (!friendRequest || !profile?.uid) {
-      console.warn("Cannot accept request: missing friendRequest or profile UID");
-      return;
-    }
-    setIsAccepting(true);
-    try {
-      const batch = writeBatch(db);
-      
-      // Update invitation status
-      batch.update(doc(db, 'invitations', friendRequest.id), { 
-        status: 'accepted',
-        updatedAt: serverTimestamp()
-      });
-      
-      // Update both users' friends and followers/following
-      const myRef = doc(db, 'users', profile.uid);
-      const theirRef = doc(db, 'users', activeChat!.uid);
-      
-      batch.update(myRef, {
-        friends: arrayUnion(activeChat!.uid),
-        followers: arrayUnion(activeChat!.uid),
-        following: arrayUnion(activeChat!.uid)
-      });
-      
-      batch.update(theirRef, {
-        friends: arrayUnion(profile.uid),
-        followers: arrayUnion(profile.uid),
-        following: arrayUnion(profile.uid)
-      });
+  // Resolve missing user profiles referenced by pending invitations
+  useEffect(() => {
+    if (!profile?.uid || allInvitations.length === 0) return;
+    const missingUids = allInvitations
+      .flatMap((inv) => inv.participants || [])
+      .filter((uid: string) => uid && uid !== profile.uid && !users.find((u) => u.uid === uid) && !cachedUsers[uid]);
 
-      // Notify recipient (the one who sent the request)
-      await addDoc(collection(db, 'notifications'), {
-        recipientId: activeChat!.uid,
-        senderId: profile.uid,
-        senderName: profile.displayName,
-        type: 'friend_request_accepted',
-        read: false,
-        createdAt: serverTimestamp()
-      });
-      
-      await batch.commit();
-      setLocalIsFriendOverride(true);
+    if (missingUids.length === 0) return;
+    Array.from(new Set(missingUids)).forEach(async (uid) => {
+      try {
+        const snap = await getDoc(doc(db, 'users', uid));
+        if (snap.exists()) {
+          setCachedUsers((prev) => ({ ...prev, [uid]: { uid: snap.id, ...snap.data() } }));
+        }
+      } catch (e) {
+        console.error('Error caching invitation user:', e);
+      }
+    });
+  }, [allInvitations, users, profile?.uid]);
+
+  const activeGroupRoom: any = activeChat?.isGroup
+    ? chatRooms.find((r) => r.uid === activeChat.uid) || activeChat
+    : null;
+  const isGroupAdmin = !!(
+    activeGroupRoom &&
+    (activeGroupRoom.createdBy === profile?.uid || (activeGroupRoom.admins || []).includes(profile?.uid))
+  );
+  const groupSettings = activeGroupRoom?.settings || {};
+  const isGroupLockedForMe = !!(activeChat?.isGroup && groupSettings.onlyAdminsCanSend && !isGroupAdmin);
+  const canSendMediaInChat = !activeChat?.isGroup || groupSettings.allowMedia !== false || isGroupAdmin;
+  const canSendVoiceInChat = !activeChat?.isGroup || groupSettings.allowVoice !== false || isGroupAdmin;
+  const canForwardInChat = !activeChat?.isGroup || groupSettings.allowForward !== false || isGroupAdmin;
+
+  const handleEnablePushInChat = async () => {
+    if (!profile?.uid) return;
+    unlockAudio();
+    const ok = await subscribeToPushNotifications(profile.uid);
+    const perm = typeof window !== 'undefined' && 'Notification' in window ? window.Notification.permission : 'default';
+    setPushPerm(perm);
+    if (ok || perm === 'granted') {
       playSound('notification');
-      toast.success('تم قبول طلب المراسلة!');
-    } catch (e) {
-      console.error("Error accepting request:", e);
-      toast.error('حدث خطأ أثناء قبول الطلب');
-    } finally {
-      setIsAccepting(false);
+      toast.success('تم تفعيل الإشعارات الصوتية والكتابية في الخلفية');
+    } else {
+      toast.error('يرجى السماح بالإشعارات من إعدادات المتصفح');
     }
   };
 
-  const handleDeclineRequest = async () => {
-    if (!friendRequest || !profile?.uid) return;
+  const handleSendChatRequest = async () => {
+    if (!profile?.uid || !activeChat || activeChat.uid === 'global' || activeChat.isGroup) return;
+    if (friendRequest) return;
     try {
-      // Delete invitation
-      await deleteDoc(doc(db, 'invitations', friendRequest.id));
-      
-      await addDoc(collection(db, 'notifications'), {
-        recipientId: activeChat!.uid,
-        senderId: profile.uid,
-        senderName: profile.displayName,
-        type: 'friend_request_declined',
-        read: false,
-        createdAt: serverTimestamp()
-      });
-      
-      setActiveChat(null);
-      playSound('notification');
-      toast.success('تم رفض طلب المراسلة');
-    } catch (e) {
-      console.error("Error declining request:", e);
-      toast.error('حدث خطأ أثناء رفض الطلب');
-    }
-  };
-
-  const handleSendMessage = async (e: React.FormEvent, type: 'text' | 'image' | 'audio' = 'text', directFile?: File) => {
-    if (e) e.preventDefault();
-    
-    const hasFiles = selectedFiles.length > 0 || !!directFile;
-    if (!newMessage.trim() && !hasFiles && type === 'text') return;
-    if (!profile || !activeChat) return;
-
-    if (!isFriend && activeChat.uid !== 'global' && !activeChat.isGroup && !friendRequest) {
       await addDoc(collection(db, 'invitations'), {
         senderId: profile.uid,
         recipientId: activeChat.uid,
@@ -1385,30 +1422,243 @@ export default function ChatBubble() {
         senderId: profile.uid,
         senderName: profile.displayName,
         type: 'follow',
+        message: 'أرسل لك طلب صداقة ومراسلة',
         read: false,
-        createdAt: serverTimestamp()
+        createdAt: serverTimestamp(),
+      });
+
+      sendRemotePushNotification({
+        recipientId: activeChat.uid,
+        title: `طلب مراسلة جديد من ${profile.displayName}`,
+        body: 'يريد التواصل معك عبر TeachDZ — اضغط للقبول',
+        icon: profile.photoURL || '/prof_dali_logo.png',
+        tag: `invite-${profile.uid}`,
+        url: '/',
+        type: 'notification',
+      });
+
+      playSound('notification');
+      toast.success('تم إرسال طلب الصداقة والمراسلة بنجاح');
+    } catch (e) {
+      console.error('Error sending chat request:', e);
+      toast.error('تعذر إرسال طلب المراسلة');
+    }
+  };
+
+  const handleCancelRequest = async () => {
+    if (!friendRequest?.id) return;
+    try {
+      await deleteDoc(doc(db, 'invitations', friendRequest.id));
+      toast.success('تم إلغاء طلب المراسلة');
+    } catch (e) {
+      console.error('Cancel request error:', e);
+      toast.error('تعذر إلغاء الطلب');
+    }
+  };
+
+  const handleAcceptRequest = async (invObj?: any, targetPeer?: any) => {
+    const targetInv = invObj && invObj.id ? invObj : friendRequest;
+    if (!targetInv || !profile?.uid) {
+      console.warn("Cannot accept request: missing invitation or profile UID");
+      return;
+    }
+    const peerUid =
+      targetPeer?.uid ||
+      (targetInv.senderId === profile.uid ? targetInv.recipientId : targetInv.senderId) ||
+      activeChat?.uid;
+    if (!peerUid) return;
+
+    setIsAccepting(true);
+    try {
+      const batch = writeBatch(db);
+
+      batch.update(doc(db, 'invitations', targetInv.id), {
+        status: 'accepted',
+        updatedAt: serverTimestamp(),
+      });
+
+      const myRef = doc(db, 'users', profile.uid);
+      const theirRef = doc(db, 'users', peerUid);
+
+      batch.update(myRef, {
+        friends: arrayUnion(peerUid),
+        followers: arrayUnion(peerUid),
+        following: arrayUnion(peerUid),
+      });
+
+      batch.update(theirRef, {
+        friends: arrayUnion(profile.uid),
+        followers: arrayUnion(profile.uid),
+        following: arrayUnion(profile.uid),
+      });
+
+      // Mark unread invite/follow notifications from this peer as read
+      const notifQ = query(
+        collection(db, 'notifications'),
+        where('recipientId', '==', profile.uid),
+        where('senderId', '==', peerUid),
+        where('read', '==', false)
+      );
+      const notifSnap = await getDocs(notifQ);
+      notifSnap.forEach((d) => {
+        const nType = d.data().type;
+        if (nType === 'follow' || nType === 'message_invite') {
+          batch.update(doc(db, 'notifications', d.id), { read: true });
+        }
+      });
+
+      await addDoc(collection(db, 'notifications'), {
+        recipientId: peerUid,
+        senderId: profile.uid,
+        senderName: profile.displayName,
+        type: 'friend_request_accepted',
+        read: false,
+        createdAt: serverTimestamp(),
+      });
+
+      await batch.commit();
+
+      sendRemotePushNotification({
+        recipientId: peerUid,
+        title: `تم قبول طلب المراسلة ✅`,
+        body: `وافق ${profile.displayName} على طلب التواصل، يمكنكما التحدث الآن!`,
+        icon: profile.photoURL || '/prof_dali_logo.png',
+        tag: `accepted-${profile.uid}`,
+        url: '/',
+        type: 'notification',
+      });
+
+      if (activeChat?.uid === peerUid) {
+        setLocalIsFriendOverride(true);
+      }
+      playSound('notification');
+      toast.success('تم قبول طلب المراسلة! يمكنكما التحدث الآن');
+    } catch (e) {
+      console.error("Error accepting request:", e);
+      toast.error('حدث خطأ أثناء قبول الطلب');
+    } finally {
+      setIsAccepting(false);
+    }
+  };
+
+  const handleDeclineRequest = async (invObj?: any, targetPeer?: any) => {
+    const targetInv = invObj && invObj.id ? invObj : friendRequest;
+    if (!targetInv || !profile?.uid) return;
+    const peerUid =
+      targetPeer?.uid ||
+      (targetInv.senderId === profile.uid ? targetInv.recipientId : targetInv.senderId) ||
+      activeChat?.uid;
+    if (!peerUid) return;
+
+    try {
+      await deleteDoc(doc(db, 'invitations', targetInv.id));
+
+      const notifQ = query(
+        collection(db, 'notifications'),
+        where('recipientId', '==', profile.uid),
+        where('senderId', '==', peerUid),
+        where('read', '==', false)
+      );
+      const notifSnap = await getDocs(notifQ);
+      await Promise.all(
+        notifSnap.docs
+          .filter((d) => ['follow', 'message_invite'].includes(d.data().type))
+          .map((d) => updateDoc(doc(db, 'notifications', d.id), { read: true }))
+      );
+
+      await addDoc(collection(db, 'notifications'), {
+        recipientId: peerUid,
+        senderId: profile.uid,
+        senderName: profile.displayName,
+        type: 'friend_request_declined',
+        read: false,
+        createdAt: serverTimestamp(),
+      });
+
+      if (!invObj?.id) {
+        setActiveChat(null);
+      }
+      playSound('notification');
+      toast.success('تم رفض طلب المراسلة');
+    } catch (e) {
+      console.error("Error declining request:", e);
+      toast.error('حدث خطأ أثناء رفض الطلب');
+    }
+  };
+
+  const handleSendMessage = async (e: React.FormEvent, type: 'text' | 'image' | 'audio' = 'text', directFile?: File) => {
+    if (e) e.preventDefault();
+
+    const hasFiles = selectedFiles.length > 0 || !!directFile;
+    if (!newMessage.trim() && !hasFiles && type === 'text') return;
+    if (!profile || !activeChat) return;
+
+    // Group tool permissions
+    if (isGroupLockedForMe) {
+      toast.error('الإرسال مغلق حالياً ومقتصر على مشرفي المجموعة');
+      return;
+    }
+    if ((type === 'image' || selectedFiles.length > 0) && !canSendMediaInChat) {
+      toast.error('إرسال الصور والملفات معطّل من طرف مشرف المجموعة');
+      return;
+    }
+    if (type === 'audio' && !canSendVoiceInChat) {
+      toast.error('الرسائل الصوتية معطّلة من طرف مشرف المجموعة');
+      return;
+    }
+
+    const isPrivatePeer = activeChat.uid !== 'global' && !activeChat.isGroup;
+    const isUnauthorizedChat = isPrivatePeer && !isFriend && !localIsFriendOverride;
+
+    if (isUnauthorizedChat && friendRequest && friendRequest.status === 'pending') {
+      toast.error('لا يمكن إرسال رسائل إضافية حتى يتم قبول طلب المراسلة');
+      return;
+    }
+
+    let isInviteMessage = false;
+    const previewInviteText =
+      newMessage.trim() ||
+      (type === 'audio' ? 'رسالة صوتية' : 'صورة مرفقة');
+
+    if (isUnauthorizedChat && !friendRequest) {
+      isInviteMessage = true;
+      await addDoc(collection(db, 'invitations'), {
+        senderId: profile.uid,
+        recipientId: activeChat.uid,
+        participants: [profile.uid, activeChat.uid],
+        status: 'pending',
+        inviteMessage: previewInviteText.slice(0, 200),
+        createdAt: serverTimestamp(),
+      });
+
+      await addDoc(collection(db, 'notifications'), {
+        recipientId: activeChat.uid,
+        senderId: profile.uid,
+        senderName: profile.displayName,
+        type: 'message_invite',
+        message: previewInviteText.slice(0, 120),
+        read: false,
+        createdAt: serverTimestamp(),
       });
     }
 
     const roomId = activeChat.uid === 'global' ? 'global' : (activeChat.isGroup ? activeChat.uid : [profile.uid, activeChat.uid].sort().join('_'));
     const participants = activeChat.uid === 'global' ? ['global'] : (activeChat.isGroup ? activeChat.participants : [profile.uid, activeChat.uid].sort());
-    
+
     try {
       const messageText = newMessage;
       const isReply = !!replyMessage;
       const currentReply = replyMessage;
-      
-      // Handle files (selected or direct)
+
       const filesToUpload = directFile ? [directFile] : selectedFiles;
-      
+
       if (filesToUpload.length > 0) {
-        // Clear selection immediately for better UX
         setSelectedFiles([]);
         setNewMessage('');
         setReplyMessage(null);
-        
+
         for (const file of filesToUpload) {
-          const messageData = {
+          const messageData: any = {
             roomId,
             participants,
             senderId: profile.uid,
@@ -1416,24 +1666,20 @@ export default function ChatBubble() {
             createdAt: serverTimestamp(),
             clientCreatedAt: Date.now(),
             seen: false,
+            ...(isInviteMessage ? { isInvite: true } : {}),
+            ...(activeChat.isGroup ? { roomName: activeChat.displayName } : {}),
             replyTo: isReply ? {
               text: currentReply.text || 'صورة',
               senderName: currentReply.senderName,
               id: currentReply.id
             } : null
           };
-          
+
           await startUpload(file, 'message', messageData);
         }
 
-        // If there was text too and it wasn't cleared yet (though we cleared it above, let's play safe)
-        if (messageText.trim() && filesToUpload.length === 0) {
-           // This part won't run because filesToUpload.length > 0
-        }
-        
-        // If they also typed text, send it as a separate message
         if (messageText.trim()) {
-          const textMessageData = {
+          const textMessageData: any = {
             roomId,
             participants,
             senderId: profile.uid,
@@ -1442,6 +1688,8 @@ export default function ChatBubble() {
             clientCreatedAt: Date.now(),
             seen: false,
             text: messageText,
+            ...(isInviteMessage ? { isInvite: true } : {}),
+            ...(activeChat.isGroup ? { roomName: activeChat.displayName } : {}),
             replyTo: isReply ? {
               text: currentReply.text || 'صورة',
               senderName: currentReply.senderName,
@@ -1451,6 +1699,33 @@ export default function ChatBubble() {
           await addDoc(collection(db, 'messages'), textMessageData);
         }
 
+        if (activeChat.isGroup) {
+          updateDoc(doc(db, 'chat_rooms', activeChat.uid), {
+            lastMessage: messageText.trim() || 'ملف مرفق',
+            lastTime: serverTimestamp(),
+          }).catch(() => {});
+        }
+
+        const pushTargets = (activeChat.uid === 'global' ? [] : participants.filter((uid: string) => uid !== profile.uid));
+        if (pushTargets.length > 0) {
+          sendRemotePushNotification({
+            recipientIds: pushTargets,
+            title: isInviteMessage
+              ? `📩 دعوة محادثة من ${profile.displayName}`
+              : activeChat.isGroup
+              ? `${activeChat.displayName}: ${profile.displayName}`
+              : `رسالة جديدة من ${profile.displayName}`,
+            body: messageText.trim() || 'أرسل لك صورة/ملفاً صوتياً',
+            icon: profile.photoURL || '/prof_dali_logo.png',
+            tag: `chat-${roomId}`,
+            url: '/',
+            type: 'message',
+          });
+        }
+
+        if (isInviteMessage) {
+          toast.success('تم إرسال رسالة الدعوة وسيتم فتح المحادثة بعد القبول');
+        }
         setEmojiState('happy');
         return;
       }
@@ -1459,7 +1734,7 @@ export default function ChatBubble() {
       setNewMessage('');
       setReplyMessage(null);
       chatInputRef.current?.focus();
-      
+
       const messageData: any = {
         roomId,
         participants,
@@ -1469,6 +1744,8 @@ export default function ChatBubble() {
         clientCreatedAt: Date.now(),
         seen: false,
         text: messageText,
+        ...(isInviteMessage ? { isInvite: true } : {}),
+        ...(activeChat.isGroup ? { roomName: activeChat.displayName } : {}),
         replyTo: isReply ? {
           text: currentReply.text || 'صورة',
           senderName: currentReply.senderName,
@@ -1477,6 +1754,32 @@ export default function ChatBubble() {
       };
 
       await addDoc(collection(db, 'messages'), messageData);
+      if (activeChat.isGroup) {
+        updateDoc(doc(db, 'chat_rooms', activeChat.uid), {
+          lastMessage: messageText.slice(0, 120),
+          lastTime: serverTimestamp(),
+        }).catch(() => {});
+      }
+
+      const pushTargets = (activeChat.uid === 'global' ? [] : participants.filter((uid: string) => uid !== profile.uid));
+      if (pushTargets.length > 0) {
+        sendRemotePushNotification({
+          recipientIds: pushTargets,
+          title: isInviteMessage
+            ? `📩 دعوة محادثة من ${profile.displayName}`
+            : activeChat.isGroup
+            ? `${activeChat.displayName}: ${profile.displayName}`
+            : `رسالة جديدة من ${profile.displayName}`,
+          body: messageText.slice(0, 120),
+          icon: profile.photoURL || '/prof_dali_logo.png',
+          tag: `chat-${roomId}`,
+          url: '/',
+          type: 'message',
+        });
+      }
+      if (isInviteMessage) {
+        toast.success('تم إرسال رسالة الدعوة وسيتم فتح المحادثة بعد القبول');
+      }
       setEmojiState('happy');
       setTimeout(() => chatInputRef.current?.focus(), 50);
     } catch (error) {
@@ -1488,6 +1791,10 @@ export default function ChatBubble() {
   };
 
   const startRecording = async () => {
+    if (!canSendVoiceInChat) {
+      toast.error('الرسائل الصوتية معطّلة في هذه المجموعة');
+      return;
+    }
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       const mediaRecorder = new MediaRecorder(stream);
@@ -1514,9 +1821,9 @@ export default function ChatBubble() {
     } catch (err: any) {
       console.error("Error starting recording:", err);
       if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
-        alert("Microphone access was denied. Please enable it in your browser settings to record voice notes.");
+        toast.error('تم رفض إذن الميكروفون. يرجى تفعيله من إعدادات المتصفح');
       } else {
-        alert("Could not start recording. Please check your microphone connection.");
+        toast.error('تعذر بدء التسجيل الصوتي، تأكد من الميكروفون');
       }
     }
   };
@@ -1544,6 +1851,14 @@ export default function ChatBubble() {
 
   const handleStartCall = async (type: 'audio' | 'video') => {
     if (!profile || !activeChat) return;
+    if (activeChat.isGroup || activeChat.uid === 'global') {
+      toast.error('المكالمات متاحة فقط في المحادثات الفردية مع الأصدقاء');
+      return;
+    }
+    if (!isFriend && !localIsFriendOverride) {
+      toast.error('يجب قبول طلب الصداقة والمراسلة أولاً لإجراء المكالمات');
+      return;
+    }
 
     try {
       setIsCalling(type);
@@ -1565,6 +1880,17 @@ export default function ChatBubble() {
         createdAt: serverTimestamp()
       });
       setCurrentCallId(callDoc.id);
+      if (activeChat.uid !== 'global') {
+        sendRemotePushNotification({
+          recipientId: activeChat.uid,
+          title: `مكالمة ${type === 'video' ? 'فيديو' : 'صوتية'} واردة من ${profile.displayName}`,
+          body: 'اضغط للرد على المكالمة الآن',
+          icon: profile.photoURL || '/prof_dali_logo.png',
+          tag: `call-${callDoc.id}`,
+          url: '/',
+          type: 'call',
+        });
+      }
       
       // Auto-timeout after 60 seconds if not answered
       setTimeout(async () => {
@@ -1698,13 +2024,11 @@ export default function ChatBubble() {
     try {
       const msgRef = doc(db, 'messages', messageId);
       if (forEveryone) {
-        // Hard delete for everyone
         const msgSnap = await getDoc(msgRef);
-        if (msgSnap.exists() && msgSnap.data().senderId === profile.uid) {
+        if (msgSnap.exists() && (msgSnap.data().senderId === profile.uid || isGroupAdmin)) {
           await deleteDoc(msgRef);
         }
       } else {
-        // Delete for me (soft delete)
         await updateDoc(msgRef, {
           deletedFor: arrayUnion(profile.uid)
         });
@@ -1716,6 +2040,129 @@ export default function ChatBubble() {
     }
   };
 
+  const handlePinMessage = async (msg: any) => {
+    if (!profile || !activeChat?.isGroup || !isGroupAdmin) return;
+    try {
+      await updateDoc(doc(db, 'chat_rooms', activeChat.uid), {
+        pinnedMessage: {
+          id: msg.id,
+          text: msg.text || (msg.imageUrl ? 'صورة مرفقة' : 'مقطع صوتي'),
+          senderName: msg.senderName || 'عضو',
+        },
+      });
+      playSound('notification');
+      toast.success('تم تثبيت الرسالة في أعلى المجموعة');
+    } catch (e) {
+      console.error('Pin error:', e);
+      toast.error('تعذر تثبيت الرسالة');
+    }
+  };
+
+  const handleToggleReaction = async (msg: any, emoji: string) => {
+    if (!profile?.uid) return;
+    const msgRef = doc(db, 'messages', msg.id);
+    const current = msg.reactions?.[profile.uid];
+    try {
+      if (current === emoji) {
+        await updateDoc(msgRef, { [`reactions.${profile.uid}`]: deleteField() });
+      } else {
+        await updateDoc(msgRef, { [`reactions.${profile.uid}`]: emoji });
+        playSound('like');
+      }
+    } catch (e) {
+      console.error('Reaction update failed:', e);
+    }
+  };
+
+  const handleCopyMessage = async (msg: any) => {
+    const content = msg.text || msg.imageUrl || msg.audioUrl || '';
+    if (!content) {
+      toast.error('لا يوجد نص لنسخه');
+      return;
+    }
+    const ok = await copyToClipboard(content);
+    if (ok) toast.success('تم نسخ الرسالة');
+    else toast.error('تعذر النسخ');
+  };
+
+  const scrollToMessage = (targetId?: string) => {
+    if (!targetId) return;
+    const el = document.getElementById(`msg-${targetId}`);
+    if (el) {
+      el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      setHighlightMessageId(targetId);
+      setTimeout(() => setHighlightMessageId(null), 1600);
+    }
+  };
+
+  const toggleForwardTarget = (target: { id: string; isGroup: boolean; name: string; participants: string[] }) => {
+    setForwardTargets((prev) => {
+      const exists = prev.some((t) => t.id === target.id);
+      if (exists) return prev.filter((t) => t.id !== target.id);
+      return [...prev, target];
+    });
+  };
+
+  const handleExecuteForward = async () => {
+    if (!profile || !forwardingMessage || forwardTargets.length === 0) return;
+    setIsForwarding(true);
+    try {
+      for (const target of forwardTargets) {
+        const roomId = target.id === 'global'
+          ? 'global'
+          : target.isGroup
+          ? target.id
+          : [profile.uid, target.id].sort().join('_');
+
+        const participants = target.id === 'global'
+          ? ['global']
+          : target.isGroup
+          ? target.participants
+          : [profile.uid, target.id].sort();
+
+        const forwardedPayload: any = {
+          roomId,
+          participants,
+          senderId: profile.uid,
+          senderName: profile.displayName,
+          seen: false,
+          isForwarded: true,
+          forwardedFrom: forwardingMessage.senderName || 'زميل',
+          clientCreatedAt: Date.now(),
+          createdAt: serverTimestamp(),
+        };
+        if (forwardingMessage.text) forwardedPayload.text = forwardingMessage.text;
+        if (forwardingMessage.imageUrl) forwardedPayload.imageUrl = forwardingMessage.imageUrl;
+        if (forwardingMessage.audioUrl) forwardedPayload.audioUrl = forwardingMessage.audioUrl;
+
+        await addDoc(collection(db, 'messages'), forwardedPayload);
+
+        const pushTargets = target.id === 'global' ? [] : participants.filter((uid) => uid !== profile.uid);
+        if (pushTargets.length > 0) {
+          sendRemotePushNotification({
+            recipientIds: pushTargets,
+            title: `رسالة محوّلة من ${profile.displayName}`,
+            body: forwardingMessage.text || 'أعاد توجيه ملف/رسالة إليك',
+            icon: profile.photoURL || '/prof_dali_logo.png',
+            tag: `fwd-${roomId}`,
+            url: '/',
+            type: 'message',
+          });
+        }
+      }
+      playSound('message');
+      toast.success(`تمت إعادة إرسال الرسالة إلى ${forwardTargets.length} محادثة`);
+      setForwardingMessage(null);
+      setForwardTargets([]);
+      setForwardSearch('');
+    } catch (err) {
+      console.error('Forward error:', err);
+      toast.error('حدث خطأ أثناء إعادة إرسال الرسالة');
+    } finally {
+      setIsForwarding(false);
+    }
+  };
+
   const handleCreateGroup = async () => {
     if (!groupName.trim() || selectedGroupUsers.length === 0 || !profile) {
       toast.error('يرجى إدخال اسم المجموعة واختيار أعضاء');
@@ -1723,58 +2170,88 @@ export default function ChatBubble() {
     }
     setIsSavingGroup(true);
     try {
-      const allParticipants = [profile.uid, ...selectedGroupUsers];
+      const allParticipants = Array.from(new Set([profile.uid, ...selectedGroupUsers]));
       const finalPhoto = groupPhoto || `https://ui-avatars.com/api/?name=${encodeURIComponent(groupName)}&background=random`;
-      
+
       const groupDoc = await addDoc(collection(db, 'chat_rooms'), {
-        name: groupName,
+        name: groupName.trim(),
+        description: groupDescription.trim(),
         participants: allParticipants,
+        admins: [profile.uid],
         createdBy: profile.uid,
         isGroup: true,
         photoURL: finalPhoto,
-        createdAt: serverTimestamp()
+        settings: groupCreateSettings,
+        lastMessage: `تم إنشاء المجموعة: ${groupName.trim()}`,
+        lastTime: serverTimestamp(),
+        createdAt: serverTimestamp(),
       });
 
       const groupData = {
         uid: groupDoc.id,
-        displayName: groupName,
+        id: groupDoc.id,
+        name: groupName.trim(),
+        displayName: groupName.trim(),
+        description: groupDescription.trim(),
         isGroup: true,
         participants: allParticipants,
-        photoURL: finalPhoto
+        admins: [profile.uid],
+        createdBy: profile.uid,
+        photoURL: finalPhoto,
+        settings: groupCreateSettings,
       };
 
-      // Send initial system message
       await addDoc(collection(db, 'messages'), {
         roomId: groupDoc.id,
-        roomName: groupName,
+        roomName: groupName.trim(),
         participants: allParticipants,
         senderId: profile.uid,
         senderName: 'النظام',
-        text: `تم إنشاء المجموعة: ${groupName}`,
+        text: `تم إنشاء المجموعة: ${groupName.trim()}`,
         createdAt: serverTimestamp(),
-        seen: false
+        clientCreatedAt: Date.now(),
+        seen: false,
       });
 
-      // Notify participants
-      const notifPromises = selectedGroupUsers.map(uid => 
+      const notifPromises = selectedGroupUsers.map((uid) =>
         addDoc(collection(db, 'notifications'), {
           recipientId: uid,
           senderId: profile.uid,
           senderName: profile.displayName,
           type: 'group_addition',
-          groupName: groupName,
+          groupName: groupName.trim(),
+          groupId: groupDoc.id,
           read: false,
-          createdAt: serverTimestamp()
+          createdAt: serverTimestamp(),
         })
       );
       await Promise.all(notifPromises);
+
+      sendRemotePushNotification({
+        recipientIds: selectedGroupUsers,
+        title: `تمت إضافتك إلى مجموعة: ${groupName.trim()}`,
+        body: `أضافك ${profile.displayName} إلى مجموعة عمل جديدة`,
+        icon: finalPhoto,
+        tag: `group-add-${groupDoc.id}`,
+        url: '/',
+        type: 'notification',
+      });
 
       toast.success('تم إنشاء المجموعة بنجاح');
       setActiveChat(groupData as any);
       setIsCreatingGroup(false);
       setGroupName('');
+      setGroupDescription('');
+      setGroupSearchTerm('');
       setGroupPhoto(null);
       setSelectedGroupUsers([]);
+      setGroupCreateSettings({
+        onlyAdminsCanSend: false,
+        allowMedia: true,
+        allowVoice: true,
+        allowForward: true,
+        allowMembersAdd: false,
+      });
     } catch (e) {
       console.error(e);
       toast.error('فشل إنشاء المجموعة');
@@ -1955,6 +2432,9 @@ export default function ChatBubble() {
 
                   {/* Info Section (Center) */}
                   <div className="flex-1 flex flex-col items-center justify-center min-w-0 px-2 overflow-hidden border-r border-white/5">
+                    <h4 className="text-xs sm:text-sm font-black text-white truncate max-w-full mb-0.5">
+                      {activeChat.displayName}
+                    </h4>
                     {!isKeyboardOpen && (
                       <div className="flex flex-wrap items-center justify-center gap-1 mb-1">
                         {activeChat.subject && (
@@ -1978,7 +2458,14 @@ export default function ChatBubble() {
                        {activeChat.isGroup ? (
                          <div className="flex items-center gap-1">
                            <Users className="w-3 h-3 text-blue-400" />
-                           <p className="text-[10px] font-bold text-slate-500 truncate">{activeChat.participants?.length || 0} أعضاء</p>
+                           <p className="text-[10px] font-bold text-slate-400 truncate">
+                             {activeGroupRoom?.participants?.length || 0} أعضاء
+                           </p>
+                           {groupSettings.onlyAdminsCanSend && (
+                             <span title="الإرسال للمشرفين فقط" className="inline-flex">
+                               <Lock className="w-3 h-3 text-amber-400" />
+                             </span>
+                           )}
                          </div>
                        ) : (
                          <div className="flex items-center gap-1">
@@ -1993,19 +2480,37 @@ export default function ChatBubble() {
 
                   {/* Actions Section (Left) */}
                   <div className="flex items-center gap-1.5 sm:gap-2 flex-shrink-0 mr-auto">
-                    {activeChat.uid !== 'global' && !activeChat.isGroup && (
+                    {activeChat.isGroup ? (
+                      <button
+                        type="button"
+                        onClick={() => setShowGroupTools(true)}
+                        className="px-2.5 py-2 rounded-xl bg-blue-600/20 hover:bg-blue-600 text-blue-300 hover:text-white border border-blue-500/30 transition-all active:scale-95 flex items-center gap-1.5 text-[11px] font-black shadow-lg"
+                        title="إدارة المجموعة والأدوات"
+                      >
+                        <Settings className="w-4 h-4" />
+                        <span className="hidden sm:inline">أدوات المجموعة</span>
+                      </button>
+                    ) : activeChat.uid !== 'global' && (
                       <div className="flex items-center gap-1.5 bg-white/5 p-1 rounded-xl border border-white/10">
                         <button 
                           onClick={() => handleStartCall('audio')}
-                          className="p-2 rounded-lg bg-emerald-500 text-white shadow-lg active:scale-95 transition-all hover:bg-emerald-600 hover:shadow-emerald-500/30"
-                          title="صوتي"
+                          className={`p-2 rounded-lg text-white shadow-lg active:scale-95 transition-all ${
+                            isFriend || localIsFriendOverride
+                              ? 'bg-emerald-500 hover:bg-emerald-600 hover:shadow-emerald-500/30'
+                              : 'bg-slate-700 opacity-50 cursor-not-allowed'
+                          }`}
+                          title={isFriend || localIsFriendOverride ? 'مكالمة صوتية' : 'متاح بعد قبول طلب المراسلة'}
                         >
                           <Phone className="w-4 h-4 sm:w-4.5 sm:h-4.5" />
                         </button>
                         <button 
                           onClick={() => handleStartCall('video')}
-                          className="p-2 rounded-lg bg-indigo-500 text-white shadow-lg active:scale-95 transition-all hover:bg-indigo-600 hover:shadow-indigo-500/30"
-                          title="فيديو"
+                          className={`p-2 rounded-lg text-white shadow-lg active:scale-95 transition-all ${
+                            isFriend || localIsFriendOverride
+                              ? 'bg-indigo-500 hover:bg-indigo-600 hover:shadow-indigo-500/30'
+                              : 'bg-slate-700 opacity-50 cursor-not-allowed'
+                          }`}
+                          title={isFriend || localIsFriendOverride ? 'مكالمة فيديو' : 'متاح بعد قبول طلب المراسلة'}
                         >
                           <Video className="w-4 h-4 sm:w-4.5 sm:h-4.5" />
                         </button>
@@ -2040,7 +2545,7 @@ export default function ChatBubble() {
                         </span>
                       </div>
                       
-                      {activeChat.uid !== 'global' && (
+                      {activeChat.uid !== 'global' && !activeChat.isGroup && (
                         <button 
                           onClick={handleConnect}
                           disabled={isConnecting}
@@ -2071,7 +2576,17 @@ export default function ChatBubble() {
                         </Link>
                       </div>
                    </div>
-                   <div className="flex items-center gap-2">
+                   <div className="flex items-center gap-1.5 sm:gap-2">
+                     {pushPerm !== 'granted' && (
+                       <button
+                         type="button"
+                         onClick={handleEnablePushInChat}
+                         className="p-2 rounded-xl bg-amber-500/15 text-amber-400 hover:bg-amber-500 hover:text-white transition-all border border-amber-500/30 active:scale-95 animate-pulse"
+                         title="تفعيل إشعارات الخلفية والصوت"
+                       >
+                         <BellRing className="w-4 h-4 sm:w-5 sm:h-5" />
+                       </button>
+                     )}
                      <button
                         onClick={() => window.dispatchEvent(new CustomEvent('show-soul-medicine'))}
                         className="p-2 rounded-xl bg-emerald-500/10 text-emerald-500 hover:bg-emerald-500 hover:text-white transition-all border border-emerald-500/10 active:scale-95"
@@ -2081,14 +2596,14 @@ export default function ChatBubble() {
                       </button>
                     <button
                         onClick={() => setIsSelectingFriend(!isSelectingFriend)}
-                        className={`p-3.5 sm:p-4 rounded-2xl transition-all border active:scale-95 shadow-lg ${
+                        className={`p-3 sm:p-3.5 rounded-2xl transition-all border active:scale-95 shadow-lg ${
                           isSelectingFriend
                             ? 'bg-blue-500 text-white border-blue-400 shadow-blue-500/20'
                             : 'bg-blue-500/10 text-blue-400 hover:bg-blue-500 hover:text-white border-blue-500/10 shadow-blue-500/5'
                         }`}
                         title="البحث عن زملاء"
                       >
-                        <Plus className={`w-7 h-7 transition-transform duration-300 ${isSelectingFriend ? 'rotate-45' : ''}`} />
+                        <Plus className={`w-6 h-6 transition-transform duration-300 ${isSelectingFriend ? 'rotate-45' : ''}`} />
                       </button>
                       <button 
                         onClick={() => setIsOpen(false)} 
@@ -2131,16 +2646,16 @@ export default function ChatBubble() {
                       </button>
                     </div>
 
-                    <div className="p-4 space-y-4 flex-1 flex flex-col overflow-hidden">
-                       <div className="flex flex-col items-center gap-3 mb-2">
-                         <div className="relative group/avatar">
+                    <div className="p-4 space-y-3 flex-1 flex flex-col overflow-hidden" dir="rtl">
+                       <div className="flex items-center gap-3">
+                         <div className="relative group/avatar shrink-0">
                            <img 
                             src={groupPhoto || `https://ui-avatars.com/api/?name=${encodeURIComponent(groupName || 'Group')}&background=random`} 
-                            className="w-20 h-20 rounded-3xl object-cover border-4 border-slate-800 shadow-2xl"
+                            className="w-16 h-16 rounded-2xl object-cover border-2 border-slate-800 shadow-xl"
                             alt="Group Profile"
                            />
-                           <label className="absolute inset-0 flex items-center justify-center bg-black/40 rounded-3xl opacity-0 group-hover/avatar:opacity-100 cursor-pointer transition-all">
-                             <Camera className="w-8 h-8 text-white" />
+                           <label className="absolute inset-0 flex items-center justify-center bg-black/50 rounded-2xl opacity-0 group-hover/avatar:opacity-100 cursor-pointer transition-all">
+                             <Camera className="w-6 h-6 text-white" />
                              <input 
                               type="file" 
                               className="hidden" 
@@ -2148,8 +2663,6 @@ export default function ChatBubble() {
                               onChange={async (e) => {
                                 const file = e.target.files?.[0];
                                 if (file) {
-                                  // Simplified: just use data URL or prompt for URL if no storage
-                                  // In AI Studio we usually use Cloudinary or just dataURL for demo
                                   const reader = new FileReader();
                                   reader.onload = (re) => setGroupPhoto(re.target?.result as string);
                                   reader.readAsDataURL(file);
@@ -2158,34 +2671,86 @@ export default function ChatBubble() {
                              />
                            </label>
                          </div>
-                         <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">صورة المجموعة</p>
+                         <div className="flex-1 space-y-2">
+                           <input 
+                            type="text"
+                            placeholder="اسم المجموعة..."
+                            className="w-full bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white outline-none focus:ring-2 focus:ring-blue-500/30 font-bold"
+                            value={groupName}
+                            onChange={(e) => setGroupName(e.target.value)}
+                           />
+                           <input 
+                            type="text"
+                            placeholder="وصف المجموعة (اختياري)..."
+                            className="w-full bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-[11px] text-slate-300 outline-none focus:ring-2 focus:ring-blue-500/30 font-bold"
+                            value={groupDescription}
+                            onChange={(e) => setGroupDescription(e.target.value)}
+                           />
+                         </div>
                        </div>
 
-                       <input 
-                        type="text"
-                        placeholder="اسم المجموعة..."
-                        className="w-full bg-slate-900 border border-slate-800 rounded-2xl px-4 py-3 text-sm text-white outline-none focus:ring-2 focus:ring-blue-500/30 font-bold"
-                        value={groupName}
-                        onChange={(e) => setGroupName(e.target.value)}
-                        dir="rtl"
-                       />
+                       <div className="flex flex-wrap gap-2">
+                         <button
+                           type="button"
+                           onClick={() => setGroupCreateSettings(prev => ({ ...prev, onlyAdminsCanSend: !prev.onlyAdminsCanSend }))}
+                           className={`px-2.5 py-1.5 rounded-xl text-[10px] font-black border flex items-center gap-1.5 transition-all ${
+                             groupCreateSettings.onlyAdminsCanSend
+                               ? 'bg-amber-500/20 border-amber-500/40 text-amber-300'
+                               : 'bg-slate-900 border-slate-800 text-slate-400'
+                           }`}
+                         >
+                           <Lock className="w-3 h-3" />
+                           <span>إرسال للمشرفين فقط</span>
+                         </button>
+                         <button
+                           type="button"
+                           onClick={() => setGroupCreateSettings(prev => ({ ...prev, allowMembersAdd: !prev.allowMembersAdd }))}
+                           className={`px-2.5 py-1.5 rounded-xl text-[10px] font-black border flex items-center gap-1.5 transition-all ${
+                             groupCreateSettings.allowMembersAdd
+                               ? 'bg-blue-500/20 border-blue-500/40 text-blue-300'
+                               : 'bg-slate-900 border-slate-800 text-slate-400'
+                           }`}
+                         >
+                           <UserPlus className="w-3 h-3" />
+                           <span>الأعضاء يضيفون زملاء</span>
+                         </button>
+                       </div>
 
-                       <div className="flex-1 overflow-y-auto space-y-2 pr-2 custom-scrollbar">
-                         <h5 className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-2" dir="rtl">اختر الزملاء ({selectedGroupUsers.length})</h5>
-                         {friends.length === 0 ? (
-                           <div className="text-center py-10">
-                             <p className="text-xs text-slate-500 font-bold">لا يوجد زملاء متاحين للإضافة حالياً</p>
+                       <div className="relative">
+                         <Search className="w-4 h-4 text-slate-500 absolute right-3 top-1/2 -translate-y-1/2" />
+                         <input
+                           type="text"
+                           value={groupSearchTerm}
+                           onChange={(e) => setGroupSearchTerm(e.target.value)}
+                           placeholder="ابحث عن أستاذ لإضافته..."
+                           className="w-full bg-slate-900 border border-slate-800 rounded-xl pr-9 pl-3 py-2 text-xs text-white font-bold outline-none focus:border-blue-500"
+                         />
+                       </div>
+
+                       <div className="flex-1 overflow-y-auto space-y-2 pr-1 custom-scrollbar">
+                         <h5 className="text-[10px] font-black text-slate-400 mb-1">اختر الزملاء ({selectedGroupUsers.length})</h5>
+                         {users.filter(u =>
+                           !groupSearchTerm.trim() ||
+                           (u.displayName || '').toLowerCase().includes(groupSearchTerm.toLowerCase()) ||
+                           (u.subject || '').toLowerCase().includes(groupSearchTerm.toLowerCase())
+                         ).length === 0 ? (
+                           <div className="text-center py-8">
+                             <p className="text-xs text-slate-500 font-bold">لا توجد نتائج مطابقة</p>
                            </div>
-                         ) : friends.map(u => (
+                         ) : users.filter(u =>
+                           !groupSearchTerm.trim() ||
+                           (u.displayName || '').toLowerCase().includes(groupSearchTerm.toLowerCase()) ||
+                           (u.subject || '').toLowerCase().includes(groupSearchTerm.toLowerCase())
+                         ).map(u => (
                            <button
                              key={`group-sel-${u.uid}`}
+                             type="button"
                              onClick={() => {
                                setSelectedGroupUsers(prev => 
                                  prev.includes(u.uid) ? prev.filter(id => id !== u.uid) : [...prev, u.uid]
                                );
                              }}
-                             className={`w-full flex items-center gap-3 p-3 rounded-2xl border transition-all ${selectedGroupUsers.includes(u.uid) ? 'bg-blue-600/20 border-blue-500/50 shadow-lg shadow-blue-500/10' : 'bg-slate-900 border-transparent hover:border-slate-800'}`}
-                             dir="rtl"
+                             className={`w-full flex items-center gap-3 p-2.5 rounded-2xl border transition-all ${selectedGroupUsers.includes(u.uid) ? 'bg-blue-600/20 border-blue-500/50 shadow-lg shadow-blue-500/10' : 'bg-slate-900 border-transparent hover:border-slate-800'}`}
                            >
                              <div className="relative shrink-0">
                                <img src={u.photoURL} className="w-10 h-10 rounded-xl object-cover" alt="" referrerPolicy="no-referrer" />
@@ -2196,7 +2761,7 @@ export default function ChatBubble() {
                                )}
                              </div>
                              <div className="flex-1 text-right min-w-0">
-                               <h5 className="text-sm font-black text-white truncate">{u.displayName}</h5>
+                               <h5 className="text-xs font-black text-white truncate">{u.displayName}</h5>
                                <p className="text-[10px] text-slate-500 font-bold truncate">{u.subject || 'زميل'}</p>
                              </div>
                            </button>
@@ -2204,9 +2769,10 @@ export default function ChatBubble() {
                        </div>
 
                        <button
+                         type="button"
                          onClick={handleCreateGroup}
                          disabled={isSavingGroup || !groupName.trim() || selectedGroupUsers.length === 0}
-                         className="w-full py-4 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:grayscale text-white rounded-2xl font-black shadow-lg shadow-blue-500/20 transition-all active:scale-95 flex items-center justify-center gap-2"
+                         className="w-full py-3.5 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:grayscale text-white rounded-2xl font-black text-xs shadow-lg shadow-blue-500/20 transition-all active:scale-95 flex items-center justify-center gap-2"
                        >
                          {isSavingGroup ? <Loader2 className="w-5 h-5 animate-spin" /> : 'إنشاء المجموعة الآن'}
                        </button>
@@ -2526,187 +3092,298 @@ export default function ChatBubble() {
 
                     
                     {/* Chat Navigation Tabs */}
-                    <div className="flex gap-2 mb-4 bg-slate-900/50 p-1.5 rounded-2xl border border-slate-800" dir="rtl">
-                      <button 
-                        onClick={() => setChatView('main')}
-                        className={`flex-1 py-2 text-xs font-black rounded-xl transition-all ${chatView === 'main' ? 'bg-purple-600 text-white shadow-lg' : 'text-slate-400 hover:bg-slate-800'}`}
-                      >
-                        المحادثات
-                      </button>
-                      <button 
-                        onClick={() => setChatView('requests')}
-                        className={`flex-1 py-2 text-xs font-black rounded-xl transition-all relative flex items-center justify-center gap-1.5 ${chatView === 'requests' ? 'bg-slate-700 text-white shadow-lg' : 'text-slate-400 hover:bg-slate-800'}`}
-                      >
-                        <MessageSquare className="w-3.5 h-3.5" />
-                        طلبات المراسلة
-                        {conversations.filter(c => {
-                          if (c.isGroup || c.uid === 'global') return false;
-                          const inv = allInvitations.find(i => i.participants.includes(c.uid));
-                          return (!inv || inv.status !== 'accepted') && c.unread;
-                        }).length > 0 && (
-                          <div className="w-2 h-2 bg-red-500 rounded-full animate-ping"></div>
-                        )}
-                      </button>
-                    </div>
+                    {(() => {
+                      const pendingInvs = allInvitations.filter((i) => i.status === 'pending');
+                      const pendingPeerIds = new Set(
+                        pendingInvs.map((i) => (i.senderId === profile.uid ? i.recipientId : i.senderId))
+                      );
+                      const extraNonFriendConvs = conversations.filter((c) => {
+                        if (c.isGroup || c.uid === 'global') return false;
+                        if (profile.friends?.includes(c.uid)) return false;
+                        if (pendingPeerIds.has(c.uid)) return false;
+                        const inv = allInvitations.find((i) => i.participants?.includes(c.uid));
+                        return !inv || inv.status !== 'accepted';
+                      });
+                      const incomingBadgeCount =
+                        pendingInvs.filter((i) => i.senderId !== profile.uid).length +
+                        extraNonFriendConvs.filter((c) => c.unread).length;
 
-                    {chatView === 'requests' ? (
-                      <div className="space-y-2">
-                        {conversations.filter(c => {
-                          if (c.isGroup || c.uid === 'global') return false;
-                          const inv = allInvitations.find(i => i.participants.includes(c.uid));
-                          return (!inv || inv.status !== 'accepted');
-                        }).length === 0 ? (
-                          <div className="text-center py-10">
-                            <MessageSquare className="w-8 h-8 text-slate-700 mx-auto mb-2" />
-                            <p className="text-slate-500 text-xs font-bold">لا توجد طلبات مراسلة</p>
+                      return (
+                        <>
+                          <div className="flex gap-2 mb-4 bg-slate-900/50 p-1.5 rounded-2xl border border-slate-800" dir="rtl">
+                            <button 
+                              onClick={() => setChatView('main')}
+                              className={`flex-1 py-2 text-xs font-black rounded-xl transition-all ${chatView === 'main' ? 'bg-purple-600 text-white shadow-lg' : 'text-slate-400 hover:bg-slate-800'}`}
+                            >
+                              المحادثات
+                            </button>
+                            <button 
+                              onClick={() => setChatView('requests')}
+                              className={`flex-1 py-2 text-xs font-black rounded-xl transition-all relative flex items-center justify-center gap-1.5 ${chatView === 'requests' ? 'bg-slate-700 text-white shadow-lg' : 'text-slate-400 hover:bg-slate-800'}`}
+                            >
+                              <MessageSquare className="w-3.5 h-3.5" />
+                              طلبات المراسلة
+                              {incomingBadgeCount > 0 && (
+                                <span className="px-1.5 py-0.5 bg-red-500 text-white rounded-full text-[9px] font-black animate-pulse">
+                                  {incomingBadgeCount}
+                                </span>
+                              )}
+                            </button>
                           </div>
-                        ) : (
-                          conversations.filter(c => {
-                            if (c.isGroup || c.uid === 'global') return false;
-                            const inv = allInvitations.find(i => i.participants.includes(c.uid));
-                            return (!inv || inv.status !== 'accepted');
-                          }).map(conv => {
-                            const user = users.find(u => u.uid === conv.uid);
-                            if (!user) return null;
-                            return (
-                              <button
-                                key={`req-${conv.uid}`}
-                                onClick={() => setActiveChat(user)}
-                                className={`w-full flex items-center gap-3 p-3 rounded-2xl border transition-all ${conv.unread ? 'bg-red-500/10 border-red-500/50 shadow-lg shadow-red-500/5' : 'bg-slate-900 border-slate-800 hover:border-slate-700'}`}
-                              >
-                                <div className="relative shrink-0">
-                                  <img src={user.photoURL} className="w-10 h-10 rounded-xl object-cover" alt="" referrerPolicy="no-referrer" />
-                                </div>
-                                <div className="flex-1 text-left min-w-0">
-                                  <div className="flex justify-between items-center bg-transparent">
-                                    <h5 className={`text-sm font-black truncate ${conv.unread ? 'text-red-400' : 'text-slate-200'}`}>{user.displayName}</h5>
-                                    {conv.unread && <div className="w-2 h-2 bg-red-500 rounded-full animate-pulse"></div>}
-                                  </div>
-                                  <p className="text-[10px] font-bold text-slate-500 truncate">{conv.lastMessage}</p>
-                                </div>
-                              </button>
-                            );
-                          })
-                        )}
-                      </div>
-                    ) : (
-                      <>
-                        {/* Global Chat & New Group Options */}
-                        <div className="flex gap-2 mb-4">
-                           <button
-                            onClick={() => setActiveChat({
-                              uid: 'global',
-                              displayName: 'Global Teacher Lounge',
-                              photoURL: 'https://images.unsplash.com/photo-1524178232363-1fb2b075b655?w=100&h=100&fit=crop',
-                              email: '',
-                              createdAt: Timestamp.now()
-                            } as any)}
-                            className="flex-1 flex items-center gap-3 p-3 rounded-2xl bg-purple-500/10 border border-purple-500/20 hover:bg-purple-500/20 transition-all group"
-                          >
-                            <div className="relative">
-                              <div className="w-10 h-10 rounded-xl bg-purple-600 flex items-center justify-center">
-                                <GraduationCap className="w-6 h-6 text-white" />
-                              </div>
-                              <Circle className="absolute -bottom-1 -right-1 w-3 h-3 fill-green-500 text-slate-900" />
-                            </div>
-                            <div className="text-left">
-                              <h5 className="text-sm font-black text-purple-400">Global Chat</h5>
-                              <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">All Teachers</p>
-                            </div>
-                          </button>
 
-                          <button
-                            onClick={() => setIsCreatingGroup(true)}
-                            className="flex-1 flex items-center gap-3 p-3 rounded-2xl bg-blue-500/10 border border-blue-500/20 hover:bg-blue-500/20 transition-all group"
-                          >
-                            <div className="w-10 h-10 rounded-xl bg-blue-600 flex items-center justify-center">
-                              <Users className="w-6 h-6 text-white" />
-                            </div>
-                            <div className="text-left">
-                              <h5 className="text-sm font-black text-blue-400">إنشاء مجموعة</h5>
-                              <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Group Chat</p>
-                            </div>
-                          </button>
-                        </div>
+                          {chatView === 'requests' ? (
+                            <div className="space-y-2.5 px-1" dir="rtl">
+                              {pendingInvs.length === 0 && extraNonFriendConvs.length === 0 ? (
+                                <div className="text-center py-10">
+                                  <MessageSquare className="w-8 h-8 text-slate-700 mx-auto mb-2" />
+                                  <p className="text-slate-500 text-xs font-bold">لا توجد طلبات مراسلة حالياً</p>
+                                </div>
+                              ) : (
+                                <>
+                                  {pendingInvs.map((inv) => {
+                                    const peerUid = inv.senderId === profile.uid ? inv.recipientId : inv.senderId;
+                                    const peerUser = users.find((u) => u.uid === peerUid) || cachedUsers[peerUid];
+                                    const conv = conversations.find((c) => c.uid === peerUid);
+                                    const isIncoming = inv.senderId !== profile.uid;
+                                    const previewText = inv.inviteMessage || conv?.lastMessage || (isIncoming ? 'يريد بدء محادثة معك' : 'طلب صداقة ومراسلة مُرسل');
 
-                        {/* Recent Main Conversations */}
-                        {conversations.filter(c => {
-                          if (c.isGroup || c.uid === 'global') return true;
-                          const isAlreadyFriend = !!(profile.friends?.includes(c.uid) || profile.followers?.includes(c.uid) || profile.following?.includes(c.uid));
-                              const inv = allInvitations.find(i => i.participants.includes(c.uid));
-                              return isAlreadyFriend || (inv && inv.status === 'accepted');
-                        }).length > 0 && (
-                          <div className="space-y-2 mb-6">
-                            <h5 className="text-[9px] font-black text-slate-500 uppercase tracking-widest px-2">محادثات أخيرة</h5>
-                            {conversations.filter(c => {
-                              if (c.isGroup || c.uid === 'global') return true;
-                              const isAlreadyFriend = !!(profile.friends?.includes(c.uid) || profile.followers?.includes(c.uid) || profile.following?.includes(c.uid));
-                              const inv = allInvitations.find(i => i.participants.includes(c.uid));
-                              return isAlreadyFriend || (inv && inv.status === 'accepted');
-                            }).map(conv => {
-                              const user = users.find(u => u.uid === conv.uid);
-                              const isGroupDoc = conv.isGroup;
-                              
-                              return (
-                                <button
-                                  key={`main-conv-${conv.uid}`}
-                                  onClick={async () => {
-                                    if (isGroupDoc) {
-                                       try {
-                                         const roomSnap = await getDoc(doc(db, 'chat_rooms', conv.uid));
-                                         if (roomSnap.exists()) {
-                                           const roomData = roomSnap.data();
-                                           setActiveChat({
-                                             uid: conv.uid,
-                                             displayName: roomData.name,
-                                             isGroup: true,
-                                             participants: roomData.participants,
-                                             photoURL: roomData.photoURL || `https://ui-avatars.com/api/?name=${encodeURIComponent(roomData.name)}&background=random`
-                                           } as any);
-                                         } else {
-                                           setActiveChat({
-                                             uid: conv.uid,
-                                             displayName: 'مجموعة مفقودة',
-                                             isGroup: true,
-                                             participants: [profile.uid]
-                                           } as any);
-                                         }
-                                       } catch (e) {
-                                         console.error(e);
-                                       }
-                                    } else if (user) {
-                                      setActiveChat(user);
-                                    }
-                                  }}
-                                  className={`w-full flex items-center gap-3 p-3 rounded-2xl border transition-all ${conv.unread ? 'bg-purple-600/10 border-purple-500/50 shadow-lg shadow-purple-500/5' : 'bg-slate-900 border-slate-800 hover:border-slate-700'}`}
+                                    return (
+                                      <div
+                                        key={`inv-req-${inv.id}`}
+                                        className={`p-3 rounded-2xl border transition-all space-y-2.5 ${
+                                          isIncoming
+                                            ? 'bg-amber-500/10 border-amber-500/40 shadow-lg shadow-amber-500/5'
+                                            : 'bg-slate-900 border-slate-800'
+                                        }`}
+                                      >
+                                        <button
+                                          type="button"
+                                          onClick={() => {
+                                            if (peerUser) setActiveChat(peerUser);
+                                          }}
+                                          className="w-full flex items-center gap-3 text-right"
+                                        >
+                                          <img
+                                            src={peerUser?.photoURL || `https://ui-avatars.com/api/?name=${encodeURIComponent(peerUser?.displayName || 'T')}&background=random`}
+                                            className="w-10 h-10 rounded-xl object-cover shrink-0"
+                                            alt=""
+                                            referrerPolicy="no-referrer"
+                                          />
+                                          <div className="flex-1 min-w-0">
+                                            <div className="flex items-center justify-between gap-2">
+                                              <h5 className="text-xs font-black text-white truncate">
+                                                {peerUser?.displayName || 'زميل'}
+                                              </h5>
+                                              <span className={`text-[9px] font-black px-2 py-0.5 rounded-full shrink-0 ${
+                                                isIncoming ? 'bg-amber-500/20 text-amber-300' : 'bg-slate-800 text-slate-400'
+                                              }`}>
+                                                {isIncoming ? 'دعوة واردة' : 'بانتظار الموافقة'}
+                                              </span>
+                                            </div>
+                                            <p className="text-[11px] font-bold text-slate-400 truncate mt-0.5">{previewText}</p>
+                                          </div>
+                                        </button>
+
+                                        {isIncoming && (
+                                          <div className="flex gap-2">
+                                            <button
+                                              type="button"
+                                              disabled={isAccepting}
+                                              onClick={() => handleAcceptRequest(inv, peerUser || { uid: peerUid })}
+                                              className="flex-1 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-[11px] font-black flex items-center justify-center gap-1 disabled:opacity-50"
+                                            >
+                                              <Check className="w-3.5 h-3.5" />
+                                              <span>قبول وبدء التحدث</span>
+                                            </button>
+                                            <button
+                                              type="button"
+                                              onClick={() => handleDeclineRequest(inv, peerUser || { uid: peerUid })}
+                                              className="px-3 py-2 bg-red-500/15 hover:bg-red-500 text-red-400 hover:text-white rounded-xl text-[11px] font-black transition-colors"
+                                            >
+                                              رفض
+                                            </button>
+                                          </div>
+                                        )}
+                                      </div>
+                                    );
+                                  })}
+
+                                  {extraNonFriendConvs.map((conv) => {
+                                    const user = users.find((u) => u.uid === conv.uid) || cachedUsers[conv.uid];
+                                    if (!user) return null;
+                                    return (
+                                      <button
+                                        key={`req-${conv.uid}`}
+                                        onClick={() => setActiveChat(user)}
+                                        className={`w-full flex items-center gap-3 p-3 rounded-2xl border transition-all ${conv.unread ? 'bg-red-500/10 border-red-500/50 shadow-lg shadow-red-500/5' : 'bg-slate-900 border-slate-800 hover:border-slate-700'}`}
+                                      >
+                                        <div className="relative shrink-0">
+                                          <img src={user.photoURL} className="w-10 h-10 rounded-xl object-cover" alt="" referrerPolicy="no-referrer" />
+                                        </div>
+                                        <div className="flex-1 text-right min-w-0">
+                                          <div className="flex justify-between items-center">
+                                            <h5 className={`text-sm font-black truncate ${conv.unread ? 'text-red-400' : 'text-slate-200'}`}>{user.displayName}</h5>
+                                            {conv.unread && <div className="w-2 h-2 bg-red-500 rounded-full animate-pulse"></div>}
+                                          </div>
+                                          <p className="text-[10px] font-bold text-slate-500 truncate">{conv.lastMessage}</p>
+                                        </div>
+                                      </button>
+                                    );
+                                  })}
+                                </>
+                              )}
+                            </div>
+                          ) : (
+                            <>
+                              {/* Global Chat & New Group Options */}
+                              <div className="flex gap-2 mb-4">
+                                 <button
+                                  onClick={() => setActiveChat({
+                                    uid: 'global',
+                                    displayName: 'Global Teacher Lounge',
+                                    photoURL: 'https://images.unsplash.com/photo-1524178232363-1fb2b075b655?w=100&h=100&fit=crop',
+                                    email: '',
+                                    createdAt: Timestamp.now()
+                                  } as any)}
+                                  className="flex-1 flex items-center gap-3 p-3 rounded-2xl bg-purple-500/10 border border-purple-500/20 hover:bg-purple-500/20 transition-all group"
                                 >
-                                  <div className="relative shrink-0">
-                                    {isGroupDoc ? (
-                                       <div className="w-10 h-10 rounded-xl bg-blue-600 flex items-center justify-center shadow-lg">
-                                         <Users className="w-6 h-6 text-white" />
-                                       </div>
-                                    ) : (
-                                       <>
-                                         <img src={user?.photoURL} className="w-10 h-10 rounded-xl object-cover" alt="" referrerPolicy="no-referrer" />
-                                         <div className={`absolute -bottom-1 -right-1 w-3 h-3 rounded-full border-2 border-slate-900 ${isOnline(user?.lastSeen) ? 'bg-green-500' : 'bg-slate-700'}`}></div>
-                                       </>
-                                    )}
-                                  </div>
-                                  <div className="flex-1 text-left min-w-0">
-                                    <div className="flex justify-between items-center bg-transparent">
-                                      <h5 className={`text-sm font-black truncate ${conv.unread ? 'text-purple-400' : 'text-slate-200'}`}>{isGroupDoc ? (conv.displayName || 'مجموعة') : (user?.displayName || 'زميل')}</h5>
-                                      {conv.unread && <div className="w-2 h-2 bg-purple-500 rounded-full animate-pulse"></div>}
+                                  <div className="relative">
+                                    <div className="w-10 h-10 rounded-xl bg-purple-600 flex items-center justify-center">
+                                      <GraduationCap className="w-6 h-6 text-white" />
                                     </div>
-                                    <p className="text-[10px] font-bold text-slate-500 truncate">{conv.lastMessage}</p>
+                                    <Circle className="absolute -bottom-1 -right-1 w-3 h-3 fill-green-500 text-slate-900" />
+                                  </div>
+                                  <div className="text-left">
+                                    <h5 className="text-sm font-black text-purple-400">Global Chat</h5>
+                                    <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">All Teachers</p>
                                   </div>
                                 </button>
-                              );
-                            })}
-                          </div>
-                        )}
+
+                                <button
+                                  onClick={() => setIsCreatingGroup(true)}
+                                  className="flex-1 flex items-center gap-3 p-3 rounded-2xl bg-blue-500/10 border border-blue-500/20 hover:bg-blue-500/20 transition-all group"
+                                >
+                                  <div className="w-10 h-10 rounded-xl bg-blue-600 flex items-center justify-center">
+                                    <Users className="w-6 h-6 text-white" />
+                                  </div>
+                                  <div className="text-left">
+                                    <h5 className="text-sm font-black text-blue-400">إنشاء مجموعة</h5>
+                                    <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Group Chat</p>
+                                  </div>
+                                </button>
+                              </div>
+
+                              {/* My Group Chats Section */}
+                              {chatRooms.length > 0 && (
+                                <div className="space-y-2 mb-5" dir="rtl">
+                                  <h5 className="text-[10px] font-black text-blue-400 uppercase tracking-wider px-2 flex items-center gap-1.5">
+                                    <Users className="w-3.5 h-3.5" />
+                                    <span>مجموعات المحادثة ({chatRooms.length})</span>
+                                  </h5>
+                                  {chatRooms.map((room) => {
+                                    const conv = conversations.find((c) => c.uid === room.uid);
+                                    const hasUnread = !!conv?.unread;
+                                    return (
+                                      <button
+                                        key={`lobby-room-${room.uid}`}
+                                        type="button"
+                                        onClick={() =>
+                                          setActiveChat({
+                                            ...room,
+                                            uid: room.uid,
+                                            displayName: room.name || room.displayName || 'مجموعة',
+                                            isGroup: true,
+                                          } as any)
+                                        }
+                                        className={`w-full flex items-center gap-3 p-3 rounded-2xl border transition-all ${
+                                          hasUnread
+                                            ? 'bg-blue-600/15 border-blue-500/50 shadow-lg shadow-blue-500/5'
+                                            : 'bg-slate-900 border-slate-800 hover:border-blue-500/40'
+                                        }`}
+                                      >
+                                        <div className="relative shrink-0">
+                                          <img
+                                            src={
+                                              room.photoURL ||
+                                              `https://ui-avatars.com/api/?name=${encodeURIComponent(room.name || 'G')}&background=random`
+                                            }
+                                            className="w-10 h-10 rounded-xl object-cover border border-white/10"
+                                            alt=""
+                                            referrerPolicy="no-referrer"
+                                          />
+                                          {room.settings?.onlyAdminsCanSend && (
+                                            <div className="absolute -bottom-1 -left-1 w-4 h-4 rounded-full bg-amber-500 text-slate-950 flex items-center justify-center border border-slate-900">
+                                              <Lock className="w-2.5 h-2.5" />
+                                            </div>
+                                          )}
+                                        </div>
+                                        <div className="flex-1 text-right min-w-0">
+                                          <div className="flex items-center justify-between gap-2">
+                                            <h5 className="text-sm font-black text-white truncate">
+                                              {room.name || room.displayName}
+                                            </h5>
+                                            <span className="text-[10px] font-bold text-slate-500 shrink-0">
+                                              {room.participants?.length || 0} عضو
+                                            </span>
+                                          </div>
+                                          <p className="text-[10px] font-bold text-slate-400 truncate mt-0.5">
+                                            {conv?.lastMessage || room.lastMessage || room.description || 'مجموعة عمل وتواصل'}
+                                          </p>
+                                        </div>
+                                        {hasUnread && <div className="w-2.5 h-2.5 bg-blue-500 rounded-full animate-pulse shrink-0" />}
+                                      </button>
+                                    );
+                                  })}
+                                </div>
+                              )}
+
+                              {/* Recent 1-to-1 Friend Conversations */}
+                              {conversations.filter(c => {
+                                if (c.isGroup || c.uid === 'global') return false;
+                                const isAlreadyFriend = !!profile.friends?.includes(c.uid);
+                                const inv = allInvitations.find(i => i.participants?.includes(c.uid));
+                                return isAlreadyFriend || (inv && inv.status === 'accepted');
+                              }).length > 0 && (
+                                <div className="space-y-2 mb-6">
+                                  <h5 className="text-[9px] font-black text-slate-500 uppercase tracking-widest px-2">محادثات أخيرة</h5>
+                                  {conversations.filter(c => {
+                                    if (c.isGroup || c.uid === 'global') return false;
+                                    const isAlreadyFriend = !!profile.friends?.includes(c.uid);
+                                    const inv = allInvitations.find(i => i.participants?.includes(c.uid));
+                                    return isAlreadyFriend || (inv && inv.status === 'accepted');
+                                  }).map(conv => {
+                                    const user = users.find(u => u.uid === conv.uid) || cachedUsers[conv.uid];
+                                    if (!user) return null;
+                                    return (
+                                      <button
+                                        key={`main-conv-${conv.uid}`}
+                                        onClick={() => setActiveChat(user)}
+                                        className={`w-full flex items-center gap-3 p-3 rounded-2xl border transition-all ${conv.unread ? 'bg-purple-600/10 border-purple-500/50 shadow-lg shadow-purple-500/5' : 'bg-slate-900 border-slate-800 hover:border-slate-700'}`}
+                                      >
+                                        <div className="relative shrink-0">
+                                          <img src={user?.photoURL} className="w-10 h-10 rounded-xl object-cover" alt="" referrerPolicy="no-referrer" />
+                                          <div className={`absolute -bottom-1 -right-1 w-3 h-3 rounded-full border-2 border-slate-900 ${isOnline(user?.lastSeen) ? 'bg-green-500' : 'bg-slate-700'}`}></div>
+                                        </div>
+                                        <div className="flex-1 text-left min-w-0">
+                                          <div className="flex justify-between items-center bg-transparent">
+                                            <h5 className={`text-sm font-black truncate ${conv.unread ? 'text-purple-400' : 'text-slate-200'}`}>{user?.displayName || 'زميل'}</h5>
+                                            {conv.unread && <div className="w-2 h-2 bg-purple-500 rounded-full animate-pulse"></div>}
+                                          </div>
+                                          <p className="text-[10px] font-bold text-slate-500 truncate">{conv.lastMessage}</p>
+                                        </div>
+                                      </button>
+                                    );
+                                  })}
+                                </div>
+                              )}
+                            </>
+                          )}
+                        </>
+                      );
+                    })()}
 
                         {/* Search Results / Users List */}
-                        {filteredUsers.length > 0 && (
+                        {chatView === 'main' && filteredUsers.length > 0 && (
                           <div className="space-y-2">
                             <h5 className="text-[9px] font-black text-slate-500 uppercase tracking-widest px-2">جميع الزملاء</h5>
                             {filteredUsers.map(u => (
@@ -2731,8 +3408,6 @@ export default function ChatBubble() {
                             ))}
                           </div>
                         )}
-                      </>
-                    )}
                   </div>
                 </>
               ) : (
@@ -2785,40 +3460,95 @@ export default function ChatBubble() {
                     </div>
                   )}
 
+                  {/* Pinned Message Bar inside Group Chat */}
+                  {activeChat.isGroup && activeGroupRoom?.pinnedMessage && (
+                    <button
+                      type="button"
+                      onClick={() => scrollToMessage(activeGroupRoom.pinnedMessage.id)}
+                      className="px-4 py-2 bg-purple-600/15 border-b border-purple-500/30 flex items-center justify-between gap-2 text-right hover:bg-purple-600/20 transition-colors shrink-0"
+                      dir="rtl"
+                    >
+                      <div className="flex items-center gap-2 min-w-0">
+                        <Pin className="w-3.5 h-3.5 text-purple-400 shrink-0" />
+                        <span className="text-[11px] font-black text-purple-300 shrink-0">رسالة مثبتة:</span>
+                        <span className="text-[11px] font-bold text-slate-200 truncate">
+                          {activeGroupRoom.pinnedMessage.text}
+                        </span>
+                      </div>
+                      <span className="text-[10px] text-slate-400 font-bold shrink-0">
+                        {activeGroupRoom.pinnedMessage.senderName}
+                      </span>
+                    </button>
+                  )}
+
                   <div ref={scrollRef} className="flex-1 overflow-y-auto overflow-x-hidden p-4 space-y-4 custom-scrollbar overscroll-contain w-full">
-                    {/* Message Request UI */}
-                    {!isFriend && !localIsFriendOverride && activeChat.uid !== 'global' && (
-                      <div className="bg-slate-900/80 border border-slate-700 rounded-3xl p-6 text-center shadow-xl mb-6">
-                        <div className="w-16 h-16 bg-purple-600/10 rounded-full flex items-center justify-center mx-auto mb-4 border border-purple-500/20">
-                          <UserPlus className="w-8 h-8 text-purple-500" />
+                    {/* Message Request / Friend Gate UI (1-to-1 only, never for Groups) */}
+                    {!isFriend && !localIsFriendOverride && activeChat.uid !== 'global' && !activeChat.isGroup && (
+                      <div className="bg-slate-900/90 border border-slate-700 rounded-3xl p-5 text-center shadow-xl mb-4" dir="rtl">
+                        <div className="w-14 h-14 bg-purple-600/15 rounded-2xl flex items-center justify-center mx-auto mb-3 border border-purple-500/30">
+                          <UserPlus className="w-7 h-7 text-purple-400" />
                         </div>
-                        <h4 className="text-white font-black mb-2 font-amiri text-lg">طلب مراسلة - Message Request</h4>
-                        <p className="text-slate-400 text-xs font-bold mb-6">
-                          {!friendRequest 
-                            ? 'أرسل رسالة للزميل لطلب التواصل معه.'
-                            : friendRequest.senderId === profile.uid 
-                              ? 'لقد ارسلت طلب صداقة، انتظر قبول الزميل لكي تتمكنا من التحدث.'
-                              : 'يريد هذا الزميل التواصل معك، هل توافق؟'}
+                        <h4 className="text-white font-black mb-1.5 text-base">
+                          {!friendRequest
+                            ? 'المحادثة تتطلب قبول الزميل أولاً'
+                            : friendRequest.senderId === profile.uid
+                            ? 'بانتظار موافقة الزميل'
+                            : `دعوة محادثة من ${activeChat.displayName}`}
+                        </h4>
+                        <p className="text-slate-400 text-xs font-bold mb-4 leading-relaxed">
+                          {!friendRequest
+                            ? 'لبدء المحادثة والمكالمات مع هذا الزميل، أرسل طلب صداقة أو أرسل له رسالة دعوة واحدة بالأسفل وسيصله إشعار لقبولها.'
+                            : friendRequest.senderId === profile.uid
+                            ? `تم إرسال طلبك إلى ${activeChat.displayName}. سيُفتح النقاش والمكالمات فور قبوله للطلب.`
+                            : 'أرسل لك هذا الزميل طلباً للتحدث معك. هل توافق على بدء المحادثة؟'}
                         </p>
-                        {!friendRequest ? null : friendRequest.senderId !== profile.uid ? (
+
+                        {friendRequest?.inviteMessage && (
+                          <div className="mb-4 p-3 rounded-2xl bg-slate-950/80 border border-purple-500/25 text-right">
+                            <p className="text-[10px] font-black text-purple-400 mb-1">رسالة الدعوة:</p>
+                            <p className="text-xs font-bold text-slate-200 whitespace-pre-wrap">{friendRequest.inviteMessage}</p>
+                          </div>
+                        )}
+
+                        {!friendRequest ? (
+                          <button
+                            type="button"
+                            onClick={handleSendChatRequest}
+                            className="w-full py-3 bg-purple-600 hover:bg-purple-500 text-white rounded-2xl font-black text-xs transition-all shadow-lg shadow-purple-500/25 flex items-center justify-center gap-2"
+                          >
+                            <UserPlus className="w-4 h-4" />
+                            <span>إرسال طلب صداقة ومحادثة</span>
+                          </button>
+                        ) : friendRequest.senderId !== profile.uid ? (
                           <div className="flex gap-2">
-                            <button 
-                              onClick={handleDeclineRequest}
-                              className="flex-1 py-3 bg-red-500/10 text-red-500 rounded-2xl font-black text-xs hover:bg-red-500 hover:text-white transition-all border border-red-500/20"
+                            <button
+                              type="button"
+                              onClick={() => handleDeclineRequest()}
+                              className="flex-1 py-3 bg-red-500/10 text-red-400 rounded-2xl font-black text-xs hover:bg-red-500 hover:text-white transition-all border border-red-500/20"
                             >
-                              رفض (Decline)
+                              رفض
                             </button>
-                            <button 
-                              onClick={handleAcceptRequest}
+                            <button
+                              type="button"
+                              onClick={() => handleAcceptRequest()}
                               disabled={isAccepting}
-                              className="flex-1 py-3 bg-emerald-600 text-white rounded-2xl font-black text-xs hover:bg-emerald-700 transition-all shadow-lg shadow-emerald-500/30 flex items-center justify-center gap-2 disabled:opacity-50"
+                              className="flex-1 py-3 bg-emerald-600 text-white rounded-2xl font-black text-xs hover:bg-emerald-500 transition-all shadow-lg shadow-emerald-500/30 flex items-center justify-center gap-2 disabled:opacity-50"
                             >
-                              {isAccepting ? <Loader2 className="w-4 h-4 animate-spin" /> : 'قبول (Accept)'}
+                              {isAccepting ? <Loader2 className="w-4 h-4 animate-spin" /> : 'قبول وبدء التحدث'}
                             </button>
                           </div>
                         ) : (
-                          <div className="py-3 bg-slate-900 border border-slate-800 rounded-2xl text-slate-500 text-[10px] font-black uppercase tracking-widest">
-                            انتظار الموافقة... Pending Approval
+                          <div className="space-y-2">
+                            <div className="py-2.5 bg-slate-950 border border-slate-800 rounded-2xl text-amber-400 text-[11px] font-black">
+                              ⏳ بانتظار قبول الزميل...
+                            </div>
+                            <button
+                              type="button"
+                              onClick={handleCancelRequest}
+                              className="text-[11px] font-black text-red-400 hover:underline"
+                            >
+                              إلغاء الطلب
+                            </button>
                           </div>
                         )}
                       </div>
@@ -2827,7 +3557,8 @@ export default function ChatBubble() {
                     {messages.map((msg) => (
                       <div 
                         key={msg.id} 
-                        className={`flex flex-col ${msg.senderId === profile.uid ? 'items-end' : 'items-start'}`}
+                        id={`msg-${msg.id}`}
+                        className={`flex flex-col transition-all duration-300 ${msg.senderId === profile.uid ? 'items-end' : 'items-start'} ${highlightMessageId === msg.id ? 'bg-primary/15 rounded-2xl p-1 ring-2 ring-primary/50' : ''}`}
                         onMouseDown={() => {
                           pressTimer.current = setTimeout(() => {
                             setSelectedMessageId(msg.id);
@@ -2855,12 +3586,24 @@ export default function ChatBubble() {
                               setSelectedMessageId(msg.id);
                             }}
                           >
-                            {/* Reply Preview */}
-                            {msg.replyTo && (
-                              <div className={`mb-2 p-2 rounded-xl text-[10px] border-r-2 ${msg.senderId === profile.uid ? 'bg-black/20 border-white/30 text-white/80' : 'bg-slate-800 border-purple-500 text-slate-400'}`}>
-                                <p className="font-black opacity-70">{msg.replyTo.senderName}</p>
-                                <p className="truncate line-clamp-1">{msg.replyTo.text}</p>
+                            {/* Forwarded Badge */}
+                            {msg.isForwarded && (
+                              <div className="flex items-center gap-1 text-[10px] font-black opacity-80 mb-1.5 pb-1 border-b border-white/10" dir="rtl">
+                                <Forward className="w-3 h-3" />
+                                <span>تمت إعادة توجيهها{msg.forwardedFrom ? ` • من ${msg.forwardedFrom}` : ''}</span>
                               </div>
+                            )}
+
+                            {/* Reply Preview (Click to scroll to original) */}
+                            {msg.replyTo && (
+                              <button
+                                type="button"
+                                onClick={() => scrollToMessage(msg.replyTo.id)}
+                                className={`w-full text-right mb-2 p-2 rounded-xl text-[10px] border-r-2 transition-opacity hover:opacity-100 ${msg.senderId === profile.uid ? 'bg-black/25 border-white/40 text-white/90' : 'bg-slate-800 border-purple-500 text-slate-300'}`}
+                              >
+                                <p className="font-black opacity-80">{msg.replyTo.senderName}</p>
+                                <p className="truncate line-clamp-1">{msg.replyTo.text}</p>
+                              </button>
                             )}
 
                             {msg.text && <p className="whitespace-pre-wrap select-text" style={{ wordBreak: 'normal', overflowWrap: 'break-word' }} dir="auto">{msg.text}</p>}
@@ -2877,51 +3620,34 @@ export default function ChatBubble() {
                               <audio src={msg.audioUrl} controls className="w-full h-8 mt-1" />
                             )}
                             
-                            {/* Reactions Display */}
+                            {/* Reactions Display (Tap to toggle your reaction) */}
                             {msg.reactions && Object.keys(msg.reactions).length > 0 && (
-                              <div className="absolute -bottom-2 right-1 flex -space-x-1 group/reacted z-20">
-                                {Object.entries(msg.reactions as Record<string, string>).slice(0, 3).map(([uid, emoji], i) => (
-                                  <motion.div 
-                                    key={uid} 
+                              <div className="absolute -bottom-2.5 right-2 flex -space-x-1 group/reacted z-20">
+                                {Object.entries(msg.reactions as Record<string, string>).slice(0, 4).map(([uid, emoji]) => (
+                                  <motion.button
+                                    key={uid}
+                                    type="button"
+                                    onClick={() => handleToggleReaction(msg, emoji)}
                                     initial={{ scale: 0 }}
                                     animate={{ scale: 1 }}
-                                    className="bg-slate-800 border border-slate-700 rounded-full w-5 h-5 flex items-center justify-center text-[11px] shadow-lg ring-1 ring-black/20"
+                                    className={`bg-slate-800 border rounded-full w-5 h-5 flex items-center justify-center text-[11px] shadow-lg ring-1 ring-black/20 ${uid === profile.uid ? 'border-purple-400' : 'border-slate-700'}`}
+                                    title="اضغط لإضافة أو إزالة التفاعل"
                                   >
                                     {emoji}
-                                  </motion.div>
+                                  </motion.button>
                                 ))}
-                                {Object.keys(msg.reactions).length > 3 && (
+                                {Object.keys(msg.reactions).length > 4 && (
                                   <div className="bg-slate-800 border border-slate-700 rounded-full w-5 h-5 flex items-center justify-center text-[8px] font-bold shadow-lg ring-1 ring-black/20 text-slate-400">
-                                    +{Object.keys(msg.reactions).length - 3}
+                                    +{Object.keys(msg.reactions).length - 4}
                                   </div>
                                 )}
                               </div>
                             )}
 
-                            {/* Reaction Picker Trigger */}
-                            <div className={`absolute top-0 ${msg.senderId === profile.uid ? '-left-12' : '-right-12'} opacity-0 group-hover:opacity-100 transition-opacity z-10 flex flex-col gap-1`}>
-                              <button 
-                                onClick={() => setShowEmojiPicker(showEmojiPicker === msg.id ? null : msg.id)}
-                                className="p-1.5 bg-slate-800 hover:bg-slate-700 rounded-full text-slate-400 hover:text-purple-400 transition-colors shadow-lg border border-slate-700"
-                              >
-                                <Smile className="w-4 h-4" />
-                              </button>
-                              <button 
-                                onClick={() => {
-                                  setReplyMessage(msg);
-                                  chatInputRef.current?.focus();
-                                }}
-                                className="p-1.5 bg-slate-800 hover:bg-slate-700 rounded-full text-slate-400 hover:text-blue-400 transition-colors shadow-lg border border-slate-700"
-                              >
-                                <Reply className="w-4 h-4 rotate-180" />
-                              </button>
-                            </div>
-
                             {/* Selected Context Menu Overlay */}
                             <AnimatePresence>
                               {selectedMessageId === msg.id && (
                                 <>
-                                  {/* Backdrop for mobile to ensure focus and prevent accidental clicks */}
                                   <motion.div 
                                     initial={{ opacity: 0 }}
                                     animate={{ opacity: 1 }}
@@ -2933,20 +3659,19 @@ export default function ChatBubble() {
                                     initial={{ opacity: 0, scale: 0.9, x: -50 }}
                                     animate={{ opacity: 1, scale: 1, x: 0 }}
                                     exit={{ opacity: 0, scale: 0.9, x: -50 }}
-                                    className="fixed top-1/2 left-4 -translate-y-1/2 w-[220px] max-w-[calc(100vw-2rem)] shadow-[0_0_50px_rgba(0,0,0,0.4)] z-[1000] flex flex-col bg-slate-950/98 backdrop-blur-3xl border border-white/10 rounded-[2rem] overflow-hidden ring-1 ring-white/10"
+                                    className="fixed top-1/2 left-4 -translate-y-1/2 w-[235px] max-w-[calc(100vw-2rem)] shadow-[0_0_50px_rgba(0,0,0,0.4)] z-[1000] flex flex-col bg-slate-950/98 backdrop-blur-3xl border border-white/10 rounded-[2rem] overflow-hidden ring-1 ring-white/10"
                                     dir="rtl"
                                   >
                                     {/* Horizontal Emoji Bar */}
                                     <div className="p-3 border-b border-white/10 bg-white/5 flex flex-row flex-wrap gap-1.5 justify-center">
-                                      {['👍', '❤️', '😂', '🤔', '😡', '🔥', '👏', '🙏'].map(emoji => (
+                                      {['👍', '❤️', '😂', '😮', '😢', '😡', '🔥', '👏', '🙏'].map(emoji => (
                                         <button
                                           key={emoji}
                                           onClick={() => {
-                                            const msgRef = doc(db, 'messages', msg.id);
-                                            updateDoc(msgRef, { [`reactions.${profile.uid}`]: emoji });
+                                            handleToggleReaction(msg, emoji);
                                             setSelectedMessageId(null);
                                           }}
-                                          className="text-xl hover:scale-125 active:scale-90 transition-transform p-1"
+                                          className={`text-xl hover:scale-125 active:scale-90 transition-transform p-1 rounded-lg ${msg.reactions?.[profile.uid] === emoji ? 'bg-purple-500/30 ring-1 ring-purple-400' : ''}`}
                                         >
                                           {emoji}
                                         </button>
@@ -2966,6 +3691,43 @@ export default function ChatBubble() {
                                         <Reply className="w-4 h-4 text-blue-400 rotate-180" />
                                         <span>رد على الرسالة</span>
                                       </button>
+                                      {msg.text && (
+                                        <button 
+                                          onClick={() => {
+                                            handleCopyMessage(msg);
+                                            setSelectedMessageId(null);
+                                          }}
+                                          className="w-full text-right px-4 py-3 text-xs font-black text-slate-100 hover:bg-white/10 transition-colors flex items-center justify-start gap-3 border-t border-white/5"
+                                        >
+                                          <Copy className="w-4 h-4 text-sky-400" />
+                                          <span>نسخ الرسالة</span>
+                                        </button>
+                                      )}
+                                      {canForwardInChat && (
+                                        <button 
+                                          onClick={() => {
+                                            setForwardingMessage(msg);
+                                            setForwardTargets([]);
+                                            setSelectedMessageId(null);
+                                          }}
+                                          className="w-full text-right px-4 py-3 text-xs font-black text-slate-100 hover:bg-white/10 transition-colors flex items-center justify-start gap-3 border-t border-white/5"
+                                        >
+                                          <Forward className="w-4 h-4 text-emerald-400" />
+                                          <span>إعادة إرسال (Transfer)</span>
+                                        </button>
+                                      )}
+                                      {activeChat?.isGroup && isGroupAdmin && (
+                                        <button 
+                                          onClick={() => {
+                                            handlePinMessage(msg);
+                                            setSelectedMessageId(null);
+                                          }}
+                                          className="w-full text-right px-4 py-3 text-xs font-black text-purple-300 hover:bg-purple-500/10 transition-colors flex items-center justify-start gap-3 border-t border-white/5"
+                                        >
+                                          <Pin className="w-4 h-4 text-purple-400" />
+                                          <span>تثبيت في المجموعة</span>
+                                        </button>
+                                      )}
                                       <button 
                                         onClick={() => {
                                           handleDeleteMessage(msg.id, false);
@@ -2976,7 +3738,7 @@ export default function ChatBubble() {
                                         <Trash2 className="w-4 h-4 text-slate-400" />
                                         <span>حذف من عندي</span>
                                       </button>
-                                      {msg.senderId === profile.uid && (
+                                      {(msg.senderId === profile.uid || (activeChat?.isGroup && isGroupAdmin)) && (
                                         <button 
                                           onClick={() => {
                                             handleDeleteMessage(msg.id, true);
@@ -3013,11 +3775,10 @@ export default function ChatBubble() {
                                     <button
                                       key={emoji}
                                       onClick={() => {
-                                        const msgRef = doc(db, 'messages', msg.id);
-                                        updateDoc(msgRef, { [`reactions.${profile.uid}`]: emoji });
+                                        handleToggleReaction(msg, emoji);
                                         setShowEmojiPicker(null);
                                       }}
-                                      className="hover:scale-130 transition-transform p-0.5 text-lg"
+                                      className={`hover:scale-130 transition-transform p-0.5 text-lg rounded-full ${msg.reactions?.[profile.uid] === emoji ? 'bg-purple-500/30' : ''}`}
                                     >
                                       {emoji}
                                     </button>
@@ -3025,6 +3786,52 @@ export default function ChatBubble() {
                                 </motion.div>
                               )}
                             </AnimatePresence>
+                          </div>
+
+                          {/* Accessible Inline Quick Action Bar (Touch & Desktop Friendly, Never Clipped) */}
+                          <div className={`flex items-center gap-1 mt-1.5 ${msg.senderId === profile.uid ? 'justify-end' : 'justify-start'}`}>
+                            <button
+                              type="button"
+                              onClick={() => setShowEmojiPicker(showEmojiPicker === msg.id ? null : msg.id)}
+                              className="p-1.5 rounded-lg bg-slate-900/70 hover:bg-slate-800 text-slate-400 hover:text-amber-400 border border-white/5 transition-all"
+                              title="تفاعل بإيموجي"
+                            >
+                              <Smile className="w-3.5 h-3.5" />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setReplyMessage(msg);
+                                chatInputRef.current?.focus();
+                              }}
+                              className="p-1.5 rounded-lg bg-slate-900/70 hover:bg-slate-800 text-slate-400 hover:text-blue-400 border border-white/5 transition-all"
+                              title="رد كتابي"
+                            >
+                              <Reply className="w-3.5 h-3.5 rotate-180" />
+                            </button>
+                            {msg.text && (
+                              <button
+                                type="button"
+                                onClick={() => handleCopyMessage(msg)}
+                                className="p-1.5 rounded-lg bg-slate-900/70 hover:bg-slate-800 text-slate-400 hover:text-sky-400 border border-white/5 transition-all"
+                                title="نسخ"
+                              >
+                                <Copy className="w-3.5 h-3.5" />
+                              </button>
+                            )}
+                            {canForwardInChat && (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setForwardingMessage(msg);
+                                  setForwardTargets([]);
+                                }}
+                                className="p-1.5 rounded-lg bg-slate-900/70 hover:bg-slate-800 text-slate-400 hover:text-emerald-400 border border-white/5 transition-all"
+                                title="إعادة إرسال"
+                              >
+                                <Forward className="w-3.5 h-3.5" />
+                              </button>
+                            )}
                           </div>
                         </div>
                         
@@ -3107,8 +3914,18 @@ export default function ChatBubble() {
                       </div>
                     )}
                   </div>
-                  {(!friendRequest || isFriend || localIsFriendOverride || activeChat.uid === 'global') && (
+                  {isGroupLockedForMe ? (
+                    <div className="p-4 bg-slate-900/80 border-t border-amber-500/20 flex items-center justify-center gap-2 text-amber-400 text-xs font-black" dir="rtl">
+                      <Lock className="w-4 h-4" />
+                      <span>أغلق المشرفون إرسال الرسائل حالياً — يمكنك التفاعل والرد فقط عند السماح</span>
+                    </div>
+                  ) : (!friendRequest || isFriend || localIsFriendOverride || activeChat.uid === 'global' || activeChat.isGroup) && (
                   <div className="p-4 bg-slate-900/40 border-t border-slate-800 flex flex-col gap-3">
+                    {!isFriend && !localIsFriendOverride && activeChat.uid !== 'global' && !activeChat.isGroup && (
+                      <div className="flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-500/10 border border-amber-500/25 text-amber-300 text-[11px] font-black" dir="rtl">
+                        <span>📩 إرسال رسالة دعوة (رسالة واحدة تصل كطلب وإشعار قبل القبول)</span>
+                      </div>
+                    )}
                     {replyMessage && (
                       <motion.div 
                         initial={{ opacity: 0, y: 10 }}
@@ -3201,7 +4018,13 @@ export default function ChatBubble() {
                         rows={1}
                         id="chat_message_field"
                         name="chat_message_input"
-                        placeholder={isUploading ? "Uploading..." : "Type your message..."}
+                        placeholder={
+                          isUploading
+                            ? 'جاري الرفع...'
+                            : !isFriend && !localIsFriendOverride && activeChat.uid !== 'global' && !activeChat.isGroup
+                            ? 'اكتب رسالة دعوة لبدء المحادثة...'
+                            : 'اكتب رسالتك هنا...'
+                        }
                         disabled={isUploading}
                         autoComplete="off"
                         autoCorrect="off"
@@ -3228,13 +4051,15 @@ export default function ChatBubble() {
                     </div>
                     <div className="flex items-center justify-between px-1">
                       <div className="flex items-center gap-4">
-                        <button 
-                          type="button" 
-                          onClick={() => fileInputRef.current?.click()}
-                          className="text-slate-500 hover:text-purple-400 transition-colors"
-                        >
-                          <ImageIcon className="w-5 h-5" />
-                        </button>
+                        {canSendMediaInChat && (
+                          <button 
+                            type="button" 
+                            onClick={() => fileInputRef.current?.click()}
+                            className="text-slate-500 hover:text-purple-400 transition-colors"
+                          >
+                            <ImageIcon className="w-5 h-5" />
+                          </button>
+                        )}
                         <button 
                           type="button" 
                           onClick={() => setShowEmojiPicker(showEmojiPicker === 'input' ? null : 'input')}
@@ -3267,43 +4092,47 @@ export default function ChatBubble() {
                             </motion.div>
                           )}
                         </AnimatePresence>
-                        <button 
-                          type="button" 
-                          onClick={() => fileInputRef.current?.click()}
-                          className="text-slate-500 hover:text-purple-400 transition-colors"
-                        >
-                          <Paperclip className="w-5 h-5" />
-                        </button>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        {isRecording && (
+                        {canSendMediaInChat && (
                           <button 
-                            type="button"
-                            onClick={cancelRecording}
-                            className="p-2 text-slate-500 hover:text-red-500 transition-colors animate-in slide-in-from-right-2"
+                            type="button" 
+                            onClick={() => fileInputRef.current?.click()}
+                            className="text-slate-500 hover:text-purple-400 transition-colors"
                           >
-                            <Trash2 className="w-5 h-5" />
+                            <Paperclip className="w-5 h-5" />
                           </button>
                         )}
-                        <button 
-                          type="button"
-                          onClick={() => {
-                            if (isRecording) {
-                              stopRecording();
-                            } else {
-                              startRecording();
-                            }
-                          }}
-                          className={`p-2 rounded-full transition-all relative ${isRecording ? 'bg-red-500 text-white animate-pulse' : 'text-slate-500 hover:bg-slate-800'}`}
-                        >
-                          {isRecording ? <div className="w-5 h-5 flex items-center justify-center"><Square className="w-3 h-3 fill-current" /></div> : <Mic className="w-5 h-5" />}
-                          {isRecording && (
-                            <div className="absolute -top-8 left-1/2 -translate-x-1/2 bg-red-500 text-white text-[10px] font-black px-2 py-1 rounded-full whitespace-nowrap shadow-lg">
-                              {Math.floor(recordingDuration / 60)}:{(recordingDuration % 60).toString().padStart(2, '0')}
-                            </div>
-                          )}
-                        </button>
                       </div>
+                      {canSendVoiceInChat && (
+                        <div className="flex items-center gap-2">
+                          {isRecording && (
+                            <button 
+                              type="button"
+                              onClick={cancelRecording}
+                              className="p-2 text-slate-500 hover:text-red-500 transition-colors animate-in slide-in-from-right-2"
+                            >
+                              <Trash2 className="w-5 h-5" />
+                            </button>
+                          )}
+                          <button 
+                            type="button"
+                            onClick={() => {
+                              if (isRecording) {
+                                stopRecording();
+                              } else {
+                                startRecording();
+                              }
+                            }}
+                            className={`p-2 rounded-full transition-all relative ${isRecording ? 'bg-red-500 text-white animate-pulse' : 'text-slate-500 hover:bg-slate-800'}`}
+                          >
+                            {isRecording ? <div className="w-5 h-5 flex items-center justify-center"><Square className="w-3 h-3 fill-current" /></div> : <Mic className="w-5 h-5" />}
+                            {isRecording && (
+                              <div className="absolute -top-8 left-1/2 -translate-x-1/2 bg-red-500 text-white text-[10px] font-black px-2 py-1 rounded-full whitespace-nowrap shadow-lg">
+                                {Math.floor(recordingDuration / 60)}:{(recordingDuration % 60).toString().padStart(2, '0')}
+                              </div>
+                            )}
+                          </button>
+                        </div>
+                      )}
                     </div>
                     <input 
                       type="file" 
@@ -3492,6 +4321,216 @@ export default function ChatBubble() {
             </motion.div>
           )}
         </AnimatePresence>
+
+        {/* Forward / Transfer Message Modal */}
+        <AnimatePresence>
+          {forwardingMessage && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 z-[1200] bg-slate-950/80 backdrop-blur-md flex items-center justify-center p-4"
+              dir="rtl"
+            >
+              <motion.div
+                initial={{ scale: 0.92, y: 20 }}
+                animate={{ scale: 1, y: 0 }}
+                exit={{ scale: 0.92, y: 20 }}
+                className="bg-slate-900 border border-slate-800 rounded-3xl w-full max-w-md max-h-[85vh] flex flex-col shadow-2xl overflow-hidden"
+              >
+                <div className="p-4 border-b border-slate-800 flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <div className="w-9 h-9 rounded-xl bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center">
+                      <Forward className="w-4 h-4 text-emerald-400" />
+                    </div>
+                    <div>
+                      <h4 className="text-sm font-black text-white">إعادة إرسال الرسالة (Transfer)</h4>
+                      <p className="text-[10px] text-slate-400 font-bold line-clamp-1">
+                        {forwardingMessage.text || (forwardingMessage.imageUrl ? 'صورة مرفقة' : 'مقطع صوتي')}
+                      </p>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => setForwardingMessage(null)}
+                    className="p-2 text-slate-400 hover:text-white rounded-xl hover:bg-slate-800"
+                  >
+                    <X className="w-5 h-5" />
+                  </button>
+                </div>
+
+                <div className="p-3 border-b border-slate-800">
+                  <div className="relative">
+                    <Search className="w-4 h-4 text-slate-500 absolute right-3 top-1/2 -translate-y-1/2" />
+                    <input
+                      type="text"
+                      value={forwardSearch}
+                      onChange={(e) => setForwardSearch(e.target.value)}
+                      placeholder="ابحث عن زميل أو مجموعة..."
+                      className="w-full bg-slate-950 border border-slate-800 rounded-2xl pr-9 pl-4 py-2.5 text-xs text-white font-bold outline-none focus:border-emerald-500"
+                    />
+                  </div>
+                </div>
+
+                <div className="flex-1 overflow-y-auto p-3 space-y-2 custom-scrollbar">
+                  {/* Global Chat Option */}
+                  {'قاعة الأساتذة العامة global chat'.includes(forwardSearch.toLowerCase()) && (
+                    <button
+                      type="button"
+                      onClick={() =>
+                        toggleForwardTarget({
+                          id: 'global',
+                          isGroup: false,
+                          name: 'قاعة الأساتذة العامة',
+                          participants: ['global'],
+                        })
+                      }
+                      className={`w-full flex items-center justify-between p-2.5 rounded-2xl border transition-all ${
+                        forwardTargets.some((t) => t.id === 'global')
+                          ? 'bg-emerald-500/15 border-emerald-500 text-white'
+                          : 'bg-slate-950/60 border-slate-800 text-slate-300 hover:border-slate-700'
+                      }`}
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-xl bg-purple-600 flex items-center justify-center">
+                          <Globe className="w-5 h-5 text-white" />
+                        </div>
+                        <div className="text-right">
+                          <p className="text-xs font-black">قاعة الأساتذة العامة</p>
+                          <p className="text-[10px] text-slate-400">Global Chat</p>
+                        </div>
+                      </div>
+                      <div
+                        className={`w-5 h-5 rounded-full border flex items-center justify-center ${
+                          forwardTargets.some((t) => t.id === 'global')
+                            ? 'bg-emerald-500 border-emerald-500 text-white'
+                            : 'border-slate-600'
+                        }`}
+                      >
+                        {forwardTargets.some((t) => t.id === 'global') && <Check className="w-3 h-3" />}
+                      </div>
+                    </button>
+                  )}
+
+                  {/* Chat Groups */}
+                  {chatRooms
+                    .filter((r) => (r.displayName || '').toLowerCase().includes(forwardSearch.toLowerCase()))
+                    .map((room) => {
+                      const selected = forwardTargets.some((t) => t.id === room.uid);
+                      return (
+                        <button
+                          key={`fwd-room-${room.uid}`}
+                          type="button"
+                          onClick={() =>
+                            toggleForwardTarget({
+                              id: room.uid,
+                              isGroup: true,
+                              name: room.displayName,
+                              participants: room.participants || [profile.uid],
+                            })
+                          }
+                          className={`w-full flex items-center justify-between p-2.5 rounded-2xl border transition-all ${
+                            selected
+                              ? 'bg-emerald-500/15 border-emerald-500 text-white'
+                              : 'bg-slate-950/60 border-slate-800 text-slate-300 hover:border-slate-700'
+                          }`}
+                        >
+                          <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 rounded-xl bg-blue-600 flex items-center justify-center">
+                              <Users className="w-5 h-5 text-white" />
+                            </div>
+                            <div className="text-right">
+                              <p className="text-xs font-black">{room.displayName}</p>
+                              <p className="text-[10px] text-slate-400">مجموعة محادثة</p>
+                            </div>
+                          </div>
+                          <div
+                            className={`w-5 h-5 rounded-full border flex items-center justify-center ${
+                              selected ? 'bg-emerald-500 border-emerald-500 text-white' : 'border-slate-600'
+                            }`}
+                          >
+                            {selected && <Check className="w-3 h-3" />}
+                          </div>
+                        </button>
+                      );
+                    })}
+
+                  {/* Colleagues */}
+                  {users
+                    .filter((u) => (u.displayName || '').toLowerCase().includes(forwardSearch.toLowerCase()))
+                    .map((u) => {
+                      const selected = forwardTargets.some((t) => t.id === u.uid);
+                      return (
+                        <button
+                          key={`fwd-user-${u.uid}`}
+                          type="button"
+                          onClick={() =>
+                            toggleForwardTarget({
+                              id: u.uid,
+                              isGroup: false,
+                              name: u.displayName,
+                              participants: [profile.uid, u.uid].sort(),
+                            })
+                          }
+                          className={`w-full flex items-center justify-between p-2.5 rounded-2xl border transition-all ${
+                            selected
+                              ? 'bg-emerald-500/15 border-emerald-500 text-white'
+                              : 'bg-slate-950/60 border-slate-800 text-slate-300 hover:border-slate-700'
+                          }`}
+                        >
+                          <div className="flex items-center gap-3">
+                            <img src={u.photoURL} className="w-10 h-10 rounded-xl object-cover" alt="" referrerPolicy="no-referrer" />
+                            <div className="text-right">
+                              <p className="text-xs font-black">{u.displayName}</p>
+                              <p className="text-[10px] text-slate-400">{u.subject || 'أستاذ'}</p>
+                            </div>
+                          </div>
+                          <div
+                            className={`w-5 h-5 rounded-full border flex items-center justify-center ${
+                              selected ? 'bg-emerald-500 border-emerald-500 text-white' : 'border-slate-600'
+                            }`}
+                          >
+                            {selected && <Check className="w-3 h-3" />}
+                          </div>
+                        </button>
+                      );
+                    })}
+                </div>
+
+                <div className="p-3 border-t border-slate-800 bg-slate-950/70 flex items-center justify-between gap-3">
+                  <span className="text-xs font-black text-slate-400">
+                    تم تحديد: <span className="text-emerald-400">{forwardTargets.length}</span>
+                  </span>
+                  <button
+                    type="button"
+                    disabled={forwardTargets.length === 0 || isForwarding}
+                    onClick={handleExecuteForward}
+                    className="min-h-[44px] px-6 py-2.5 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white rounded-2xl text-xs font-black flex items-center gap-2 transition-all shadow-lg shadow-emerald-600/25"
+                  >
+                    {isForwarding ? <Loader2 className="w-4 h-4 animate-spin" /> : <Forward className="w-4 h-4" />}
+                    <span>إرسال الآن</span>
+                  </button>
+                </div>
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {showGroupTools && activeGroupRoom && (
+          <GroupManagementModal
+            isOpen={showGroupTools}
+            onClose={() => setShowGroupTools(false)}
+            room={activeGroupRoom}
+            currentUser={profile}
+            allUsers={users}
+            onRoomUpdated={(updated) => {
+              setActiveChat((prev: any) => (prev ? { ...prev, ...updated } : prev));
+            }}
+            onRoomExited={() => {
+              setShowGroupTools(false);
+              setActiveChat(null);
+            }}
+          />
+        )}
 
       </motion.div>
     </div>
