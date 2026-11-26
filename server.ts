@@ -4,7 +4,7 @@ import fs from "fs";
 import { createServer as createViteServer } from "vite";
 import { GoogleGenAI } from "@google/genai";
 import dotenv from "dotenv";
-import webpush from "web-push";
+import * as webpush from "web-push";
 
 dotenv.config();
 

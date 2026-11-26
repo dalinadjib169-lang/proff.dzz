@@ -22,9 +22,6 @@ import Groups from './pages/Groups';
 import GroupDetails from './pages/GroupDetails';
 import ProfileRedirect from './pages/ProfileRedirect';
 import AdminDashboard from './pages/AdminDashboard';
-import MemoGenerator1 from './pages/MemoGenerator1';
-import MemoGenerator2 from './pages/MemoGenerator2';
-import Whiteboard from './pages/Whiteboard';
 import Navbar from './components/Navbar';
 import Sidebar from './components/Sidebar';
 import BottomNav from './components/BottomNav';
@@ -543,9 +540,6 @@ export default function App() {
                         <Route path="/profile/loading" element={<PageTransition><ProfileRedirect /></PageTransition>} />
                         <Route path="/notifications" element={user ? <PageTransition><Notifications /></PageTransition> : <Navigate to="/login" />} />
                         <Route path="/discussions" element={user ? <PageTransition><Discussions /></PageTransition> : <Navigate to="/login" />} />
-                        <Route path="/memo-generator-1" element={user ? <PageTransition><MemoGenerator1 /></PageTransition> : <Navigate to="/login" />} />
-                        <Route path="/memo-generator-2" element={user ? <PageTransition><MemoGenerator2 /></PageTransition> : <Navigate to="/login" />} />
-                        <Route path="/whiteboard" element={user ? <PageTransition><Whiteboard /></PageTransition> : <Navigate to="/login" />} />
                         <Route path="/saved" element={user ? <PageTransition><Saved /></PageTransition> : <Navigate to="/login" />} />
                         <Route path="/colleagues" element={user ? <PageTransition><Colleagues /></PageTransition> : <Navigate to="/login" />} />
                         <Route path="/groups" element={user ? <PageTransition><Groups /></PageTransition> : <Navigate to="/login" />} />

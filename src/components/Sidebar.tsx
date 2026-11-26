@@ -90,12 +90,18 @@ function Sidebar() {
   const { user } = useAuth();
   const isAdmin = isUserAdmin(profile, user);
 
-  const baseNavItems = [
+  const baseNavItems: Array<{
+    icon: any;
+    label: string;
+    path?: string;
+    href?: string;
+    badge?: number;
+  }> = [
     { icon: Home, label: t('home'), path: '/' },
     { icon: MessageSquare, label: t('discussions'), path: '/discussions' },
-    { icon: FileText, label: 'مولد مذكرات 1', path: '/memo-generator-1' },
-    { icon: ClipboardCheck, label: 'مولد مذكرات 2', path: '/memo-generator-2' },
-    { icon: Presentation, label: 'السبورة الاحترافية', path: '/whiteboard' },
+    { icon: FileText, label: 'مولد مذكرات 1', href: 'https://pro-mat.vercel.app/' },
+    { icon: ClipboardCheck, label: 'مولد مذكرات 2', href: 'https://pro-g-nirateur-ai.vercel.app/' },
+    { icon: Presentation, label: 'السبورة الذكية', href: 'https://intelligent-board.vercel.app/' },
     { icon: Dumbbell, label: 'النمط الرياضي - Sport Mode', path: '/fitness' },
     { icon: ShoppingBag, label: t('market'), path: '/market' },
     { icon: Gamepad2, label: 'استراحة أستاذ', path: '/game' },
@@ -167,34 +173,50 @@ function Sidebar() {
       </button>
 
       <nav className="space-y-1">
-        {navItems.map((item) => (
+        {navItems.map((item) =>
+          item.href ? (
+            <a
+              key={item.label}
+              href={item.href}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center justify-between px-6 py-4 rounded-2xl font-bold transition-all group text-slate-400 hover:bg-slate-900 hover:text-primary"
+            >
+              <div className="flex items-center gap-4">
+                <item.icon className="w-5 h-5 transition-transform group-hover:scale-110" />
+                <span>{item.label}</span>
+              </div>
+              <ExternalLink className="w-4 h-4 opacity-60 group-hover:opacity-100 transition-opacity" />
+            </a>
+          ) : (
             <NavLink
               key={item.label}
-              to={item.path}
+              to={item.path || '/'}
               onClick={() => {
                 if (item.path === '/') {
                   window.scrollTo({ top: 0, behavior: 'smooth' });
                   window.dispatchEvent(new CustomEvent('refresh-home'));
                 }
               }}
-            className={({ isActive }) => cn(
-              "flex items-center justify-between px-6 py-4 rounded-2xl font-bold transition-all group",
-              isActive 
-                ? "bg-primary text-white shadow-lg shadow-primary/20" 
-                : "text-slate-500 hover:bg-slate-900 hover:text-primary"
-            )}
-          >
-            <div className="flex items-center gap-4">
-              <item.icon className={cn("w-5 h-5", "transition-transform group-hover:scale-110")} />
-              <span>{item.label}</span>
-            </div>
-            {item.badge && item.badge > 0 && (
-              <span className="bg-red-500 text-white text-[10px] font-black px-2 py-0.5 rounded-full shadow-lg shadow-red-500/20">
-                {item.badge}
-              </span>
-            )}
-          </NavLink>
-        ))}
+              className={({ isActive }) => cn(
+                "flex items-center justify-between px-6 py-4 rounded-2xl font-bold transition-all group",
+                isActive 
+                  ? "bg-primary text-white shadow-lg shadow-primary/20" 
+                  : "text-slate-500 hover:bg-slate-900 hover:text-primary"
+              )}
+            >
+              <div className="flex items-center gap-4">
+                <item.icon className={cn("w-5 h-5", "transition-transform group-hover:scale-110")} />
+                <span>{item.label}</span>
+              </div>
+              {item.badge && item.badge > 0 && (
+                <span className="bg-red-500 text-white text-[10px] font-black px-2 py-0.5 rounded-full shadow-lg shadow-red-500/20">
+                  {item.badge}
+                </span>
+              )}
+            </NavLink>
+          )
+        )}
 
         {/* Premium Shortcuts removed */}
         
