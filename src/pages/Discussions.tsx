@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { MessageSquare, TrendingUp, Filter, Plus, ChevronRight, User, Loader2, X, Send, Copy, Smile, Reply, Forward } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { MessageSquare, TrendingUp, Filter, Plus, ChevronRight, User, Loader2, X, Send, Copy, Smile, Reply, Forward, ArrowRight, LogOut } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { toast } from 'react-hot-toast';
 import { db } from '../firebase';
@@ -13,6 +14,7 @@ import { sendRemotePushNotification } from '../lib/notifications';
 
 export default function Discussions() {
   const { profile } = useAuth();
+  const navigate = useNavigate();
   const [topics, setTopics] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -218,22 +220,30 @@ export default function Discussions() {
       <div className="bg-slate-900 rounded-3xl p-6 border border-slate-800 shadow-xl overflow-hidden relative min-h-[600px] flex flex-col">
         {!activeTopic ? (
           <>
-            <div className="flex items-center justify-between mb-8 pb-6 border-b border-white/5">
+            <div className="flex flex-wrap items-center justify-between gap-4 mb-8 pb-6 border-b border-white/5" dir="rtl">
               <div className="flex items-center gap-3">
-                <div className="bg-indigo-600/10 p-3 rounded-2xl">
+                <button
+                  onClick={() => navigate('/')}
+                  className="flex items-center gap-1.5 bg-red-500/10 hover:bg-red-500/20 text-red-400 hover:text-red-300 border border-red-500/20 px-3.5 py-2.5 rounded-2xl font-black text-xs transition-all active:scale-95 shrink-0"
+                  title="خروج من النقاشات"
+                >
+                  <LogOut className="w-4 h-4" />
+                  <span>خروج</span>
+                </button>
+                <div className="bg-indigo-600/10 p-3 rounded-2xl shrink-0">
                   <MessageSquare className="w-6 h-6 text-indigo-500" />
                 </div>
                 <div>
-                  <h2 className="text-2xl font-black text-white">النقاشات - Discussions</h2>
-                  <p className="text-sm text-slate-500 font-medium">Professional exchange and forum</p>
+                  <h2 className="text-xl sm:text-2xl font-black text-white">النقاشات</h2>
+                  <p className="text-xs sm:text-sm text-slate-400 font-medium">تبادل الآراء والخبرات التربوية</p>
                 </div>
               </div>
               <button 
                 onClick={() => setShowCreateModal(true)}
-                className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-3 rounded-2xl font-black text-sm shadow-lg shadow-indigo-500/20 active:scale-95 transition-all"
+                className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2.5 sm:px-6 sm:py-3 rounded-2xl font-black text-xs sm:text-sm shadow-lg shadow-indigo-500/20 active:scale-95 transition-all shrink-0"
               >
                 <Plus className="w-4 h-4" />
-                <span>New Discussion</span>
+                <span>نقاش جديد</span>
               </button>
             </div>
 
@@ -322,26 +332,38 @@ export default function Discussions() {
         ) : (
           <div className="flex-1 flex flex-col h-full -mx-6 -my-6 bg-slate-950">
             {/* Thread Header */}
-            <div className="p-6 bg-slate-900 border-b border-slate-800 flex items-center justify-between sticky top-0 z-10">
-              <div className="flex items-center gap-4">
+            <div className="p-4 sm:p-6 bg-slate-900 border-b border-slate-800 flex flex-wrap items-center justify-between gap-3 sticky top-0 z-10" dir="rtl">
+              <div className="flex items-center gap-3 min-w-0 flex-1">
                 <button 
                   onClick={() => setActiveTopic(null)}
-                  className="p-2 bg-slate-950 border border-slate-800 rounded-xl text-slate-400 hover:text-white transition-all active:scale-95"
+                  className="flex items-center gap-1.5 px-3 py-2 bg-slate-950 border border-slate-800 rounded-xl text-slate-300 hover:text-white transition-all active:scale-95 text-xs font-black shrink-0"
+                  title="رجوع لقائمة النقاشات"
                 >
-                  <X className="w-5 h-5 rotate-45" />
+                  <ArrowRight className="w-4 h-4" />
+                  <span>رجوع</span>
                 </button>
-                <div className="text-right">
-                  <h3 className="font-black text-white text-lg leading-tight" dir="rtl">{activeTopic.title}</h3>
-                  <div className="flex items-center justify-end gap-2 mt-1">
+                <div className="text-right min-w-0 flex-1">
+                  <h3 className="font-black text-white text-base sm:text-lg leading-tight truncate">{activeTopic.title}</h3>
+                  <div className="flex items-center gap-2 mt-1">
                     <span className="text-[10px] font-black text-indigo-400">{activeTopic.category}</span>
                     <span className="w-1 h-1 bg-slate-700 rounded-full"></span>
-                    <span className="text-[10px] text-slate-500 font-bold">{activeTopic.authorName}</span>
+                    <span className="text-[10px] text-slate-500 font-bold truncate">{activeTopic.authorName}</span>
                   </div>
                 </div>
               </div>
-              <div className="bg-indigo-600/10 px-4 py-2 rounded-2xl border border-indigo-500/20 text-indigo-400 flex items-center gap-2">
-                <TrendingUp className="w-4 h-4" />
-                <span className="text-xs font-black">{activeTopic.viewsCount} Views</span>
+              <div className="flex items-center gap-2 shrink-0">
+                <div className="bg-indigo-600/10 px-3 py-2 rounded-xl border border-indigo-500/20 text-indigo-400 flex items-center gap-1.5">
+                  <TrendingUp className="w-4 h-4" />
+                  <span className="text-xs font-black">{activeTopic.viewsCount || 0}</span>
+                </div>
+                <button
+                  onClick={() => navigate('/')}
+                  className="flex items-center gap-1.5 bg-red-500/10 hover:bg-red-500/20 text-red-400 hover:text-red-300 border border-red-500/20 px-3 py-2 rounded-xl font-black text-xs transition-all active:scale-95"
+                  title="خروج للرئيسية"
+                >
+                  <LogOut className="w-4 h-4" />
+                  <span>خروج</span>
+                </button>
               </div>
             </div>
 

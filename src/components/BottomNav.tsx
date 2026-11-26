@@ -4,7 +4,6 @@ import { cn } from '../lib/utils';
 import {
   Home,
   Bell,
-  MessageSquare,
   Menu,
   FileText,
   ClipboardCheck,
@@ -67,24 +66,6 @@ function BottomNav() {
               <>
                 <Home className={cn('w-5 h-5 transition-transform', isActive && 'scale-110')} />
                 <span className="text-[9px] font-black whitespace-nowrap">الرئيسية</span>
-              </>
-            )}
-          </NavLink>
-
-          {/* Discussions */}
-          <NavLink
-            to="/discussions"
-            className={({ isActive }) =>
-              cn(
-                'flex-1 min-h-[48px] flex flex-col items-center justify-center gap-0.5 py-1 rounded-xl transition-all',
-                isActive ? 'text-primary' : 'text-slate-400 hover:text-white'
-              )
-            }
-          >
-            {({ isActive }) => (
-              <>
-                <MessageSquare className={cn('w-5 h-5 transition-transform', isActive && 'scale-110')} />
-                <span className="text-[9px] font-black whitespace-nowrap">النقاشات</span>
               </>
             )}
           </NavLink>

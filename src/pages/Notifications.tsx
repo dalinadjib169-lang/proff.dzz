@@ -10,7 +10,7 @@ import { Link } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { handleFirestoreError, OperationType } from '../lib/firestore-errors';
 import { playSound, unlockAudio } from '../lib/sounds';
-import { clearSystemNotifications, subscribeToPushNotifications, displayNotification, playTestNotificationSound, sendRemotePushNotification, getPushServerStatus, sendTestServerPush, isRunningInIframe } from '../lib/notifications';
+import { clearSystemNotifications, subscribeToPushNotifications, subscribeToPushNotificationsDetailed, displayNotification, playTestNotificationSound, sendRemotePushNotification, getPushServerStatus, sendTestServerPush, isRunningInIframe, isAndroidWebView } from '../lib/notifications';
 
 export default function Notifications() {
   const { profile } = useAuth();
@@ -219,28 +219,33 @@ export default function Notifications() {
     setEnablingPush(true);
     try {
       unlockAudio();
-      const ok = await subscribeToPushNotifications(profile.uid);
+      const result = await subscribeToPushNotificationsDetailed(profile.uid);
       const perm = typeof window !== 'undefined' && 'Notification' in window ? window.Notification.permission : 'default';
       setNotifPermission(perm);
-      if (ok || perm === 'granted') {
+      if (result.ok || perm === 'granted') {
         await updateDoc(doc(db, 'users', profile.uid), {
           'settings.isPushNotificationsEnabled': true,
           'settings.isNotificationSoundEnabled': true
         }).catch(() => {});
-        setServerSubscribed(ok);
+        setServerSubscribed(result.mode === 'webpush');
         playTestNotificationSound();
-        if (ok) {
+        if (result.mode === 'webpush') {
           await sendTestServerPush(profile.uid, 0);
         } else {
           await displayNotification('تم تفعيل الإشعارات بنجاح', {
-            body: 'ستصلك الإشعارات الصوتية والكتابية حتى عند إغلاق التطبيق أو في الخلفية.',
+            body: 'ستصلك الإشعارات الصوتية والكتابية عند وصول أي تنبيه.',
             soundType: 'notification',
             url: '/notifications'
           });
         }
-        toast.success('تم تفعيل إشعارات الخلفية بنجاح');
+        toast.success('تم تفعيل الإشعارات بنجاح');
+      } else if (result.mode === 'webview') {
+        playTestNotificationSound();
+        toast('التنبيهات الصوتية مفعّلة داخل التطبيق. لإشعارات الخلفية افتح الموقع في Chrome وثبّت التطبيق.', {
+          duration: 5000
+        });
       } else {
-        toast.error('يرجى السماح بالإشعارات من إعدادات المتصفح');
+        toast.error(result.error || 'يرجى السماح بالإشعارات من إعدادات المتصفح');
       }
     } finally {
       setEnablingPush(false);

@@ -1,12 +1,14 @@
 import React, { useEffect, useState } from 'react';
-import { BellRing, Download, ExternalLink, ShieldAlert, X, CheckCircle2 } from 'lucide-react';
+import { BellRing, Download, ExternalLink, ShieldAlert, X, CheckCircle2, Volume2, Smartphone } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
 import { usePWAInstall } from '../hooks/usePWAInstall';
 import {
   getPushServerStatus,
+  isAndroidWebView,
   isRunningInIframe,
-  subscribeToPushNotifications,
+  subscribeToPushNotificationsDetailed,
   sendTestServerPush,
+  displayNotification,
 } from '../lib/notifications';
 import { unlockAudio, playSound } from '../lib/sounds';
 import { doc, updateDoc } from 'firebase/firestore';
@@ -18,8 +20,10 @@ export default function PushPermissionBanner() {
   const { isInstallable, isInstalled, isIOS, install } = usePWAInstall();
   const [dismissed, setDismissed] = useState(false);
   const [inIframe, setInIframe] = useState(false);
+  const [inWebView, setInWebView] = useState(false);
   const [permission, setPermission] = useState<NotificationPermission>('default');
   const [serverSubscribed, setServerSubscribed] = useState<boolean | null>(null);
+  const [backendAvailable, setBackendAvailable] = useState<boolean>(true);
   const [activating, setActivating] = useState(false);
   const [showIOSGuide, setShowIOSGuide] = useState(false);
 
@@ -27,6 +31,7 @@ export default function PushPermissionBanner() {
 
   useEffect(() => {
     setInIframe(isRunningInIframe());
+    setInWebView(isAndroidWebView());
     if (supportsNotification) {
       setPermission(Notification.permission);
     }
@@ -36,7 +41,10 @@ export default function PushPermissionBanner() {
     if (!profile?.uid) return;
     let active = true;
     getPushServerStatus(profile.uid).then((st) => {
-      if (active) setServerSubscribed(st.subscribed);
+      if (active) {
+        setServerSubscribed(st.subscribed);
+        setBackendAvailable(st.backendAvailable !== false);
+      }
     });
     return () => {
       active = false;
@@ -45,14 +53,14 @@ export default function PushPermissionBanner() {
 
   if (!profile?.uid || dismissed) return null;
 
-  // Hide automatically once granted & synced to server (unless iOS Safari still needs Home Screen install)
+  // Hide automatically once granted & synced (or granted on static host where push backend is not present)
   const needsIOSInstall = isIOS && !isInstalled && !supportsNotification;
-  if (permission === 'granted' && serverSubscribed === true && !needsIOSInstall) {
+  if (permission === 'granted' && (serverSubscribed === true || !backendAvailable) && !needsIOSInstall && !inWebView) {
     return null;
   }
 
-  // Only show if not yet subscribed/granted, or blocked, or inside iframe without active push
-  if (serverSubscribed === null && permission === 'granted') {
+  // Wait for status check when already granted
+  if (serverSubscribed === null && permission === 'granted' && !inWebView) {
     return null;
   }
 
@@ -61,27 +69,62 @@ export default function PushPermissionBanner() {
     setActivating(true);
     try {
       unlockAudio();
-      const ok = await subscribeToPushNotifications(profile.uid);
+      const result = await subscribeToPushNotificationsDetailed(profile.uid);
       const nextPerm = supportsNotification ? Notification.permission : 'denied';
       setPermission(nextPerm);
 
-      if (ok) {
-        setServerSubscribed(true);
+      if (result.ok) {
+        if (result.mode === 'webpush') {
+          setServerSubscribed(true);
+        }
         await updateDoc(doc(db, 'users', profile.uid), {
           'settings.isPushNotificationsEnabled': true,
           'settings.isNotificationSoundEnabled': true,
         }).catch(() => {});
+
         playSound('notification');
-        await sendTestServerPush(profile.uid, 0);
-        toast.success('تم تفعيل الإشعارات الصوتية والكتابية في الخلفية بنجاح!');
-      } else if (nextPerm === 'denied') {
-        toast.error('الإشعارات محظورة من المتصفح، يرجى السماح بها من إعدادات الموقع');
+
+        if (result.mode === 'webpush') {
+          await sendTestServerPush(profile.uid, 0);
+          toast.success('تم تفعيل الإشعارات الصوتية والكتابية في الخلفية بنجاح!');
+        } else {
+          await displayNotification('تم تفعيل إشعارات TeachDZ', {
+            body: 'ستصلك تنبيهات صوتية وكتابية للرسائل والإشعارات.',
+            soundType: 'notification',
+            url: '/notifications',
+          });
+          toast.success('تم تفعيل إشعارات المتصفح الصوتية والكتابية بنجاح!');
+        }
+        setDismissed(true);
+      } else if (result.mode === 'webview') {
+        playSound('notification');
+        toast('التنبيهات الصوتية مفعّلة داخل التطبيق. لتفعيل إشعارات الخلفية افتح الموقع في Chrome وثبّته على الهاتف.', {
+          duration: 5000,
+        });
+      } else if (result.mode === 'denied' || nextPerm === 'denied') {
+        toast.error('الإشعارات محظورة من المتصفح، اضغط أيقونة القفل بجانب الرابط واسمح بالإشعارات');
+      } else if (result.mode === 'iframe') {
+        toast.error('هذه النافذة تمنع الإشعارات، اضغط على زر «فتح التطبيق مباشرة»');
+      } else if (result.mode === 'unsupported') {
+        toast.error('هذا المتصفح لا يدعم إشعارات الويب، افتح الموقع في Chrome');
       } else {
-        toast.error('تعذر التفعيل داخل هذه النافذة، افتح التطبيق مباشرة في المتصفح');
+        toast.error(result.error || 'يرجى الموافقة على إذن الإشعارات عند ظهوره في المتصفح');
       }
     } finally {
       setActivating(false);
     }
+  };
+
+  const handleWebViewSoundTest = async () => {
+    if (!profile?.uid) return;
+    unlockAudio();
+    playSound('notification');
+    await updateDoc(doc(db, 'users', profile.uid), {
+      'settings.isNotificationSoundEnabled': true,
+      'settings.isPushNotificationsEnabled': true,
+    }).catch(() => {});
+    toast.success('تم تفعيل وتجربة صوت التنبيهات داخل التطبيق');
+    setDismissed(true);
   };
 
   return (
@@ -89,7 +132,9 @@ export default function PushPermissionBanner() {
       <div className="flex items-start justify-between gap-3">
         <div className="flex items-start gap-3">
           <div className="w-10 h-10 rounded-xl bg-indigo-500/20 border border-indigo-400/30 flex items-center justify-center shrink-0 mt-0.5">
-            {permission === 'denied' ? (
+            {inWebView ? (
+              <Smartphone className="w-5 h-5 text-amber-400" />
+            ) : permission === 'denied' ? (
               <ShieldAlert className="w-5 h-5 text-amber-400" />
             ) : (
               <BellRing className="w-5 h-5 text-indigo-300 animate-pulse" />
@@ -97,14 +142,18 @@ export default function PushPermissionBanner() {
           </div>
           <div className="space-y-1">
             <h4 className="text-xs sm:text-sm font-black text-white">
-              {needsIOSInstall
+              {inWebView
+                ? 'تنبيهات تطبيق أندرويد (AppCreator24)'
+                : needsIOSInstall
                 ? 'ثبّت التطبيق لتفعيل الإشعارات مثل فيسبوك'
                 : permission === 'denied'
                 ? 'الإشعارات محظورة حالياً من المتصفح'
                 : 'تفعيل الإشعارات الفورية حتى عند إغلاق التطبيق'}
             </h4>
             <p className="text-[11px] sm:text-xs text-slate-300 leading-relaxed">
-              {inIframe
+              {inWebView
+                ? 'أنت تستخدم التطبيق داخل عارض الويب (WebView) الذي يقيّد إشعارات المتصفح المغلق. الصوت والتنبيهات الفورية تعمل أثناء فتح التطبيق، ولإشعارات الخلفية مثل فيسبوك ثبّت الموقع عبر متصفح Chrome أو فعّل OneSignal في AppCreator24.'
+                : inIframe
                 ? 'المعاينة داخل الإطار تمنع إشعارات الخلفية؛ افتح التطبيق مباشرة في المتصفح لتصلك الرسائل صوتياً وكتابياً عند إغلاق التطبيق.'
                 : needsIOSInstall
                 ? 'على أجهزة iPhone اضغط على زر المشاركة ثم "إضافة إلى الشاشة الرئيسية" لتصلك التنبيهات الصوتية والكتابية.'
@@ -114,7 +163,27 @@ export default function PushPermissionBanner() {
             </p>
 
             <div className="flex flex-wrap items-center gap-2 pt-1.5">
-              {inIframe ? (
+              {inWebView ? (
+                <>
+                  <button
+                    type="button"
+                    onClick={handleWebViewSoundTest}
+                    className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-black shadow-lg shadow-indigo-600/25 transition-all"
+                  >
+                    <Volume2 className="w-3.5 h-3.5" />
+                    تفعيل وتجربة صوت التنبيه
+                  </button>
+                  <a
+                    href={window.location.href}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-black shadow-lg shadow-emerald-600/25 transition-all"
+                  >
+                    <ExternalLink className="w-3.5 h-3.5" />
+                    فتح في Chrome للتثبيت
+                  </a>
+                </>
+              ) : inIframe ? (
                 <a
                   href={window.location.href}
                   target="_blank"
@@ -147,7 +216,7 @@ export default function PushPermissionBanner() {
                 )
               )}
 
-              {isInstallable && !isInstalled && !inIframe && (
+              {!inWebView && isInstallable && !isInstalled && !inIframe && (
                 <button
                   type="button"
                   onClick={install}

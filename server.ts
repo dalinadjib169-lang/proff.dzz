@@ -266,6 +266,75 @@ app.post("/api/push/test", async (req, res) => {
   }
 });
 
+const ALLOWED_IMAGE_HOSTS = new Set([
+  "res.cloudinary.com",
+  "firebasestorage.googleapis.com",
+  "storage.googleapis.com",
+  "lh3.googleusercontent.com",
+  "ui-avatars.com",
+  "images.unsplash.com",
+]);
+
+app.get("/api/download-image", async (req, res) => {
+  try {
+    const rawUrl = typeof req.query.url === "string" ? req.query.url.trim() : "";
+    if (!rawUrl) {
+      return res.status(400).json({ error: "Missing url parameter" });
+    }
+
+    let parsed: URL;
+    try {
+      parsed = new URL(rawUrl);
+    } catch {
+      return res.status(400).json({ error: "Invalid url" });
+    }
+
+    if (parsed.protocol !== "https:" || parsed.username || parsed.password) {
+      return res.status(400).json({ error: "Unsupported protocol" });
+    }
+
+    const hostname = parsed.hostname.toLowerCase();
+    if (!ALLOWED_IMAGE_HOSTS.has(hostname)) {
+      return res.status(403).json({ error: "Host not allowed" });
+    }
+
+    if (req.query.probe === "1") {
+      return res.json({ ok: true });
+    }
+
+    const upstream = await fetch(parsed.toString(), { redirect: "error" });
+    if (!upstream.ok) {
+      return res.status(502).json({ error: "Upstream fetch failed" });
+    }
+
+    const contentType = upstream.headers.get("content-type") || "image/jpeg";
+    if (!contentType.startsWith("image/")) {
+      return res.status(415).json({ error: "Not an image" });
+    }
+
+    const ext = contentType.includes("png")
+      ? "png"
+      : contentType.includes("webp")
+      ? "webp"
+      : contentType.includes("gif")
+      ? "gif"
+      : "jpg";
+    const filename = `teachdz-image-${Date.now()}.${ext}`;
+
+    const arrayBuffer = await upstream.arrayBuffer();
+    const buffer = Buffer.from(arrayBuffer);
+
+    res.setHeader("Content-Type", contentType);
+    res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
+    res.setHeader("X-Content-Type-Options", "nosniff");
+    res.setHeader("Cache-Control", "private, max-age=300");
+    return res.send(buffer);
+  } catch (err: any) {
+    console.error("Image download proxy error:", err);
+    return res.status(500).json({ error: "Download failed" });
+  }
+});
+
 // API Routes
 app.post("/api/gemini/generate", async (req, res) => {
   try {

@@ -36,7 +36,7 @@ import { sendPasswordResetEmail, deleteUser, signOut, updatePassword } from 'fir
 import { auth } from '../firebase';
 import { useTranslation } from '../hooks/useTranslation';
 import CloudinaryUploader from '../components/CloudinaryUploader';
-import { subscribeToPushNotifications, displayNotification, playTestNotificationSound, getPushServerStatus, sendTestServerPush, isRunningInIframe } from '../lib/notifications';
+import { subscribeToPushNotifications, subscribeToPushNotificationsDetailed, displayNotification, playTestNotificationSound, getPushServerStatus, sendTestServerPush, isRunningInIframe, isAndroidWebView } from '../lib/notifications';
 import { setNotificationSoundEnabled, unlockAudio } from '../lib/sounds';
 
 export default function Settings() {
@@ -171,12 +171,12 @@ export default function Settings() {
     setActivatingPush(true);
     try {
       unlockAudio();
-      const ok = await subscribeToPushNotifications(profile.uid);
+      const result = await subscribeToPushNotificationsDetailed(profile.uid);
       const perm = typeof window !== 'undefined' && 'Notification' in window ? Notification.permission : 'default';
       setPushStatus(perm);
       const updatedSettings: UserSettings = {
         ...settings,
-        isPushNotificationsEnabled: ok || perm === 'granted',
+        isPushNotificationsEnabled: result.ok || perm === 'granted' || isAndroidWebView(),
         isNotificationSoundEnabled: settings.isNotificationSoundEnabled !== false
       };
       setSettings(updatedSettings);
@@ -184,26 +184,35 @@ export default function Settings() {
       await updateDoc(doc(db, 'users_private', profile.uid), { settings: updatedSettings });
       setNotificationSoundEnabled(updatedSettings.isNotificationSoundEnabled !== false);
 
-      if (ok || perm === 'granted') {
-        if (ok) {
+      if (result.ok || perm === 'granted') {
+        if (result.mode === 'webpush') {
           getPushServerStatus(profile.uid).then(setServerPushInfo);
           await sendTestServerPush(profile.uid, 0);
         } else {
           await displayNotification('تم تفعيل إشعارات TeachDZ', {
-            body: 'ستصلك الآن تنبيهات صوتية وكتابية للرسائل والتفاعلات حتى عند إغلاق التطبيق.',
+            body: 'ستصلك الآن تنبيهات صوتية وكتابية للرسائل والتفاعلات.',
             soundType: 'notification',
             url: '/notifications'
           });
         }
         playTestNotificationSound();
-        toast.success('تم تفعيل الإشعارات الصوتية والكتابية في الخلفية بنجاح!');
-      } else if (perm === 'denied') {
+        toast.success(
+          result.mode === 'webpush'
+            ? 'تم تفعيل الإشعارات الصوتية والكتابية في الخلفية بنجاح!'
+            : 'تم تفعيل إشعارات المتصفح الصوتية والكتابية بنجاح!'
+        );
+      } else if (result.mode === 'webview') {
+        playTestNotificationSound();
+        toast('التنبيهات الصوتية مفعّلة داخل التطبيق. لإشعارات الخلفية افتح الموقع في Chrome وثبّت التطبيق.', {
+          duration: 5000
+        });
+      } else if (result.mode === 'denied' || perm === 'denied') {
         toast.error('تم حظر الإشعارات من المتصفح، يرجى السماح بها من إعدادات المتصفح');
       } else {
         toast.error(
           isRunningInIframe()
             ? 'يرجى فتح التطبيق خارج إطار المعاينة لتفعيل إشعارات الخلفية'
-            : 'تعذر إكمال تفعيل الإشعارات'
+            : result.error || 'يرجى الموافقة على إذن الإشعارات عند ظهوره في المتصفح'
         );
       }
     } catch (error) {
