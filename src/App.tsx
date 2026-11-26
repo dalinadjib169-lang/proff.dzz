@@ -37,10 +37,11 @@ import { auth, db, onConnectionChange } from './firebase';
 import { signOut } from 'firebase/auth';
 import { collection, query, where, orderBy, limit, onSnapshot, doc, updateDoc } from 'firebase/firestore';
 import { playSound, setNotificationSoundEnabled } from './lib/sounds';
-import { displayNotification, subscribeToPushNotifications } from './lib/notifications';
+import { displayNotification, subscribeToPushNotifications, syncSubscriptionPayload, clearSystemNotifications } from './lib/notifications';
 import { motion, AnimatePresence } from 'motion/react';
 import { WifiOff, X } from 'lucide-react';
 import AcademicLoader from './components/AcademicLoader';
+import PushPermissionBanner from './components/PushPermissionBanner';
 
 import { UploadProvider } from './hooks/useUpload';
 import { Toaster } from 'react-hot-toast';
@@ -198,6 +199,12 @@ export default function App() {
       subscribeToPushNotifications(profile.uid);
     }
 
+    const handleVisibility = () => {
+      if (document.visibilityState === 'visible') {
+        clearSystemNotifications();
+      }
+    };
+
     const handleSwMessage = (event: MessageEvent) => {
       if (event.data?.type === 'PUSH_RECEIVED') {
         const pType = event.data?.payload?.type;
@@ -205,16 +212,20 @@ export default function App() {
         playSound(soundType);
       } else if (event.data?.type === 'NOTIFICATION_CLICKED') {
         const p = event.data?.payload || {};
-        if (p.type === 'message' || p.type === 'call' || p.roomId) {
-          window.dispatchEvent(new CustomEvent('show-chat'));
+        if (p.type === 'message' || p.type === 'call' || p.roomId || p.senderId) {
+          window.dispatchEvent(new CustomEvent('show-chat', { detail: p.roomId || p.senderId ? { uid: p.roomId || p.senderId } : undefined }));
         }
+      } else if (event.data?.type === 'PUSH_SUBSCRIPTION_CHANGED' && event.data?.subscription) {
+        syncSubscriptionPayload(profile.uid, event.data.subscription);
       }
     };
 
+    document.addEventListener('visibilitychange', handleVisibility);
     if ('serviceWorker' in navigator) {
       navigator.serviceWorker.addEventListener('message', handleSwMessage);
     }
     return () => {
+      document.removeEventListener('visibilitychange', handleVisibility);
       if ('serviceWorker' in navigator) {
         navigator.serviceWorker.removeEventListener('message', handleSwMessage);
       }
@@ -525,6 +536,7 @@ export default function App() {
         </AnimatePresence>
 
                 <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-4 sm:py-8 pb-28 lg:pb-24">
+                  {user && profile?.isProfileComplete && <PushPermissionBanner />}
                   {user && profile?.isProfileComplete && <div className="mb-6"><PrayerWaterBar /></div>}
                   <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 lg:gap-8">
                     {user && (

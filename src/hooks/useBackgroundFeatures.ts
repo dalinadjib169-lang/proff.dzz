@@ -52,17 +52,17 @@ export function useBackgroundFeatures() {
   useEffect(() => {
     // Register Service Worker
     if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.register('/sw.js').then(reg => {
+      navigator.serviceWorker.register('/sw.js', { updateViaCache: 'none' }).then(reg => {
         console.log('SW Registered', reg);
+      }).catch(err => {
+        console.warn('SW registration warning:', err);
       });
     }
     
-    // Request Notification Permissions & subscribe when granted
-    requestNotificationPermission().then((perm) => {
-      if (perm === 'granted' && profile?.uid) {
-        subscribeToPushNotifications(profile.uid);
-      }
-    });
+    // Auto-sync Web Push subscription silently when permission was already granted
+    if (typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'granted' && profile?.uid) {
+      subscribeToPushNotifications(profile.uid);
+    }
   }, [profile?.uid]);
 
   // Prayer Times Monitoring

@@ -9,6 +9,7 @@ import { formatDistanceToNow } from 'date-fns';
 import { handleFirestoreError, OperationType } from '../lib/firestore-errors';
 import { useUpload } from '../hooks/useUpload';
 import { playSound } from '../lib/sounds';
+import { sendRemotePushNotification } from '../lib/notifications';
 import { useNavigate } from 'react-router-dom';
 
 const WILAYAS = [
@@ -157,15 +158,28 @@ export default function Market() {
     }));
     
     // Notify the seller
-    addDoc(collection(db, 'notifications'), {
-      recipientId: product.sellerId,
-      senderId: profile?.uid,
-      senderName: profile?.displayName,
-      type: 'market_interest',
-      read: false,
-      createdAt: serverTimestamp(),
-      message: `مهتم بمنتجك: ${product.title}`
-    });
+    if (profile?.uid && product.sellerId && product.sellerId !== profile.uid) {
+      addDoc(collection(db, 'notifications'), {
+        recipientId: product.sellerId,
+        senderId: profile.uid,
+        senderName: profile.displayName,
+        type: 'market_interest',
+        read: false,
+        createdAt: serverTimestamp(),
+        message: `مهتم بمنتجك: ${product.title}`
+      });
+
+      sendRemotePushNotification({
+        recipientId: product.sellerId,
+        title: `اهتمام بمنتجك في السوق 🛒`,
+        body: `${profile.displayName} مهتم بمنتجك: ${product.title}`,
+        icon: profile.photoURL || '/prof_dali_logo.png',
+        tag: `market-${product.id}`,
+        url: '/notifications',
+        type: 'notification',
+        senderId: profile.uid,
+      });
+    }
   };
 
   return (

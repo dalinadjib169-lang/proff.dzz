@@ -17,8 +17,25 @@ function urlBase64ToUint8Array(base64String: string): Uint8Array {
   return outputArray;
 }
 
+function uint8ArraysEqual(a: Uint8Array, b: Uint8Array): boolean {
+  if (a.length !== b.length) return false;
+  for (let i = 0; i < a.length; i++) {
+    if (a[i] !== b[i]) return false;
+  }
+  return true;
+}
+
+export function isRunningInIframe(): boolean {
+  if (typeof window === 'undefined') return false;
+  try {
+    return window.self !== window.top;
+  } catch {
+    return true;
+  }
+}
+
 export async function requestNotificationPermission(): Promise<NotificationPermission> {
-  if (!('Notification' in window)) {
+  if (typeof window === 'undefined' || !('Notification' in window)) {
     console.warn('This browser does not support notifications.');
     return 'denied';
   }
@@ -35,8 +52,23 @@ export async function requestNotificationPermission(): Promise<NotificationPermi
   }
 }
 
+export async function syncSubscriptionPayload(uid: string, subscription: any): Promise<boolean> {
+  if (!uid || !subscription) return false;
+  try {
+    const res = await fetch('/api/push/subscribe', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ uid, subscription }),
+    });
+    return res.ok;
+  } catch (err) {
+    console.warn('Sync push subscription error:', err);
+    return false;
+  }
+}
+
 export async function subscribeToPushNotifications(uid: string): Promise<boolean> {
-  if (!uid || !('Notification' in window) || !('serviceWorker' in navigator)) {
+  if (!uid || typeof window === 'undefined' || !('Notification' in window) || !('serviceWorker' in navigator)) {
     return false;
   }
 
@@ -44,7 +76,11 @@ export async function subscribeToPushNotifications(uid: string): Promise<boolean
     const permission = await requestNotificationPermission();
     if (permission !== 'granted') return false;
 
-    const registration = await navigator.serviceWorker.ready;
+    let registration = await navigator.serviceWorker.getRegistration('/sw.js');
+    if (!registration) {
+      registration = await navigator.serviceWorker.register('/sw.js', { updateViaCache: 'none' });
+    }
+    registration = await navigator.serviceWorker.ready;
     if (!registration || !('pushManager' in registration)) {
       return false;
     }
@@ -54,25 +90,63 @@ export async function subscribeToPushNotifications(uid: string): Promise<boolean
     const { publicKey } = await keyRes.json();
     if (!publicKey) return false;
 
+    const convertedKey = urlBase64ToUint8Array(publicKey);
+
     let subscription = await registration.pushManager.getSubscription();
+    if (subscription && subscription.options?.applicationServerKey) {
+      const existingKeyBytes = new Uint8Array(subscription.options.applicationServerKey);
+      if (!uint8ArraysEqual(existingKeyBytes, convertedKey)) {
+        // Server VAPID key changed — unsubscribe stale endpoint and re-subscribe
+        await subscription.unsubscribe().catch(() => {});
+        subscription = null;
+      }
+    }
+
     if (!subscription) {
-      const convertedKey = urlBase64ToUint8Array(publicKey);
       subscription = await registration.pushManager.subscribe({
         userVisibleOnly: true,
         applicationServerKey: convertedKey.buffer as ArrayBuffer,
       });
     }
 
-    await fetch('/api/push/subscribe', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ uid, subscription }),
-    });
-
-    return true;
+    const saved = await syncSubscriptionPayload(uid, subscription.toJSON ? subscription.toJSON() : subscription);
+    return saved;
   } catch (err) {
     console.warn('Push subscription setup skipped/failed:', err);
     return false;
+  }
+}
+
+export async function getPushServerStatus(uid: string): Promise<{ subscribed: boolean; count: number }> {
+  if (!uid) return { subscribed: false, count: 0 };
+  try {
+    const res = await fetch(`/api/push/status?uid=${encodeURIComponent(uid)}`);
+    if (!res.ok) return { subscribed: false, count: 0 };
+    const data = await res.json();
+    return { subscribed: Boolean(data.subscribed), count: Number(data.count || 0) };
+  } catch {
+    return { subscribed: false, count: 0 };
+  }
+}
+
+export async function sendTestServerPush(
+  uid: string,
+  delayMs = 0
+): Promise<{ ok: boolean; scheduled?: boolean; devices?: number; error?: string }> {
+  if (!uid) return { ok: false, error: 'Missing user id' };
+  try {
+    const res = await fetch('/api/push/test', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ uid, delayMs }),
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      return { ok: false, error: data.error || 'Failed to send test push' };
+    }
+    return data;
+  } catch (err: any) {
+    return { ok: false, error: err?.message || 'Network error' };
   }
 }
 
@@ -85,11 +159,15 @@ export async function sendRemotePushNotification(payload: {
   tag?: string;
   url?: string;
   type?: string;
+  roomId?: string;
+  senderId?: string;
+  badgeCount?: number;
 }) {
   try {
     await fetch('/api/push/send', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
+      keepalive: true,
       body: JSON.stringify(payload),
     });
   } catch (err) {
@@ -111,7 +189,7 @@ export async function displayNotification(title: string, options: CustomNotifica
   }
 
   // Ensure we have permission for system text notification
-  if (!('Notification' in window) || Notification.permission !== 'granted') {
+  if (typeof window === 'undefined' || !('Notification' in window) || Notification.permission !== 'granted') {
     return;
   }
 
@@ -154,7 +232,10 @@ export async function displayNotification(title: string, options: CustomNotifica
 }
 
 export async function clearSystemNotifications() {
-  if ('serviceWorker' in navigator) {
+  if (typeof navigator !== 'undefined' && typeof (navigator as any).clearAppBadge === 'function') {
+    (navigator as any).clearAppBadge().catch(() => {});
+  }
+  if (typeof navigator !== 'undefined' && 'serviceWorker' in navigator) {
     try {
       const registration = await navigator.serviceWorker.ready;
       if (registration && 'getNotifications' in registration) {

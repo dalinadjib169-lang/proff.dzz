@@ -10,7 +10,7 @@ import { Link } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { handleFirestoreError, OperationType } from '../lib/firestore-errors';
 import { playSound, unlockAudio } from '../lib/sounds';
-import { clearSystemNotifications, subscribeToPushNotifications, displayNotification, playTestNotificationSound, sendRemotePushNotification } from '../lib/notifications';
+import { clearSystemNotifications, subscribeToPushNotifications, displayNotification, playTestNotificationSound, sendRemotePushNotification, getPushServerStatus, sendTestServerPush, isRunningInIframe } from '../lib/notifications';
 
 export default function Notifications() {
   const { profile } = useAuth();
@@ -19,6 +19,13 @@ export default function Notifications() {
     typeof window !== 'undefined' && 'Notification' in window ? window.Notification.permission : 'default'
   );
   const [enablingPush, setEnablingPush] = useState(false);
+  const [serverSubscribed, setServerSubscribed] = useState<boolean>(false);
+  const [testingDelayed, setTestingDelayed] = useState(false);
+
+  useEffect(() => {
+    if (!profile?.uid) return;
+    getPushServerStatus(profile.uid).then((st) => setServerSubscribed(st.subscribed));
+  }, [profile?.uid]);
 
   useEffect(() => {
     if (!profile?.uid) return;
@@ -220,18 +227,55 @@ export default function Notifications() {
           'settings.isPushNotificationsEnabled': true,
           'settings.isNotificationSoundEnabled': true
         }).catch(() => {});
+        setServerSubscribed(ok);
         playTestNotificationSound();
-        await displayNotification('تم تفعيل الإشعارات بنجاح', {
-          body: 'ستصلك الإشعارات الصوتية والكتابية حتى عند إغلاق التطبيق أو في الخلفية.',
-          soundType: 'notification',
-          url: '/notifications'
-        });
+        if (ok) {
+          await sendTestServerPush(profile.uid, 0);
+        } else {
+          await displayNotification('تم تفعيل الإشعارات بنجاح', {
+            body: 'ستصلك الإشعارات الصوتية والكتابية حتى عند إغلاق التطبيق أو في الخلفية.',
+            soundType: 'notification',
+            url: '/notifications'
+          });
+        }
         toast.success('تم تفعيل إشعارات الخلفية بنجاح');
       } else {
         toast.error('يرجى السماح بالإشعارات من إعدادات المتصفح');
       }
     } finally {
       setEnablingPush(false);
+    }
+  };
+
+  const handleDelayedClosedAppTest = async () => {
+    if (!profile?.uid) return;
+    setTestingDelayed(true);
+    try {
+      unlockAudio();
+      let subscribed = serverSubscribed;
+      if (!subscribed) {
+        subscribed = await subscribeToPushNotifications(profile.uid);
+        setServerSubscribed(subscribed);
+        if (typeof window !== 'undefined' && 'Notification' in window) {
+          setNotifPermission(window.Notification.permission);
+        }
+      }
+      if (!subscribed) {
+        toast.error(
+          isRunningInIframe()
+            ? 'افتح التطبيق خارج إطار المعاينة أولاً لتفعيل إشعارات الخلفية'
+            : 'يرجى تفعيل الإشعارات من الزر أعلاه أولاً'
+        );
+        return;
+      }
+      const res = await sendTestServerPush(profile.uid, 5000);
+      if (res.ok) {
+        toast.success('تمت الجدولة! أغلق التطبيق أو أقفل الشاشة الآن — سيصلك الإشعار خلال 5 ثوانٍ');
+      } else {
+        toast.error(res.error || 'تعذر إرسال الإشعار التجريبي');
+      }
+    } finally {
+      setTestingDelayed(false);
     }
   };
 
@@ -244,7 +288,16 @@ export default function Notifications() {
           </div>
           <h1 className="text-2xl font-black text-white tracking-tight">الإشعارات والتنبيهات</h1>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            type="button"
+            onClick={handleDelayedClosedAppTest}
+            disabled={testingDelayed}
+            className="flex items-center gap-2 px-3.5 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl font-bold text-xs transition-all shadow-lg shadow-indigo-600/20 disabled:opacity-60"
+          >
+            <BellRing className="w-4 h-4" />
+            {testingDelayed ? 'جاري التحضير...' : 'تجربة والتطبيق مغلق (5 ثوانٍ)'}
+          </button>
           <button
             type="button"
             onClick={() => {
@@ -272,7 +325,7 @@ export default function Notifications() {
         </div>
       </div>
 
-      {notifPermission !== 'granted' && (
+      {(notifPermission !== 'granted' || !serverSubscribed) && (
         <div className="bg-gradient-to-l from-indigo-900/60 to-purple-900/60 border border-indigo-500/30 p-5 rounded-3xl flex flex-wrap items-center justify-between gap-4 shadow-lg">
           <div className="flex items-center gap-3">
             <div className="w-11 h-11 rounded-2xl bg-indigo-500/20 border border-indigo-400/30 flex items-center justify-center shrink-0">

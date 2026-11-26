@@ -21,7 +21,7 @@ import { signOut } from 'firebase/auth';
 import { collection, onSnapshot, query, where, updateDoc, doc } from 'firebase/firestore';
 import { auth, db } from '../firebase';
 import { isUserAdmin } from '../lib/admin';
-import { subscribeToPushNotifications, displayNotification } from '../lib/notifications';
+import { subscribeToPushNotifications, displayNotification, sendTestServerPush, isRunningInIframe } from '../lib/notifications';
 import { playSound, unlockAudio } from '../lib/sounds';
 
 function Navbar() {
@@ -60,14 +60,22 @@ function Navbar() {
           'settings.isNotificationSoundEnabled': true,
         }).catch(() => {});
         playSound('notification');
-        displayNotification('تم تفعيل إشعارات الخلفية ✅', {
-          body: 'ستصلك التنبيهات الصوتية والكتابية حتى عند إغلاق التطبيق.',
-          soundType: 'notification',
-          url: '/notifications',
-        });
+        if (ok) {
+          await sendTestServerPush(profile.uid, 0);
+        } else {
+          displayNotification('تم تفعيل إشعارات الخلفية ✅', {
+            body: 'ستصلك التنبيهات الصوتية والكتابية حتى عند إغلاق التطبيق.',
+            soundType: 'notification',
+            url: '/notifications',
+          });
+        }
         toast.success('تم تفعيل إشعارات الخلفية والصوت بنجاح');
       } else {
-        toast.error('يرجى السماح بالإشعارات من إعدادات المتصفح');
+        toast.error(
+          isRunningInIframe()
+            ? 'افتح التطبيق مباشرة في المتصفح لتفعيل إشعارات الخلفية'
+            : 'يرجى السماح بالإشعارات من إعدادات المتصفح'
+        );
       }
     } finally {
       setEnablingPush(false);

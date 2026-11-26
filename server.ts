@@ -86,6 +86,16 @@ app.get("/api/push/vapid-public-key", (req, res) => {
   res.json({ publicKey: vapidKeys.publicKey });
 });
 
+app.get("/api/push/status", (req, res) => {
+  const uid = String(req.query.uid || "");
+  const count = uid && pushSubscriptions[uid] ? pushSubscriptions[uid].length : 0;
+  res.json({
+    subscribed: count > 0,
+    count,
+    publicKey: vapidKeys.publicKey,
+  });
+});
+
 app.post("/api/push/subscribe", (req, res) => {
   try {
     const { uid, subscription } = req.body;
@@ -120,9 +130,72 @@ app.post("/api/push/unsubscribe", (req, res) => {
   }
 });
 
+async function dispatchWebPush(
+  targets: string[],
+  payloadObj: {
+    title: string;
+    body: string;
+    icon?: string;
+    tag?: string;
+    url?: string;
+    type?: string;
+    roomId?: string;
+    senderId?: string;
+    badgeCount?: number;
+  }
+) {
+  const payload = JSON.stringify({
+    title: payloadObj.title || "TeachDZ - إشعار جديد",
+    body: payloadObj.body || "",
+    icon: payloadObj.icon || "/prof_dali_logo.png",
+    badge: "/icon-192x192.png",
+    tag: payloadObj.tag || `teachdz-${Date.now()}`,
+    url: payloadObj.url || "/",
+    type: payloadObj.type || "general",
+    roomId: payloadObj.roomId || null,
+    senderId: payloadObj.senderId || null,
+    badgeCount: payloadObj.badgeCount || 1,
+  });
+
+  let sent = 0;
+  let failed = 0;
+  let changed = false;
+
+  for (const uid of targets) {
+    const subs = pushSubscriptions[uid];
+    if (!subs || subs.length === 0) continue;
+
+    const validSubs: webpush.PushSubscription[] = [];
+    for (const sub of subs) {
+      try {
+        await webpush.sendNotification(sub, payload, { TTL: 86400, urgency: "high" });
+        validSubs.push(sub);
+        sent++;
+      } catch (err: any) {
+        failed++;
+        const code = err?.statusCode;
+        console.warn(`WebPush delivery failed for uid=${uid} status=${code}:`, err?.body || err?.message);
+        if (code === 400 || code === 401 || code === 403 || code === 404 || code === 410) {
+          // Subscription is expired, revoked, or bound to an old VAPID key
+          changed = true;
+        } else {
+          validSubs.push(sub);
+        }
+      }
+    }
+    if (validSubs.length !== subs.length) {
+      pushSubscriptions[uid] = validSubs;
+      changed = true;
+    }
+  }
+
+  if (changed) saveSubscriptions(pushSubscriptions);
+  return { sent, failed };
+}
+
 app.post("/api/push/send", async (req, res) => {
   try {
-    const { recipientId, recipientIds, title, body, icon, tag, url, type } = req.body;
+    const { recipientId, recipientIds, title, body, icon, tag, url, type, roomId, senderId, badgeCount } = req.body;
     const targets: string[] = Array.from(
       new Set([
         ...(recipientId ? [recipientId] : []),
@@ -131,50 +204,64 @@ app.post("/api/push/send", async (req, res) => {
     ).filter(Boolean);
 
     if (targets.length === 0) {
-      return res.json({ ok: true, sent: 0 });
+      return res.json({ ok: true, sent: 0, failed: 0 });
     }
 
-    const payload = JSON.stringify({
-      title: title || "TeachDZ - إشعار جديد",
-      body: body || "",
-      icon: icon || "/prof_dali_logo.png",
-      badge: "/icon-192x192.png",
-      tag: tag || `teachdz-${Date.now()}`,
-      url: url || "/",
-      type: type || "general",
+    const result = await dispatchWebPush(targets, {
+      title,
+      body,
+      icon,
+      tag,
+      url,
+      type,
+      roomId,
+      senderId,
+      badgeCount,
     });
-
-    let sent = 0;
-    let changed = false;
-
-    for (const uid of targets) {
-      const subs = pushSubscriptions[uid];
-      if (!subs || subs.length === 0) continue;
-
-      const validSubs: webpush.PushSubscription[] = [];
-      for (const sub of subs) {
-        try {
-          await webpush.sendNotification(sub, payload, { TTL: 86400, urgency: "high" });
-          validSubs.push(sub);
-          sent++;
-        } catch (err: any) {
-          if (err?.statusCode === 404 || err?.statusCode === 410) {
-            changed = true;
-          } else {
-            validSubs.push(sub);
-          }
-        }
-      }
-      if (validSubs.length !== subs.length) {
-        pushSubscriptions[uid] = validSubs;
-        changed = true;
-      }
-    }
-
-    if (changed) saveSubscriptions(pushSubscriptions);
-    res.json({ ok: true, sent });
+    res.json({ ok: true, ...result });
   } catch (err: any) {
     console.error("Push send error:", err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post("/api/push/test", async (req, res) => {
+  try {
+    const { uid, delayMs } = req.body;
+    if (!uid) {
+      return res.status(400).json({ error: "Missing uid" });
+    }
+    const subs = pushSubscriptions[uid] || [];
+    if (subs.length === 0) {
+      return res.status(404).json({ ok: false, sent: 0, error: "No active push subscription registered on server" });
+    }
+
+    const safeDelay = Math.min(Math.max(Number(delayMs) || 0, 0), 15000);
+    if (safeDelay > 0) {
+      setTimeout(() => {
+        dispatchWebPush([uid], {
+          title: "📩 إشعار خادمي مباشر - TeachDZ",
+          body: "وصل هذا الإشعار صوتياً وكتابياً من الخادم والتطبيق مغلق تماماً مثل فيسبوك!",
+          icon: "/prof_dali_logo.png",
+          tag: `teachdz-test-${Date.now()}`,
+          url: "/notifications",
+          type: "message",
+        }).catch((e) => console.error("Delayed test push error:", e));
+      }, safeDelay);
+      return res.json({ ok: true, scheduled: true, delayMs: safeDelay, devices: subs.length });
+    }
+
+    const result = await dispatchWebPush([uid], {
+      title: "🔔 اختبار إشعارات الخلفية - TeachDZ",
+      body: "تم الربط بنجاح! ستصلك الإشعارات صوتياً وكتابياً حتى عند إغلاق التطبيق.",
+      icon: "/prof_dali_logo.png",
+      tag: `teachdz-test-${Date.now()}`,
+      url: "/notifications",
+      type: "notification",
+    });
+    res.json({ ok: result.sent > 0, ...result, devices: subs.length });
+  } catch (err: any) {
+    console.error("Push test error:", err);
     res.status(500).json({ error: err.message });
   }
 });

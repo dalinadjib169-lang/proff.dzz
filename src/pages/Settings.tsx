@@ -36,7 +36,7 @@ import { sendPasswordResetEmail, deleteUser, signOut, updatePassword } from 'fir
 import { auth } from '../firebase';
 import { useTranslation } from '../hooks/useTranslation';
 import CloudinaryUploader from '../components/CloudinaryUploader';
-import { subscribeToPushNotifications, displayNotification, playTestNotificationSound } from '../lib/notifications';
+import { subscribeToPushNotifications, displayNotification, playTestNotificationSound, getPushServerStatus, sendTestServerPush, isRunningInIframe } from '../lib/notifications';
 import { setNotificationSoundEnabled, unlockAudio } from '../lib/sounds';
 
 export default function Settings() {
@@ -59,6 +59,13 @@ export default function Settings() {
     typeof window !== 'undefined' && 'Notification' in window ? Notification.permission : 'default'
   );
   const [activatingPush, setActivatingPush] = useState(false);
+  const [serverPushInfo, setServerPushInfo] = useState<{ subscribed: boolean; count: number }>({ subscribed: false, count: 0 });
+  const [testingClosedPush, setTestingClosedPush] = useState(false);
+
+  useEffect(() => {
+    if (!profile?.uid) return;
+    getPushServerStatus(profile.uid).then(setServerPushInfo);
+  }, [profile?.uid]);
 
   useEffect(() => {
     if (profile) {
@@ -178,17 +185,26 @@ export default function Settings() {
       setNotificationSoundEnabled(updatedSettings.isNotificationSoundEnabled !== false);
 
       if (ok || perm === 'granted') {
+        if (ok) {
+          getPushServerStatus(profile.uid).then(setServerPushInfo);
+          await sendTestServerPush(profile.uid, 0);
+        } else {
+          await displayNotification('تم تفعيل إشعارات TeachDZ', {
+            body: 'ستصلك الآن تنبيهات صوتية وكتابية للرسائل والتفاعلات حتى عند إغلاق التطبيق.',
+            soundType: 'notification',
+            url: '/notifications'
+          });
+        }
         playTestNotificationSound();
-        await displayNotification('تم تفعيل إشعارات TeachDZ', {
-          body: 'ستصلك الآن تنبيهات صوتية وكتابية للرسائل والتفاعلات حتى عند إغلاق التطبيق.',
-          soundType: 'notification',
-          url: '/notifications'
-        });
         toast.success('تم تفعيل الإشعارات الصوتية والكتابية في الخلفية بنجاح!');
       } else if (perm === 'denied') {
         toast.error('تم حظر الإشعارات من المتصفح، يرجى السماح بها من إعدادات المتصفح');
       } else {
-        toast.error('تعذر إكمال تفعيل الإشعارات');
+        toast.error(
+          isRunningInIframe()
+            ? 'يرجى فتح التطبيق خارج إطار المعاينة لتفعيل إشعارات الخلفية'
+            : 'تعذر إكمال تفعيل الإشعارات'
+        );
       }
     } catch (error) {
       console.error('Push enable error:', error);
@@ -201,12 +217,43 @@ export default function Settings() {
   const handleTestNotification = async () => {
     unlockAudio();
     playTestNotificationSound();
-    await displayNotification('إشعار تجريبي من TeachDZ', {
-      body: 'هكذا تصلك الرسائل والإشعارات صوتياً وكتابياً مثل فيسبوك حتى عند إغلاق التطبيق.',
-      soundType: 'message',
-      url: '/notifications'
-    });
+    if (profile?.uid && serverPushInfo.subscribed) {
+      await sendTestServerPush(profile.uid, 0);
+    } else {
+      await displayNotification('إشعار تجريبي من TeachDZ', {
+        body: 'هكذا تصلك الرسائل والإشعارات صوتياً وكتابياً مثل فيسبوك حتى عند إغلاق التطبيق.',
+        soundType: 'message',
+        url: '/notifications'
+      });
+    }
     toast.success('تم إرسال إشعار تجريبي بصوت التنبيه');
+  };
+
+  const handleTestClosedAppNotification = async () => {
+    if (!profile?.uid) return;
+    setTestingClosedPush(true);
+    try {
+      unlockAudio();
+      let ready = serverPushInfo.subscribed;
+      if (!ready) {
+        ready = await subscribeToPushNotifications(profile.uid);
+        const st = await getPushServerStatus(profile.uid);
+        setServerPushInfo(st);
+        setPushStatus(typeof window !== 'undefined' && 'Notification' in window ? Notification.permission : 'default');
+      }
+      if (!ready) {
+        toast.error('يرجى تفعيل إشعارات الخلفية أولاً');
+        return;
+      }
+      const res = await sendTestServerPush(profile.uid, 5000);
+      if (res.ok) {
+        toast.success('تمت الجدولة! أغلق التطبيق الآن، وسيصلك الإشعار صوتياً وكتابياً خلال 5 ثوانٍ');
+      } else {
+        toast.error(res.error || 'تعذر إرسال الإشعار الخادمي');
+      }
+    } finally {
+      setTestingClosedPush(false);
+    }
   };
 
   const handleBlock = async (userId: string) => {
@@ -581,8 +628,12 @@ export default function Settings() {
                     <div>
                       <div className="flex items-center gap-2 flex-wrap">
                         <h4 className="text-sm font-black text-slate-800 dark:text-white">إشعارات الخلفية والصوت (مثل فيسبوك)</h4>
-                        <span className={`px-2 py-0.5 rounded-lg text-[10px] font-black ${pushStatus === 'granted' ? 'bg-emerald-500/20 text-emerald-500' : 'bg-amber-500/20 text-amber-500'}`}>
-                          {pushStatus === 'granted' ? 'مفعّلة' : pushStatus === 'denied' ? 'محظورة من المتصفح' : 'غير مفعّلة'}
+                        <span className={`px-2 py-0.5 rounded-lg text-[10px] font-black ${pushStatus === 'granted' && serverPushInfo.subscribed ? 'bg-emerald-500/20 text-emerald-500' : 'bg-amber-500/20 text-amber-500'}`}>
+                          {pushStatus === 'granted' && serverPushInfo.subscribed
+                            ? `مفعّلة (${serverPushInfo.count} جهاز)`
+                            : pushStatus === 'denied'
+                            ? 'محظورة من المتصفح'
+                            : 'بانتظار التفعيل'}
                         </span>
                       </div>
                       <p className="text-xs text-slate-500 dark:text-slate-400 font-bold mt-1">
@@ -626,10 +677,10 @@ export default function Settings() {
                     type="button"
                     onClick={handleEnableBackgroundPush}
                     disabled={activatingPush}
-                    className="flex-1 min-w-[180px] flex items-center justify-center gap-2 px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-black shadow-lg shadow-indigo-600/20 transition-all disabled:opacity-60"
+                    className="flex-1 min-w-[160px] flex items-center justify-center gap-2 px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-black shadow-lg shadow-indigo-600/20 transition-all disabled:opacity-60"
                   >
                     <Bell className="w-4 h-4" />
-                    {activatingPush ? 'جاري التفعيل...' : pushStatus === 'granted' ? 'تحديث ربط إشعارات الخلفية' : 'تفعيل إشعارات الخلفية'}
+                    {activatingPush ? 'جاري التفعيل...' : pushStatus === 'granted' && serverPushInfo.subscribed ? 'تحديث ربط إشعارات الخلفية' : 'تفعيل إشعارات الخلفية'}
                   </button>
                   <button
                     type="button"
@@ -637,7 +688,16 @@ export default function Settings() {
                     className="flex items-center justify-center gap-2 px-4 py-2.5 bg-slate-800 dark:bg-slate-700 hover:bg-slate-700 text-white rounded-xl text-xs font-black transition-all"
                   >
                     <Volume2 className="w-4 h-4 text-cyan-400" />
-                    تجربة الإشعار الصوتي والكتابي
+                    تجربة فورية
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleTestClosedAppNotification}
+                    disabled={testingClosedPush}
+                    className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-black shadow-lg shadow-emerald-600/20 transition-all disabled:opacity-60"
+                  >
+                    <BellRing className="w-4 h-4" />
+                    {testingClosedPush ? 'جاري الجدولة...' : 'اختبار الإشعار والتطبيق مغلق (بعد 5 ثوانٍ)'}
                   </button>
                 </div>
               </div>

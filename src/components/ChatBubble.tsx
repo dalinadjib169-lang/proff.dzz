@@ -546,15 +546,46 @@ export default function ChatBubble() {
           if (!snap.empty) {
             userData = { uid: snap.docs[0].id, ...snap.docs[0].data() };
           }
+        } else if (userData.uid && !userData.displayName) {
+          const matchedUser = users.find((u) => u.uid === userData.uid) || chatRooms.find((g) => g.uid === userData.uid || g.id === userData.uid);
+          if (matchedUser) {
+            userData = matchedUser;
+          } else {
+            userData = null;
+          }
         }
         
-        setActiveChat(userData);
+        if (userData) {
+          setActiveChat(userData);
+        }
       }
       setIsOpen(true);
     };
     window.addEventListener('show-chat', handleShowChat);
     return () => window.removeEventListener('show-chat', handleShowChat);
-  }, []);
+  }, [users, chatRooms]);
+
+  useEffect(() => {
+    if (!profile?.uid || typeof window === 'undefined') return;
+    const params = new URLSearchParams(window.location.search);
+    const openChatParam = params.get('openChat');
+    if (!openChatParam) return;
+
+    setIsOpen(true);
+    if (openChatParam !== '1') {
+      const target =
+        users.find((u) => u.uid === openChatParam) ||
+        chatRooms.find((g) => g.uid === openChatParam || g.id === openChatParam) ||
+        users.find((u) => [profile.uid, u.uid].sort().join('_') === openChatParam);
+      if (target) {
+        setActiveChat(target);
+      }
+    }
+    params.delete('openChat');
+    const nextSearch = params.toString();
+    const cleanUrl = window.location.pathname + (nextSearch ? `?${nextSearch}` : '') + window.location.hash;
+    window.history.replaceState({}, '', cleanUrl);
+  }, [profile?.uid, users, chatRooms]);
 
   const notifiedMessagesRef = useRef<Set<string>>(new Set());
 
@@ -1718,8 +1749,10 @@ export default function ChatBubble() {
             body: messageText.trim() || 'أرسل لك صورة/ملفاً صوتياً',
             icon: profile.photoURL || '/prof_dali_logo.png',
             tag: `chat-${roomId}`,
-            url: '/',
+            url: `/?openChat=${encodeURIComponent(activeChat.isGroup ? roomId : profile.uid)}`,
             type: 'message',
+            roomId,
+            senderId: profile.uid,
           });
         }
 
@@ -1773,8 +1806,10 @@ export default function ChatBubble() {
           body: messageText.slice(0, 120),
           icon: profile.photoURL || '/prof_dali_logo.png',
           tag: `chat-${roomId}`,
-          url: '/',
+          url: `/?openChat=${encodeURIComponent(activeChat.isGroup ? roomId : profile.uid)}`,
           type: 'message',
+          roomId,
+          senderId: profile.uid,
         });
       }
       if (isInviteMessage) {
@@ -2010,6 +2045,17 @@ export default function ChatBubble() {
           type: 'follow',
           read: false,
           createdAt: serverTimestamp()
+        });
+
+        sendRemotePushNotification({
+          recipientId: activeChat.uid,
+          title: `طلب صداقة ومراسلة من ${profile.displayName}`,
+          body: 'يريد التواصل معك عبر TeachDZ',
+          icon: profile.photoURL || '/prof_dali_logo.png',
+          tag: `invite-${profile.uid}`,
+          url: '/notifications',
+          type: 'notification',
+          senderId: profile.uid,
         });
       }
     } catch (error) {

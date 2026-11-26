@@ -9,6 +9,7 @@ import { formatDistanceToNow } from 'date-fns';
 import { handleFirestoreError, OperationType } from '../lib/firestore-errors';
 import { copyToClipboard } from '../lib/utils';
 import { playSound } from '../lib/sounds';
+import { sendRemotePushNotification } from '../lib/notifications';
 
 export default function Discussions() {
   const { profile } = useAuth();
@@ -135,6 +136,36 @@ export default function Discussions() {
         lastActivity: serverTimestamp(),
         repliesCount: increment(1)
       });
+
+      const targetUid =
+        currentReply?.senderId && currentReply.senderId !== profile.uid
+          ? currentReply.senderId
+          : activeTopic.authorId && activeTopic.authorId !== profile.uid
+          ? activeTopic.authorId
+          : null;
+
+      if (targetUid) {
+        addDoc(collection(db, 'notifications'), {
+          recipientId: targetUid,
+          senderId: profile.uid,
+          senderName: profile.displayName,
+          type: 'comment',
+          message: `ردّ في النقاش "${activeTopic.title}": ${msg.slice(0, 80)}`,
+          read: false,
+          createdAt: serverTimestamp(),
+        }).catch(() => {});
+
+        sendRemotePushNotification({
+          recipientId: targetUid,
+          title: `رد جديد من ${profile.displayName} في النقاشات`,
+          body: msg.slice(0, 120),
+          icon: profile.photoURL || '/prof_dali_logo.png',
+          tag: `discussion-${activeTopic.id}`,
+          url: '/discussions',
+          type: 'comment',
+          senderId: profile.uid,
+        });
+      }
     } catch (error) {
       handleFirestoreError(error, OperationType.CREATE, `discussions/${activeTopic.id}/messages`);
     }
